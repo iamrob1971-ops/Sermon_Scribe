@@ -836,117 +836,155 @@ var SITE_PATH = "/sites/Bible_App";
   }
 
   /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS */
+ /* REFINED DEVOTIONAL PIPELINE */
   async function saveDevotionalPipeline(token, siteId){
-    var rawText=out.innerText;
-    var rawHtml=out.innerHTML;
-    var targetRowId=$('targetResourceId').value.trim()||'17';
-    var devoDate=$('devoDate').value||new Date().toISOString().slice(0,10);
+    var rawText = out.innerText;
+    var rawHtml = out.innerHTML;
+    var targetRowId = $('targetResourceId').value.trim() || '17';
+    var devoDate = $('devoDate').value || new Date().toISOString().slice(0,10);
 
-    logSync('Beginning Devotional multi-list sync for date: '+devoDate+'...');
+    logSync('Beginning Devotional multi-list sync for date: ' + devoDate + '...');
 
-    // 1. Split Top Commentary (everything before Family Micro-Cards)
-    var splitToken='Family Micro-Cards';
-    var topCommentary=rawHtml;
-    var familyRaw=rawText;
+    // 1. Separate Top Commentary from Family Micro-Cards cleanly
+    var familySplitIdx = rawText.search(/Family Micro-Cards/i);
+    var topCommentary = rawHtml;
+    var familyRaw = "";
 
-    if(rawText.indexOf(splitToken)>-1){
-      var splitIdx=rawText.indexOf(splitToken);
-      familyRaw=rawText.slice(splitIdx);
-      // Estimate HTML equivalent
-      var htmlSplit=rawHtml.indexOf('Family Micro-Cards');
-      if(htmlSplit>-1) topCommentary=rawHtml.slice(0, htmlSplit);
+    if (familySplitIdx > -1) {
+      familyRaw = rawText.slice(familySplitIdx);
+      var htmlSplitIdx = rawHtml.search(/Family Micro-Cards/i);
+      if (htmlSplitIdx > -1) {
+        topCommentary = rawHtml.slice(0, htmlSplitIdx);
+      }
     }
 
-    // 2. PATCH Resources row
-    logSync('Patching Resources item #'+targetRowId+' (AdditionalCommentary)...');
-    var patchUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/Resources/items/'+targetRowId+'/fields';
-    var rRes=await fetch(patchUrl,{
-      method:'PATCH',
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({AdditionalCommentary: topCommentary})
+    // 2. PATCH Resources row (Read first, then overwrite or append)
+    logSync('Patching Resources item #' + targetRowId + ' (AdditionalCommentary)...');
+    var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Resources/items/' + targetRowId + '/fields';
+    
+    var rRes = await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ AdditionalCommentary: topCommentary })
     });
-    if(!rRes.ok){
-      var errData=await rRes.json();
-      logSync('⚠️ Resources patch warning: '+(errData.error&&errData.error.message||rRes.status));
-    }else{
-      logSync('✓ Resources #'+targetRowId+' updated.');
+
+    if (!rRes.ok) {
+      var errData = await rRes.json();
+      logSync('⚠️ Resources patch warning: ' + (errData.error && errData.error.message || rRes.status));
+    } else {
+      logSync('✓ Resources #' + targetRowId + ' updated.');
     }
 
-    // 3. Parse & Post Companion Voices
-    var compStart=rawText.toLowerCase().indexOf('companion voices');
-    if(compStart>-1){
-      var compSection=rawText.slice(compStart);
-      var compLines=compSection.split('\n').filter(function(l){return l.includes(':')&&!l.startsWith('#')});
-      logSync('Found '+compLines.length+' Companion Voices. Posting to SharePoint...');
+    // 3. Parse & Post Companion Voices (STOPS at Family Micro-Cards!)
+    var compStart = rawText.toLowerCase().indexOf('companion voices');
+    if (compStart > -1) {
+      var compEnd = (familySplitIdx > compStart) ? familySplitIdx : rawText.length;
+      var compSection = rawText.slice(compStart, compEnd);
+      
+      // Look for lines like "Name: Content" or "Name — Content"
+      var compLines = compSection.split('\n').filter(function(l){
+        var trimmed = l.trim();
+        return trimmed.length > 5 && (trimmed.includes(':') || trimmed.includes('—')) && !trimmed.startsWith('#');
+      });
 
-      for(var i=0;i<compLines.length;i++){
-        var line=compLines[i];
-        var colonIdx=line.indexOf(':');
-        var compName=line.slice(0,colonIdx).replace(/^[-*•\s]+/,'').trim();
-        var compContent=line.slice(colonIdx+1).trim();
+      logSync('Found ' + compLines.length + ' genuine Companion Voices. Posting...');
 
-        if(compName.length>1 && compName.length<40 && compContent.length>5){
-          await fetch('https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/Companion_Voices/items',{
-            method:'POST',
-            headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-            body:JSON.stringify({
-              fields:{
-                Title: 'Companion Voice • '+devoDate,
-                Companion: compName,
-                Voice: compContent.slice(0,250),
-                Voice_Extended: compContent,
-                InsightDate: new Date(devoDate).toISOString(),
-                ResourceType: ($('devoSource').value.trim()||'FCB')
-              }
-            })
-          });
-          logSync('  + Voice: '+compName);
+      for (var i = 0; i < compLines.length; i++) {
+        var line = compLines[i];
+        var sepIdx = line.indexOf(':') > -1 ? line.indexOf(':') : line.indexOf('—');
+        var compName = line.slice(0, sepIdx).replace(/^[-*•#\s]+/, '').trim();
+        var compContent = line.slice(sepIdx + 1).trim();
+
+        // Skip non-voice lines like labels
+        var skipWords = ['verse', 'hook', 'reflect', 'pray', 'reference', 'hymn', 'refrain'];
+        if (skipWords.includes(compName.toLowerCase())) continue;
+
+        if (compName.length > 1 && compName.length < 50 && compContent.length > 5) {
+          try {
+            await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Companion_Voices/items', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fields: {
+                  Title: 'Companion Voice • ' + devoDate,
+                  Companion: compName,
+                  Voice: compContent.slice(0, 250),
+                  Voice_Extended: compContent,
+                  InsightDate: new Date(devoDate).toISOString(),
+                  ResourceType: ($('devoSource').value.trim() || 'FCB')
+                }
+              })
+            });
+            logSync('  + Voice: ' + compName);
+          } catch(e){}
         }
       }
     }
 
-    // 4. Parse & Post Family Insights (Wesley, Mac, Jonathan, Kim, Rob, Prayer, Refrain)
+    // 4. Parse & Post Family Insights (Robust Regex Matching for dashes & asterisks)
     logSync('Parsing Family Micro-Cards and Prayer...');
 
-    function getSlice(startAnchor, nextAnchor){
-      var s=familyRaw.indexOf(startAnchor);if(s===-1)return '';
-      if(!nextAnchor)return familyRaw.slice(s).trim();
-      var e=familyRaw.indexOf(nextAnchor, s);
-      return (e>-1?familyRaw.slice(s, e):familyRaw.slice(s)).trim();
+    function extractFamilyCard(text, personName, nextPersonRegex) {
+      // Matches "Wesley —", "**Wesley —**", "Wesley -", etc.
+      var reStart = new RegExp('(?:^|\\n)\\s*\\*?\\*?' + personName + '\\s*[-—–]', 'i');
+      var matchStart = text.search(reStart);
+      if (matchStart === -1) return '';
+
+      var sub = text.slice(matchStart).replace(/^\s+/, '');
+      if (!nextPersonRegex) return sub.trim();
+
+      var matchNext = sub.search(nextPersonRegex);
+      if (matchNext > -1) {
+        return sub.slice(0, matchNext).trim();
+      }
+      return sub.trim();
     }
 
-    var familyMembers=[
-      {person:'Wesley',       start:'Wesley —',       next:'Mac —'},
-      {person:'Mac',          start:'Mac —',          next:'Jonathan —'},
-      {person:'Jonathan',     start:'Jonathan —',     next:'Kim —'},
-      {person:'Kim',          start:'Kim —',          next:'Rob —'},
-      {person:'Rob',          start:'Rob —',          next:'Family Prayer'},
-      {person:'FamilyInsight',start:'Family Prayer',  next:'Refrain'},
-      {person:'Family',       start:'Refrain',        next:'Hymn Line'}
+    var familyProfiles = [
+      { person: 'Wesley',       next: /(?:^|\n)\s*\*?\*?Mac\s*[-—–]/i },
+      { person: 'Mac',          next: /(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i },
+      { person: 'Jonathan',     next: /(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i },
+      { person: 'Kim',          next: /(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i },
+      { person: 'Rob',          next: /(?:^|\n)\s*\*?\*?Family Prayer/i },
+      { person: 'FamilyInsight',next: /(?:^|\n)\s*\*?\*?Refrain/i },
+      { person: 'Family',       next: /(?:^|\n)\s*\*?\*?Hymn Line/i }
     ];
 
-    for(var j=0;j<familyMembers.length;j++){
-      var fm=familyMembers[j];
-      var sectionText=getSlice(fm.start, fm.next);
-      if(sectionText){
-        await fetch('https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/Family_Insights/items',{
-          method:'POST',
-          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-          body:JSON.stringify({
-            fields:{
-              Title: 'Insight • '+fm.person+' • '+devoDate,
-              InsightDate: new Date(devoDate).toISOString(),
-              Person: fm.person,
-              AnswerHtml: sectionText.replace(/\n/g, '<br>')
-            }
-          })
-        });
-        logSync('  + Saved Family Insight: '+fm.person);
+    for (var j = 0; j < familyProfiles.length; j++) {
+      var fp = familyProfiles[j];
+      var searchName = fp.person === 'FamilyInsight' ? 'Family Prayer' : (fp.person === 'Family' ? 'Refrain' : fp.person);
+      var cardText = extractFamilyCard(familyRaw, searchName, fp.next);
+
+      if (cardText) {
+        try {
+          var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Family_Insights/items', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fields: {
+                Title: 'Insight • ' + fp.person + ' • ' + devoDate,
+                InsightDate: new Date(devoDate).toISOString(),
+                Person: fp.person,
+                AnswerHtml: cardText.replace(/\n/g, '<br>')
+              }
+            })
+          });
+          if (postRes.ok) {
+            logSync('  + Saved Family Insight: ' + fp.person);
+          } else {
+            var errF = await postRes.json();
+            logSync('  ⚠️ Family ' + fp.person + ' error: ' + (errF.error && errF.error.message || postRes.status));
+          }
+        } catch(e){
+          logSync('  ❌ Family ' + fp.person + ' exception: ' + e.message);
+        }
+      } else {
+        logSync('  ⚠️ Could not find card for: ' + fp.person);
       }
     }
 
-    logSync('🎉 COMPLETE! Devotional, Companion Voices, and Family Insights synced successfully.');
-    toast('All devotional components saved to SharePoint!');
+    logSync('🎉 COMPLETE! Devotional sync finished.');
+    toast('Devotional components saved to SharePoint!');
   }
 
   // Pre-load accounts if already cached
