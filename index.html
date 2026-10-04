@@ -3,316 +3,836 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SharePoint Graph Test - Bible App Resources</title>
-<!-- Microsoft Authentication Library (MSAL) -->
-<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<title>Scribe</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#ECEAF3;--paper:#FBFAFD;--ink:#1D1930;--muted:#6E6A82;--line:#D9D5E6;
-  --violet:#5B3F98;--violet-d:#46307A;--green:#2E6E5A;--green-t:#E3F0EA;
-  --sans:'Instrument Sans',system-ui,sans-serif;
-  --serif:'Newsreader',Georgia,serif;
+  --violet:#5B3F98;--violet-d:#46307A;--violet-t:#EFEAFA;--live:#D43A52;
+  --gold:#A9782A;--gold-t:#F6EEDC;
+  --serif:'Newsreader',Georgia,'Times New Roman',serif;
+  --sans:'Instrument Sans','Segoe UI',system-ui,sans-serif;
 }
+body[data-mode="meeting"]{--violet:#1F5F7A;--violet-d:#174B61;--violet-t:#E4F0F5;--gold:#2E6E5A;--gold-t:#E3F0EA;--bg:#E8EEF1;--line:#D3DDE2}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--sans);margin:0;padding:24px;font-size:15px;line-height:1.5}
-.card{max-width:880px;margin:0 auto;background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(29,25,48,.06)}
-.header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-.header h1{margin:0;font-family:var(--serif);font-size:22px;font-weight:500}
-.auth-box{display:flex;align-items:center;gap:10px}
-.user-pill{display:inline-flex;align-items:center;gap:6px;background:var(--green-t);color:var(--green);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:500}
-.btn{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:8px;font-size:14px;transition:.15s}
-.btn:hover{background:#fff;border-color:#B1B8C8}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;min-height:100vh;padding:20px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.shell{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,1fr);gap:20px;align-items:start}
+header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 4px 0;flex-wrap:wrap}
+.brand{font-family:var(--serif);font-size:24px;font-weight:500;letter-spacing:-.01em}
+.brand small{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:10px;font-weight:400}
+.top-r{display:flex;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--paper);padding:3px}
+.seg button{border:0;background:none;border-radius:999px;padding:4px 14px;cursor:pointer;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--violet);color:#fff}
+.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:#B9B5CB}
+.pill.live{color:var(--live);border-color:#F0C3CC}
+.pill.live .dot{background:var(--live)}
+
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px}
+.scribe{display:flex;flex-direction:column;min-height:calc(100vh - 100px)}
+.scribe-head{display:flex;align-items:center;gap:16px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.rec{position:relative;flex:none;width:64px;height:64px;border-radius:50%;border:0;background:var(--violet);color:#fff;cursor:pointer;display:grid;place-items:center;transition:background .15s}
+.rec:hover{background:var(--violet-d)}
+.rec svg{width:26px;height:26px}
+.rec .ic-stop{display:none}
+.rec.on{background:var(--live)}
+.rec.on .ic-mic{display:none}.rec.on .ic-stop{display:block}
+.rec.on::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid var(--live);opacity:.5;animation:ring 1.6s ease-out infinite}
+@keyframes ring{from{transform:scale(.92);opacity:.6}to{transform:scale(1.18);opacity:0}}
+.head-main{flex:1;min-width:0}
+.title{width:100%;border:0;background:transparent;font-family:var(--serif);font-size:24px;font-weight:500;padding:0;letter-spacing:-.01em}
+.title::placeholder{color:#A9A5BD}
+.title:focus-visible{outline-offset:4px;border-radius:4px}
+.meta{display:flex;gap:16px;color:var(--muted);font-size:13px;margin-top:2px;align-items:center}
+.bars{display:inline-flex;gap:3px;align-items:flex-end;height:16px}
+.bars i{width:3px;height:4px;background:#B9B5CB;border-radius:2px}
+.on-air .bars i{background:var(--live);animation:bar 1s ease-in-out infinite}
+.on-air .bars i:nth-child(2){animation-delay:.15s}.on-air .bars i:nth-child(3){animation-delay:.3s}
+.on-air .bars i:nth-child(4){animation-delay:.45s}.on-air .bars i:nth-child(5){animation-delay:.6s}
+@keyframes bar{0%,100%{height:4px}50%{height:16px}}
+
+.ribbon{padding:12px 22px;border-bottom:1px solid var(--line);background:var(--gold-t);display:flex;gap:10px;align-items:center;min-height:52px;overflow-x:auto}
+.ribbon .lbl{font-size:13px;color:var(--gold);font-weight:600;white-space:nowrap}
+.ribbon .empty{font-size:13px;color:var(--muted)}
+.chip{white-space:nowrap;text-decoration:none;font-family:var(--serif);font-size:15px;color:var(--ink);background:var(--paper);border:1px solid color-mix(in srgb,var(--gold) 35%,white);border-radius:6px;padding:2px 10px}
+a.chip:hover{border-color:var(--gold)}
+
+.transcript-area{flex:1;display:flex;flex-direction:column;position:relative}
+textarea.page{
+  flex:1;
+  width:100%;
+  padding:26px 34px;
+  border:0;
+  outline:none;
+  background:transparent;
+  resize:none;
+  font-family:var(--serif);
+  font-size:20px;
+  line-height:1.7;
+  color:var(--ink);
+  min-height:300px;
+  max-height:calc(100vh - 350px);
+}
+textarea.page::placeholder{color:#A9A5BD;font-family:var(--sans);font-size:15px;line-height:1.5}
+.interim-preview{
+  padding:4px 34px 10px;
+  color:#9A96AE;
+  font-style:italic;
+  font-family:var(--serif);
+  font-size:18px;
+  display:none;
+}
+.notice{margin:14px 22px 0;padding:10px 14px;border-radius:8px;background:#FDECEF;color:#8E2236;font-size:14px;display:none}
+.notice.show{display:block}
+
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 22px;border-top:1px solid var(--line)}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:8px;font-size:14px}
+.btn:hover{border-color:#B1B8C8;background:#fff}
 .btn.primary{background:var(--violet);border-color:var(--violet);color:#fff}
 .btn.primary:hover{background:var(--violet-d)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.body{padding:24px;display:grid;gap:16px}
-.target-info{background:#F3F1FA;border:1px solid var(--line);border-radius:8px;padding:14px 16px;font-size:13px;color:var(--muted);display:grid;gap:6px}
-.target-info b{color:var(--ink)}
-label{font-weight:600;font-size:14px;display:block}
-textarea{width:100%;min-height:160px;border:1px solid var(--line);border-radius:8px;padding:12px;font-family:var(--serif);font-size:17px;line-height:1.6;resize:vertical;background:#fff}
-textarea:focus{outline:2px solid var(--violet)}
-.btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.console-box{background:#1D1930;color:#F0EEF8;border-radius:8px;padding:14px 16px;font-family:Consolas,monospace;font-size:13px;line-height:1.5;max-height:240px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
-.console-title{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:-10px;text-transform:uppercase;letter-spacing:0.04em}
+.btn svg{width:16px;height:16px}
+.btn.sm{padding:5px 10px;font-size:13px}
+.spacer{flex:1}
+.menu{position:relative}
+.menu-list{position:absolute;bottom:calc(100% + 6px);left:0;min-width:230px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(29,25,48,.14);display:none;z-index:5}
+.menu.open .menu-list{display:block}
+.menu-list button{display:block;width:100%;text-align:left;background:none;border:0;border-radius:6px;padding:9px 10px;cursor:pointer;font-size:14px}
+.menu-list button:hover{background:var(--violet-t)}
+.menu-list span{display:block;font-size:12px;color:var(--muted)}
+
+/* NOTES CARD & OVERLAY */
+.notes{display:flex;flex-direction:column;min-height:calc(100vh - 100px);transition:all .2s ease}
+.notes.overlay-mode{
+  position:fixed;
+  inset:16px;
+  z-index:100;
+  max-height:calc(100vh - 32px);
+  min-height:calc(100vh - 32px);
+  box-shadow:0 16px 48px rgba(29,25,48,.32);
+}
+.notes.overlay-mode .out{
+  max-height:none;
+  font-size:18px;
+  max-width:880px;
+  margin:0 auto;
+  width:100%;
+}
+.notes-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.notes-head h2{margin:0;font-family:var(--serif);font-size:21px;font-weight:500}
+.styleRow{display:flex;gap:8px;align-items:center;padding:12px 22px;border-bottom:1px solid var(--line)}
+.styleRow select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff}
+details.cfg{border-bottom:1px solid var(--line);padding:0 22px}
+details.cfg summary{cursor:pointer;padding:12px 0;font-size:13px;color:var(--muted);font-weight:500}
+.cfg-body{display:grid;gap:10px;padding:0 0 16px}
+.cfg label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.cfg input[type=text],.cfg input[type=password],.cfg select{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;color:var(--ink)}
+.cfg .row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.cfg .hint{font-size:12px;color:var(--muted);margin:0;line-height:1.4}
+.cfg .hint a{color:var(--violet)}
+.cfg .result{font-size:12px;color:var(--muted);line-height:1.5;word-break:break-word}
+.cfg .result b{color:var(--ink);font-weight:500}
+.cfg .result.bad{color:#8E2236}
+
+/* EDITABLE NOTES AREA */
+.out{
+  flex:1;
+  padding:20px 22px;
+  overflow-y:auto;
+  max-height:calc(100vh - 430px);
+  min-height:240px;
+  font-family:var(--serif);
+  font-size:17px;
+  line-height:1.6;
+  outline:none;
+}
+.out[contenteditable="true"]{
+  cursor:text;
+}
+.out h3{font-family:var(--sans);font-size:15px;font-weight:600;color:var(--violet);margin:1.4em 0 .4em}
+.out h3:first-child{margin-top:0}
+.out ul,.out ol{margin:0 0 1em;padding-left:1.2em}
+.out li{margin:.3em 0}
+.out p{margin:.4em 0 1em}
+.out blockquote{margin:.6em 0;padding:.1em 0 .1em 14px;border-left:3px solid var(--line);color:#4A4560}
+.out hr{border:0;border-top:1px solid var(--line);margin:1.2em 0}
+.out .placeholder{font-family:var(--sans)}
+.loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-family:var(--sans);font-size:14px}
+.spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--violet);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{color:#8E2236;font-family:var(--sans);font-size:14px;background:#FDECEF;padding:10px 12px;border-radius:8px}
+
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);padding:0;width:min(780px,94vw)}
+dialog::backdrop{background:rgba(29,25,48,.45)}
+.dlg-h{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dlg-h h2{margin:0;font-family:var(--serif);font-size:21px;font-weight:500}
+.dlg-b{padding:16px 20px;display:grid;gap:10px}
+.dlg-b p{margin:0;font-size:13px;color:var(--muted)}
+.dlg-b textarea{width:100%;min-height:50vh;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;font-family:ui-monospace,Consolas,monospace;font-size:13px;line-height:1.5}
+.dlg-f{display:flex;gap:10px;align-items:center;padding:14px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
+.count{font-size:12px;color:var(--muted)}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:999}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:900px){
+  body{padding:12px}
+  .shell{grid-template-columns:1fr}
+  .scribe,.notes{min-height:0}
+  textarea.page{max-height:50vh;padding:20px}
+  .out{max-height:none}
+}
 </style>
 </head>
-<body>
-
-<div class="card">
-  <div class="header">
-    <div>
-      <h1>SharePoint Direct Connection Test</h1>
-      <span style="font-size:13px;color:var(--muted)">Microsoft Graph API &bull; Single-Page App (PKCE)</span>
+<body data-mode="sermon">
+<div class="shell" id="shell">
+  <header class="top">
+    <div class="brand"><span id="brand">Sermon Scribe</span><small id="sub">Live transcript and study notes</small></div>
+    <div class="top-r">
+      <div class="seg" role="group" aria-label="Mode">
+        <button id="mSermon" aria-pressed="true">Sermon</button>
+        <button id="mMeeting" aria-pressed="false">Meeting</button>
+      </div>
+      <span class="pill" id="status"><span class="dot"></span><span id="statusText">Ready</span></span>
     </div>
-    <div class="auth-box">
-      <span class="user-pill" id="userPill" style="display:none"><span id="userName"></span></span>
-      <button class="btn primary" id="loginBtn">Sign in with Microsoft</button>
-      <button class="btn" id="logoutBtn" style="display:none">Sign out</button>
-    </div>
-  </div>
+  </header>
 
-  <div class="body">
-    <div class="target-info">
-      <div><b>Client ID:</b> bc4efc91-8b56-4f59-bf0e-f42e4724e2f6 (Corrected)</div>
-      <div><b>Tenant ID:</b> daa6322e-b4e5-415c-8cc7-258c866f29d7 (RMR)</div>
-      <div><b>Target Site:</b> https://rmr1971.sharepoint.com/sites/Bible_App</div>
-      <div><b>Target List:</b> Resources (Item ID: <b>17</b>)</div>
-      <div><b>Target Column:</b> <b>Body_Enrichment</b> (Append Mode)</div>
+  <!-- TRANSCRIPT -->
+  <section class="card scribe" id="scribe" aria-label="Transcript">
+    <div class="scribe-head">
+      <button class="rec" id="recBtn" aria-label="Start listening">
+        <svg class="ic-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+        <svg class="ic-stop" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4.5" height="14" rx="1"/><rect x="13.5" y="5" width="4.5" height="14" rx="1"/></svg>
+      </button>
+      <div class="head-main">
+        <input class="title" id="title" type="text" aria-label="Title">
+        <div class="meta" id="meta">
+          <span id="timer">0:00</span>
+          <span id="words">0 words</span>
+          <span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+      </div>
     </div>
-
-    <div>
-      <label for="textToAppend">Text to Append to Item 17:</label>
-      <textarea id="textToAppend" placeholder="Type or paste any test text here that you want appended to Item 17's Body_Enrichment column in SharePoint..."></textarea>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn primary" id="appendBtn" disabled>➕ Append to SharePoint (Item 17)</button>
-      <button class="btn" id="readBtn" disabled>🔍 Read Current Value of Item 17</button>
-      <label style="font-weight:normal;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="checkbox" id="addTimestamp" checked> Prepend timestamp
-      </label>
+    <div class="notice" id="notice" role="alert"></div>
+    <div class="ribbon" id="ribbon"></div>
+    
+    <div class="transcript-area">
+      <textarea class="page" id="page" spellcheck="true"></textarea>
+      <div class="interim-preview" id="interimBox"></div>
     </div>
 
-    <div class="console-title">Live Activity Log</div>
-    <div class="console-box" id="logBox">Ready. Click "Sign in with Microsoft" to authenticate.</div>
-  </div>
+    <div class="actions">
+      <button class="btn primary" id="copyBtn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+        Copy transcript
+      </button>
+      <div class="menu" id="aiMenu">
+        <button class="btn" id="aiBtn" disabled aria-haspopup="true" aria-expanded="false">Copy and open in AI ▾</button>
+        <div class="menu-list" role="menu">
+          <button role="menuitem" data-url="https://gemini.google.com/app" data-name="Gemini">Gemini<span>Free with a Google account</span></button>
+          <button role="menuitem" data-url="https://chatgpt.com/" data-name="ChatGPT">ChatGPT<span>Free tier, sign-in may be required</span></button>
+          <button role="menuitem" data-url="https://claude.ai/new" data-name="Claude">Claude<span>Free tier, sign-in required</span></button>
+        </div>
+      </div>
+      <button class="btn" id="dlBtn" disabled>Save as .txt</button>
+      <button class="btn" id="sampleBtn">Load sample</button>
+      <span class="spacer"></span>
+      <button class="btn" id="clearBtn" disabled>Clear</button>
+    </div>
+  </section>
+
+  <!-- NOTES -->
+  <aside class="card notes" id="notesCard" aria-label="Notes">
+    <div class="notes-head">
+      <h2 id="notesTitle">Study notes</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn sm" id="expandBtn" title="Expand notes to full screen">⛶ Expand</button>
+        <button class="btn primary" id="sumBtn" disabled>Summarize here</button>
+      </div>
+    </div>
+    <div class="styleRow">
+      <select id="preset" aria-label="Notes style"></select>
+      <button class="btn sm" id="editInst">Edit instructions</button>
+    </div>
+    <details class="cfg" id="cfg">
+      <summary>AI settings (free API key)</summary>
+      <div class="cfg-body">
+        <label>Provider
+          <select id="prov">
+            <option value="gemini">Google Gemini (AI Studio)</option>
+            <option value="groq">Groq</option>
+          </select>
+        </label>
+        <label>API key
+          <input type="password" id="key" autocomplete="off" placeholder="Paste your key here">
+        </label>
+        <label>Model
+          <select id="model"></select>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn sm" id="checkKey" type="button">Check key and list models</button>
+        </div>
+        <div class="result" id="checkOut" aria-live="polite"></div>
+        <label class="row"><input type="checkbox" id="remember"> Remember the key on this device</label>
+        <p class="hint" id="hint"></p>
+      </div>
+    </details>
+    <div class="out" id="out" spellcheck="true"></div>
+    <div class="actions">
+      <button class="btn" id="copyNotes" disabled>Copy notes</button>
+    </div>
+  </aside>
 </div>
+
+<dialog id="instDlg" aria-labelledby="dlgT">
+  <div class="dlg-h"><h2 id="dlgT">AI instructions</h2><button class="btn sm" id="dlgX" aria-label="Close">Close</button></div>
+  <div class="dlg-b">
+    <p id="dlgP"></p>
+    <textarea id="instText" spellcheck="false"></textarea>
+    <span class="count" id="instCount"></span>
+  </div>
+  <div class="dlg-f">
+    <button class="btn primary" id="instSave">Save as my default</button>
+    <button class="btn" id="instReset">Reset to built-in</button>
+    <span class="spacer"></span>
+    <button class="btn" id="instCancel">Cancel</button>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 /* =====================================================================
-   CONFIGURATION (CORRECTED CLIENT ID)
+   SECTION 1 - AI INSTRUCTIONS
    ===================================================================== */
-var MSAL_CONFIG = {
-  auth: {
-    clientId: "bc4efc91-8b56-4f59-bf0e-f42e4724e2f6", // <-- EXACT MATCH FROM YOUR PORTAL (e2f6)
-    authority: "https://login.microsoftonline.com/daa6322e-b4e5-415c-8cc7-258c866f29d7",
-    redirectUri: "https://iamrob1971-ops.github.io/Scribe/"
+var CUSTOM_INSTRUCTIONS = `Replace this text with your own instructions.
+
+Example: Summarize the transcript below as a one-page brief. Use plain language. List decisions, then open questions. Do not invent names, dates or numbers that are not in the transcript.`;
+
+var SERMON_QUICK = `You are helping with personal Bible study. The text you receive is a raw transcript of a sermon produced by live speech recognition. Quietly fix obvious errors.
+
+Write study notes in Markdown using exactly these sections:
+## Main idea
+## Key takeaways (bullets)
+## Scripture focus (bullets: the reference, then how the speaker used it)
+## Application (bullets)
+## Questions for reflection (bullets)
+
+Stay faithful to what the speaker said. Do not add teaching they did not give. If you quote Scripture, only do so when you are sure of the exact wording; otherwise paraphrase.`;
+
+var SERMON_FULL = `You are a biblical research assistant producing a Scripture-first, historically informed and pastorally useful analysis of a sermon transcript. Interpret within historic Protestant, Reformed, PCA-compatible theology (Westminster Confession of Faith and the Catechisms).
+
+AUTHORITY, IN ORDER
+1. Holy Scripture: the final authority. Scripture interprets Scripture. Read each passage in its immediate, historical and literary context.
+2. Historic Christian orthodoxy (Trinity, deity and humanity of Christ, substitutionary atonement, bodily resurrection, salvation in Christ, authority of Scripture, final judgment).
+3. Historic Reformed theology (sovereignty and providence of God, grace alone through faith alone in Christ alone, union with Christ, justification, adoption, sanctification, perseverance, covenant, means of grace).
+4. Theologians and catechisms as valuable but subordinate witnesses: Spurgeon, Calvin, Matthew Henry, Luther, Augustine, Sproul, MacArthur, Owen, Watson, Edwards, the Heidelberg Catechism and the Westminster Standards. Do not manufacture agreement where they differ. Never put tradition in the place of biblical evidence.
+
+HOW THIS TOOL WORKS (important)
+- The transcript came from live browser speech recognition or pasted text. Correct obvious errors silently. Write "not stated" for any metadata the speaker did not give. Do not guess.
+- Quote Scripture in the World English Bible Updated (WEBU) only if you are confident of the exact wording; otherwise paraphrase and label it (paraphrase). Never silently switch translations.
+- Quote a theologian or catechism only if confident the wording is authentic. Otherwise give a labeled paraphrase.
+- Separate clearly what the preacher taught from your own biblical exposition.
+
+OUTPUT: Markdown, with these headings in this order:
+## A. Sermon identification
+## B. Executive summary
+## C. Biblical foundation
+## D. Detailed sermon summary
+## E. Major theological themes
+## F. Key insights and memorable statements
+## G. Scripture cross-reference study
+## H. Theological review
+## I. Practical Christian applications
+## J. Reflection and self-examination
+## K. Final sermon synthesis
+## L. Companion voices
+## M. Related prayer`;
+
+var MEETING_MINUTES = `You are a meticulous note-taker. The text you receive is a raw transcript of a work meeting. Quietly fix obvious errors.
+
+Write meeting notes in Markdown using exactly these sections:
+## Summary
+(2 to 3 sentences: purpose and outcome)
+## Decisions
+(bullets; write "None recorded" if there were none)
+## Action items
+(bullets in the form: Owner - task - due date. Write "owner not stated" or "no date given" rather than guessing)
+## Open questions
+## Risks and blockers
+## Key discussion points
+(short bullets, grouped by topic)
+## Follow-ups
+(next meeting, who needs to be told what)
+
+Rules: use only what is in the transcript. Do not invent names, dates, numbers or commitments. If something is unclear or may have been misheard, mark it with [unclear].`;
+
+var MEETING_BRIEF = `You are writing for a busy executive. The text you receive is a raw transcript of a work meeting. Quietly fix obvious errors.
+
+Produce a brief of 200 words or fewer in Markdown:
+## Bottom line
+(one or two sentences)
+## Decisions
+## Actions
+(Owner - task - due date; say "not stated" if missing)
+## Needs your attention
+(approvals, risks or blockers that need a decision from outside the meeting)
+
+Use only what is in the transcript. Never invent names, dates or numbers.`;
+
+var PRESETS = {
+  'sermon-quick':    {mode:'sermon',  label:'Sermon: quick study notes',                 text:SERMON_QUICK},
+  'sermon-full':     {mode:'sermon',  label:'Sermon: full analysis (Reformed standard)',  text:SERMON_FULL},
+  'meeting-minutes': {mode:'meeting', label:'Meeting: minutes and action items',          text:MEETING_MINUTES},
+  'meeting-brief':   {mode:'meeting', label:'Meeting: executive brief',                   text:MEETING_BRIEF},
+  'custom':          {mode:'any',     label:'My own instructions',                        text:CUSTOM_INSTRUCTIONS}
+};
+
+/* =====================================================================
+   SECTION 2 - MODES
+   ===================================================================== */
+var MODES = {
+  sermon:{
+    brand:'Sermon Scribe', sub:'Live transcript and study notes', titlePh:'Name this message',
+    ribbonLbl:'Scripture heard', ribbonEmpty:'References appear here as the speaker names them.',
+    pagePh:'Press the microphone to record live, or click here to type or paste an existing sermon transcript...',
+    notesTitle:'Study notes', notesEmpty:'Notes appear here once you press Summarize. You can edit them freely and copy your changes.',
+    fileBase:'sermon', defaultPreset:'sermon-quick', sampleTitle:'Sample message',
+    sample:'Good morning. Open your Bible with me to John 3:16. We know this verse so well that we can recite it without feeling it. God so loved the world, not the polished version of the world, but the actual one, with all its noise and brokenness.\n\nNow hold that thought and turn to Romans 8:28. Paul does not say that everything is good. He says that God works in all things for the good of those who love him. That is a promise about direction, not about comfort.\n\nAnd finally, Psalm 23. The valley is real, but notice the shepherd walks through it with you. This week, name one valley you are in and say it out loud to someone you trust.'
   },
-  cache: {
-    cacheLocation: "localStorage",
-    storeAuthStateInCookie: false
+  meeting:{
+    brand:'Meeting Scribe', sub:'Live transcript and meeting notes', titlePh:'Name this meeting',
+    ribbonLbl:'Possible actions', ribbonEmpty:'Sentences that sound like tasks or follow-ups appear here.',
+    pagePh:'Press the microphone to record live, or click here to type or paste meeting minutes / notes...',
+    notesTitle:'Meeting notes', notesEmpty:'Notes appear here once you press Summarize. You can edit them freely and copy your changes.',
+    fileBase:'meeting', defaultPreset:'meeting-minutes', sampleTitle:'Go-live check-in',
+    sample:'Okay, let us get started. Quick update on the go-live: the receiving module passed testing, but we still need to finish the label printer setup. Priya, can you confirm the printer models by Thursday? We decided to keep the original go-live date of the fifteenth.\n\nMarcus will follow up with the carrier about the delayed pallets. One open question is whether night shift gets trained before launch. Let us revisit that next Tuesday. Also, we need to send the updated runbook to the site leads by end of week.'
   }
 };
 
-var GRAPH_SCOPES = ["User.Read", "Sites.ReadWrite.All"];
-var SHAREPOINT_DOMAIN = "rmr1971.sharepoint.com";
-var SITE_PATH = "/sites/Bible_App";
-var LIST_NAME = "Resources";
-var TARGET_ITEM_ID = 17;
-var TARGET_FIELD = "Body_Enrichment";
+/* ===================================================================== */
+(function(){
+  var $ = function(id){return document.getElementById(id)};
+  var recBtn=$('recBtn'), page=$('page'), scribe=$('scribe'), interimBox=$('interimBox'), out=$('out');
+  var interim='', wantListening=false, recognition=null, lastResultAt=0;
+  var seconds=0, tick=null, wakeLock=null, mode='sermon', presetId='sermon-quick', running=false, restartT=null;
 
-var msalApp = new msal.PublicClientApplication(MSAL_CONFIG);
-var cachedSiteId = null;
-var isAuthenticating = false;
-
-function log(msg){
-  var box = document.getElementById("logBox");
-  box.textContent += "\n[" + new Date().toLocaleTimeString() + "] " + msg;
-  box.scrollTop = box.scrollHeight;
-}
-
-/* =====================================================================
-   AUTHENTICATION
-   ===================================================================== */
-async function getToken(){
-  if (isAuthenticating) {
-    throw new Error("Authentication is already in progress. Please complete the open popup.");
-  }
-
-  var accounts = msalApp.getAllAccounts();
-  var rmrAccount = accounts.find(function(a){ 
-    return a.username && a.username.toLowerCase().includes("rmr"); 
-  }) || accounts[0];
-
-  if (!rmrAccount) {
-    isAuthenticating = true;
-    try {
-      log("Opening sign-in popup...");
-      var loginRes = await msalApp.loginPopup({ 
-        scopes: GRAPH_SCOPES,
-        prompt: "select_account"
-      });
-      updateUserUI(loginRes.account);
-      isAuthenticating = false;
-      return loginRes.accessToken;
-    } catch(err) {
-      isAuthenticating = false;
-      throw err;
-    }
-  }
-
-  try {
-    var silentRes = await msalApp.acquireTokenSilent({
-      scopes: GRAPH_SCOPES,
-      account: rmrAccount
+  function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('show')},2600)}
+  function esc(s){return s.replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function copy(text){
+    if(navigator.clipboard&&window.isSecureContext){return navigator.clipboard.writeText(text)}
+    return new Promise(function(res,rej){
+      var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy')?res():rej()}catch(e){rej(e)}
+      document.body.removeChild(ta);
     });
-    return silentRes.accessToken;
-  } catch (err) {
-    isAuthenticating = true;
-    try {
-      log("Refreshing token via popup...");
-      var popRes = await msalApp.loginPopup({ 
-        scopes: GRAPH_SCOPES,
-        prompt: "select_account"
-      });
-      updateUserUI(popRes.account);
-      isAuthenticating = false;
-      return popRes.accessToken;
-    } catch(err2) {
-      isAuthenticating = false;
-      throw err2;
+  }
+  function store(k,v){try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){}}
+  function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+  function fmt(s){var m=Math.floor(s/60),r=s%60;return m+':'+(r<10?'0':'')+r}
+  function setStatus(text,live){$('statusText').textContent=text;$('status').className='pill'+(live?' live':'')}
+
+  function fillPresets(){
+    var sel=$('preset');sel.innerHTML='';
+    Object.keys(PRESETS).forEach(function(id){
+      var p=PRESETS[id];
+      if(p.mode===mode||p.mode==='any'){var o=document.createElement('option');o.value=id;o.textContent=p.label+(load('ss_inst_'+id)?' (edited)':'');sel.appendChild(o)}
+    });
+    sel.value=presetId;
+  }
+  function applyMode(m){
+    mode=m;var c=MODES[m];
+    document.body.setAttribute('data-mode',m);
+    document.title=c.brand;
+    $('brand').textContent=c.brand;$('sub').textContent=c.sub;
+    $('title').placeholder=c.titlePh;$('notesTitle').textContent=c.notesTitle;
+    page.placeholder=c.pagePh;
+    $('mSermon').setAttribute('aria-pressed',m==='sermon');$('mMeeting').setAttribute('aria-pressed',m==='meeting');
+    var saved=load('ss_preset_'+m);
+    presetId=(saved&&PRESETS[saved]&&(PRESETS[saved].mode===m||PRESETS[saved].mode==='any'))?saved:c.defaultPreset;
+    fillPresets();
+    if(!out.getAttribute('data-has-notes'))out.innerHTML='<div class="placeholder">'+esc(c.notesEmpty)+'</div>';
+    store('ss_mode',m);
+    updateUI();
+  }
+  function getInstr(){return load('ss_inst_'+presetId)||PRESETS[presetId].text}
+  $('mSermon').addEventListener('click',function(){if(mode!=='sermon')applyMode('sermon')});
+  $('mMeeting').addEventListener('click',function(){if(mode!=='meeting')applyMode('meeting')});
+  $('preset').addEventListener('change',function(){presetId=$('preset').value;store('ss_preset_'+mode,presetId)});
+
+  /* Scripture & Action detection */
+  var books='Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|3 John|Jude|Revelation';
+  var refRe=new RegExp('\\b(?:'+books+')\\s\\d{1,3}(?:\\s?[:.]\\s?\\d{1,3}(?:\\s?[-–]\\s?\\d{1,3})?)?','gi');
+  function findRefs(text){
+    var seen={},outArr=[],m;refRe.lastIndex=0;
+    while((m=refRe.exec(text))){
+      var r=m[0].replace(/\s+/g,' ').replace(/\s?[:.]\s?/,':').trim().replace(/^./,function(c){return c.toUpperCase()});
+      if(!seen[r.toLowerCase()]){seen[r.toLowerCase()]=1;outArr.push(r)}
     }
+    return outArr;
   }
-}
-
-function updateUserUI(account){
-  var loginBtn = document.getElementById("loginBtn");
-  var logoutBtn = document.getElementById("logoutBtn");
-  var userPill = document.getElementById("userPill");
-  var userName = document.getElementById("userName");
-  var appendBtn = document.getElementById("appendBtn");
-  var readBtn = document.getElementById("readBtn");
-
-  if(account){
-    userName.textContent = account.username || account.name;
-    userPill.style.display = "inline-flex";
-    loginBtn.style.display = "none";
-    logoutBtn.style.display = "inline-flex";
-    appendBtn.disabled = false;
-    readBtn.disabled = false;
-    log("Signed in successfully as: " + (account.username || account.name));
-  } else {
-    userPill.style.display = "none";
-    loginBtn.style.display = "inline-flex";
-    logoutBtn.style.display = "none";
-    appendBtn.disabled = true;
-    readBtn.disabled = true;
+  var actRe=/\b(action item|follow up|follow-up|next step|deadline|due (?:by|on|date)|i'll|i will|we will|we need to|needs to|need to|can you|could you|please send|assigned to|will own|by (?:monday|tuesday|wednesday|thursday|friday|end of (?:day|week|month)))\b/i;
+  function findActions(text){
+    var parts=text.replace(/\n+/g,' ').split(/(?<=[.!?])\s+/),outArr=[],seen={};
+    parts.forEach(function(s){s=s.trim();if(s.length>12&&actRe.test(s)&&!seen[s]){seen[s]=1;outArr.push(s)}});
+    return outArr.slice(-8);
   }
-}
-
-document.getElementById("loginBtn").addEventListener("click", async function(){
-  var btn = document.getElementById("loginBtn");
-  btn.disabled = true;
-  try {
-    await getToken();
-  } catch(e) {
-    log("Sign in issue: " + e.message);
-  } finally {
-    btn.disabled = false;
+  function renderRibbon(){
+    var c=MODES[mode],ribbon=$('ribbon');
+    ribbon.innerHTML='<span class="lbl">'+esc(c.ribbonLbl)+'</span>';
+    var text=page.value;
+    var items=mode==='sermon'?findRefs(text):findActions(text);
+    if(!items.length){ribbon.insertAdjacentHTML('beforeend','<span class="empty">'+esc(c.ribbonEmpty)+'</span>');return}
+    items.forEach(function(r){
+      var el;
+      if(mode==='sermon'){el=document.createElement('a');el.href='https://www.biblegateway.com/passage/?version=ESV&search='+encodeURIComponent(r);el.target='_blank';el.rel='noopener';el.textContent=r}
+      else{el=document.createElement('span');el.textContent=r.length>60?r.slice(0,57)+'...':r;el.title=r}
+      el.className='chip';ribbon.appendChild(el);
+    });
   }
-});
 
-document.getElementById("logoutBtn").addEventListener("click", function(){
-  msalApp.logoutPopup().then(function(){
-    updateUserUI(null);
-    log("Signed out.");
+  function updateUI(){
+    var val=page.value.trim();
+    var has=val.length>0;
+    var words=val?val.split(/\s+/).length:0;
+    $('words').textContent=words+' words';
+    ['copyBtn','aiBtn','dlBtn','clearBtn','sumBtn'].forEach(function(id){$(id).disabled=!has});
+    renderRibbon();
+  }
+  page.addEventListener('input',updateUI);
+
+  /* Sample message button */
+  $('sampleBtn').addEventListener('click',function(){
+    page.value=MODES[mode].sample;
+    $('title').value=$('title').value||MODES[mode].sampleTitle;
+    setStatus('Sample loaded',false);
+    updateUI();
   });
-});
 
-/* =====================================================================
-   MICROSOFT GRAPH CALLS
-   ===================================================================== */
-async function getSiteId(token){
-  if(cachedSiteId) return cachedSiteId;
-  log("Resolving site ID for " + SHAREPOINT_DOMAIN + ":" + SITE_PATH + "...");
-  var url = "https://graph.microsoft.com/v1.0/sites/" + SHAREPOINT_DOMAIN + ":" + SITE_PATH;
-  var res = await fetch(url, { headers: { "Authorization": "Bearer " + token } });
-  var data = await res.json();
-  if(!res.ok) throw new Error("Could not find site: " + (data.error && data.error.message || res.status));
-  cachedSiteId = data.id;
-  log("Site ID resolved: " + cachedSiteId);
-  return cachedSiteId;
-}
+  /* Expand / Fullscreen overlay toggle */
+  var notesCard=$('notesCard'), expandBtn=$('expandBtn');
+  expandBtn.addEventListener('click',function(){
+    var isMax = notesCard.classList.toggle('overlay-mode');
+    expandBtn.textContent = isMax ? '🗗 Minimize' : '⛶ Expand';
+    expandBtn.title = isMax ? 'Return to split layout (Esc)' : 'Expand notes to full screen';
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape' && notesCard.classList.contains('overlay-mode')){
+      notesCard.classList.remove('overlay-mode');
+      expandBtn.textContent = '⛶ Expand';
+    }
+  });
 
-// 1. Read Current Value
-document.getElementById("readBtn").addEventListener("click", async function(){
-  var btn = document.getElementById("readBtn");
-  btn.disabled = true;
-  try {
-    var token = await getToken();
-    var siteId = await getSiteId(token);
-    log("Fetching current Item " + TARGET_ITEM_ID + " from list '" + LIST_NAME + "'...");
-    
-    var url = "https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + LIST_NAME + "/items/" + TARGET_ITEM_ID + "?expand=fields";
-    var res = await fetch(url, { headers: { "Authorization": "Bearer " + token } });
-    var data = await res.json();
-    if(!res.ok) throw new Error(data.error && data.error.message || "Failed to read item " + res.status);
-    
-    var fields = data.fields || {};
-    var actualKey = Object.keys(fields).find(function(k){ return k.toLowerCase() === TARGET_FIELD.toLowerCase(); }) || TARGET_FIELD;
-    var currentContent = fields[actualKey] || "(Column is currently empty)";
-    
-    log("CURRENT " + actualKey + " VALUE:\n-------------------------------------\n" + currentContent + "\n-------------------------------------");
-  } catch(e) {
-    log("ERROR reading: " + e.message);
-  } finally {
-    btn.disabled = false;
+  /* Speech recognition */
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  function showNotice(msg){var n=$('notice');n.textContent=msg;n.classList.add('show')}
+  function hideNotice(){$('notice').classList.remove('show')}
+  function getLock(){if('wakeLock' in navigator){navigator.wakeLock.request('screen').then(function(l){wakeLock=l}).catch(function(){})}}
+  function dropLock(){if(wakeLock){wakeLock.release().catch(function(){});wakeLock=null}}
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&wantListening)getLock()});
+
+  function startUI(){
+    recBtn.classList.add('on');recBtn.setAttribute('aria-label','Pause listening');
+    $('meta').classList.add('on-air');scribe.classList.add('on-air');
+    setStatus('Listening live',true);getLock();
+    clearInterval(tick);tick=setInterval(function(){seconds++;$('timer').textContent=fmt(seconds)},1000);
   }
-});
-
-// 2. Append & Update Value
-document.getElementById("appendBtn").addEventListener("click", async function(){
-  var text = document.getElementById("textToAppend").value.trim();
-  if(!text){
-    alert("Please type or paste some text into the box first!");
-    return;
+  function stopUI(){
+    recBtn.classList.remove('on');recBtn.setAttribute('aria-label','Start listening');
+    scribe.classList.remove('on-air');$('meta').classList.remove('on-air');
+    dropLock();clearInterval(tick);interim='';
+    interimBox.style.display='none';
+    setStatus(page.value.trim()?'Paused':'Ready',false);
+    updateUI();
   }
 
-  var btn = document.getElementById("appendBtn");
-  btn.disabled = true;
+  if(!SR){showNotice('Speech recognition requires desktop Chrome, Edge, or Safari.');recBtn.disabled=true}
+  else{
+    recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang='en-US';
+    recognition.onresult=function(e){
+      var tmp='';
+      for(var i=e.resultIndex;i<e.results.length;i++){
+        var r=e.results[i];
+        if(r.isFinal){
+          var chunk=r[0].transcript.trim();
+          if(chunk){
+            var now=Date.now(),gap=lastResultAt&&(now-lastResultAt>4000);
+            var currentText=page.value;
+            var sep=currentText?(gap?'\n\n':' '):'';
+            page.value=currentText+sep+chunk;
+            lastResultAt=now;
+            page.scrollTop=page.scrollHeight;
+            updateUI();
+          }
+        }else{tmp+=r[0].transcript}
+      }
+      interim=tmp;
+      if(interim){
+        interimBox.textContent='... '+interim;
+        interimBox.style.display='block';
+      }else{
+        interimBox.style.display='none';
+      }
+    };
+    recognition.onerror=function(e){
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){wantListening=false;showNotice('Microphone access blocked. Click the lock icon in the address bar, allow mic, then try again.');stopUI()}
+      else if(e.error==='network'){showNotice('Speech service network error. Reconnecting...')}
+    };
+    recognition.onstart=function(){running=true};
+    recognition.onend=function(){
+      running=false;
+      if(wantListening){scheduleRestart(250)}
+      else{stopUI()}
+    };
+  }
 
-  try {
-    var token = await getToken();
-    var siteId = await getSiteId(token);
-    
-    log("Reading existing content from Item " + TARGET_ITEM_ID + "...");
-    var getUrl = "https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + LIST_NAME + "/items/" + TARGET_ITEM_ID + "?expand=fields";
-    var getRes = await fetch(getUrl, { headers: { "Authorization": "Bearer " + token } });
-    var getData = await getRes.json();
-    if(!getRes.ok) throw new Error(getData.error && getData.error.message || "Could not read before append.");
+  function scheduleRestart(ms){
+    clearTimeout(restartT);
+    restartT=setTimeout(function(){
+      if(!wantListening)return;
+      try{recognition.start()}
+      catch(e){try{recognition.abort()}catch(x){}scheduleRestart(500)}
+    },ms);
+  }
 
-    var fields = getData.fields || {};
-    var actualKey = Object.keys(fields).find(function(k){ return k.toLowerCase() === TARGET_FIELD.toLowerCase(); }) || TARGET_FIELD;
-    var currentText = fields[actualKey] || "";
+  recBtn.addEventListener('click',function(){
+    if(!recognition)return;
+    if(wantListening){
+      wantListening=false;clearTimeout(restartT);
+      try{recognition.stop()}catch(e){}
+      stopUI();
+      setTimeout(function(){if(running){try{recognition.abort()}catch(e){}}},800);
+      return;
+    }
+    hideNotice();wantListening=true;startUI();
+    if(running){try{recognition.abort()}catch(e){}scheduleRestart(400)}else{scheduleRestart(0)}
+  });
 
-    var timestamp = document.getElementById("addTimestamp").checked ? ("\n\n--- Appended " + new Date().toLocaleString() + " ---\n") : "\n\n";
-    var updatedPayload = currentText ? (currentText + timestamp + text) : text;
+  $('copyBtn').addEventListener('click',function(){copy(page.value).then(function(){toast('Transcript copied')},function(){toast('Copy failed')})});
+  $('clearBtn').addEventListener('click',function(){
+    if(!confirm('Clear the transcript and notes?'))return;
+    page.value='';interim='';seconds=0;lastResultAt=0;$('timer').textContent='0:00';
+    out.removeAttribute('data-has-notes');
+    out.removeAttribute('contenteditable');
+    out.innerHTML='<div class="placeholder">'+esc(MODES[mode].notesEmpty)+'</div>';
+    interimBox.style.display='none';
+    $('copyNotes').disabled=true;setStatus(wantListening?'Listening live':'Ready',wantListening);
+    updateUI();
+  });
+  $('dlBtn').addEventListener('click',function(){
+    var t=($('title').value||MODES[mode].fileBase).replace(/[^\w\- ]+/g,'').trim()||MODES[mode].fileBase;
+    var b=new Blob([page.value],{type:'text/plain'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(b);a.download=t+'.txt';document.body.appendChild(a);a.click();document.body.removeChild(a);
+  });
 
-    log("Sending PATCH request to update " + actualKey + "...");
-    var patchUrl = "https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + LIST_NAME + "/items/" + TARGET_ITEM_ID + "/fields";
-    var patchBody = {};
-    patchBody[actualKey] = updatedPayload;
+  function userMessage(){var t=$('title').value;return (t?'Title: '+t+'\n\n':'')+'Transcript:\n'+page.value}
+  function combinedPrompt(){return getInstr()+'\n\n'+userMessage()}
 
-    var patchRes = await fetch(patchUrl, {
-      method: "PATCH",
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(patchBody)
+  var menu=$('aiMenu'),aiBtn=$('aiBtn');
+  aiBtn.addEventListener('click',function(e){e.stopPropagation();var o=menu.classList.toggle('open');aiBtn.setAttribute('aria-expanded',o)});
+  document.addEventListener('click',function(){menu.classList.remove('open');aiBtn.setAttribute('aria-expanded','false')});
+  menu.querySelectorAll('[data-url]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var url=b.getAttribute('data-url'),name=b.getAttribute('data-name');
+      copy(combinedPrompt()).then(function(){toast('Copied. Paste it into '+name+'.')},function(){toast('Copy failed')});
+      window.open(url,'_blank','noopener');
     });
+  });
 
-    var patchData = await patchRes.json();
-    if(!patchRes.ok) throw new Error(patchData.error && patchData.error.message || "Patch failed (" + patchRes.status + ")");
+  var dlg=$('instDlg');
+  function countInst(){var t=$('instText').value;$('instCount').textContent=(t.trim()?t.trim().split(/\s+/).length:0)+' words'}
+  $('editInst').addEventListener('click',function(){
+    $('dlgT').textContent='AI instructions: '+PRESETS[presetId].label;
+    $('dlgP').textContent='These are sent to the AI with every transcript. Edit freely. Saved edits stay on your device only.';
+    $('instText').value=getInstr();countInst();
+    if(dlg.showModal)dlg.showModal();else dlg.setAttribute('open','');
+  });
+  $('instText').addEventListener('input',countInst);
+  $('instSave').addEventListener('click',function(){
+    var v=$('instText').value.trim();
+    if(!v){toast('Instructions cannot be empty');return}
+    store('ss_inst_'+presetId,v===PRESETS[presetId].text.trim()?null:v);
+    fillPresets();dlg.close();toast('Instructions saved');
+  });
+  $('instReset').addEventListener('click',function(){
+    store('ss_inst_'+presetId,null);$('instText').value=PRESETS[presetId].text;countInst();fillPresets();toast('Reset to built-in');
+  });
+  $('instCancel').addEventListener('click',function(){dlg.close()});
+  $('dlgX').addEventListener('click',function(){dlg.close()});
 
-    log("🎉 SUCCESS! SharePoint Item 17 (" + actualKey + ") updated successfully.");
-    document.getElementById("textToAppend").value = "";
-  } catch(e) {
-    log("ERROR updating: " + e.message);
-  } finally {
-    btn.disabled = false;
+  var defaults={
+    gemini:{
+      models:['gemini-3.8-flash','gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-flash'],
+      hint:'Get your free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.'
+    },
+    groq:{
+      models:['llama-3.3-70b-versatile','llama-3.1-8b-instant'],
+      hint:'Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.'
+    }
+  };
+
+  function populateModelDropdown(list, selectedVal){
+    var sel=$('model');sel.innerHTML='';
+    list.forEach(function(m){
+      var opt=document.createElement('option');opt.value=m;opt.textContent=m;sel.appendChild(opt);
+    });
+    if(selectedVal&&list.indexOf(selectedVal)>-1){sel.value=selectedVal}
+    else if(list.length){sel.value=list[0]}
   }
-});
 
-// Check if an RMR account is already authenticated on load
-var existingAccounts = msalApp.getAllAccounts();
-var existingRmr = existingAccounts.find(function(a){ return a.username && a.username.toLowerCase().includes("rmr"); });
-if(existingRmr){
-  updateUserUI(existingRmr);
-}
+  function autoSaveKey(){
+    var p=$('prov').value;
+    var k=$('key').value.trim();
+    if($('remember').checked && k){
+      store('ss_key_'+p, k);
+    } else {
+      store('ss_key_'+p, null);
+    }
+  }
+  $('key').addEventListener('input', autoSaveKey);
+  $('remember').addEventListener('change', autoSaveKey);
+
+  function applyProvider(){
+    var p=$('prov').value;
+    var savedModel=load('ss_model_'+p);
+    var modelList=defaults[p].models.slice();
+    if(savedModel&&modelList.indexOf(savedModel)===-1)modelList.unshift(savedModel);
+
+    populateModelDropdown(modelList,savedModel||defaults[p].models[0]);
+    $('hint').innerHTML=defaults[p].hint;
+    $('key').value=load('ss_key_'+p)||'';
+    $('remember').checked=!!load('ss_key_'+p);
+    $('checkOut').textContent='';
+  }
+  $('prov').value=load('ss_prov')||'gemini';
+  applyProvider();
+  $('prov').addEventListener('change',function(){store('ss_prov',$('prov').value);applyProvider()});
+  $('model').addEventListener('change',function(){store('ss_model_'+$('prov').value,$('model').value)});
+
+  function friendly(status,msg){
+    msg=msg||('Request failed ('+status+')');
+    if(/ACCESS_TOKEN_TYPE_UNSUPPORTED/.test(msg))return 'Google rejected this key. Create a fresh key in Google AI Studio.';
+    if(status===429)return 'Free tier rate limit reached. Wait a minute and try again.';
+    if(status===400&&/API key/i.test(msg))return 'Key not accepted. Verify it was copied completely.';
+    return msg;
+  }
+
+  $('checkKey').addEventListener('click',async function(){
+    var p=$('prov').value,key=$('key').value.trim(),outDiv=$('checkOut');
+    if(!key){outDiv.className='result bad';outDiv.textContent='Paste your key first.';return}
+    autoSaveKey();
+    outDiv.className='result';outDiv.textContent='Checking...';
+    try{
+      var names=[];
+      if(p==='gemini'){
+        var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':key}});
+        var d=await r.json();
+        if(!r.ok)throw new Error(friendly(r.status,d.error&&d.error.message));
+        names=(d.models||[]).filter(function(m){return /gemini/i.test(m.name)&&(m.supportedGenerationMethods||[]).indexOf('generateContent')>-1&&!/image|tts|embedding|live|audio|robotics|computer-use/i.test(m.name)}).map(function(m){return m.name.replace(/^models\//,'')});
+      }else{
+        var g=await fetch('https://api.groq.com/openai/v1/models',{headers:{'Authorization':'Bearer '+key}});
+        var gd=await g.json();
+        if(!g.ok)throw new Error(friendly(g.status,gd.error&&gd.error.message));
+        names=(gd.data||[]).map(function(m){return m.id}).filter(function(n){return !/whisper|guard|tts|playai/i.test(n)});
+      }
+      populateModelDropdown(names,$('model').value);
+      store('ss_model_'+p,$('model').value);
+      outDiv.className='result';
+      outDiv.innerHTML='<b>Key verified &amp; saved.</b> '+names.length+' text models available in dropdown.';
+    }catch(e){outDiv.className='result bad';outDiv.textContent=e.message||'Could not reach the service.'}
+  });
+
+  function mdToHtml(md){
+    var lines=esc(md).split('\n'),html='',inUl=false,inOl=false;
+    function inline(x){return x.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')}
+    lines.forEach(function(l){
+      var h=l.match(/^#{1,4}\s+(.*)/),ul=l.match(/^\s*[-*]\s+(.*)/),ol=l.match(/^\s*\d+\.\s+(.*)/);
+      if(/^\s*(-{3,}|\*{3,})\s*$/.test(l)){if(inUl){html+='</ul>';inUl=false}if(inOl){html+='</ol>';inOl=false}html+='<hr>'}
+      else if(h){if(inUl){html+='</ul>';inUl=false}if(inOl){html+='</ol>';inOl=false}html+='<h3>'+inline(h[1])+'</h3>'}
+      else if(ul){if(inOl){html+='</ol>';inOl=false}if(!inUl){html+='<ul>';inUl=true}html+='<li>'+inline(ul[1])+'</li>'}
+      else if(ol){if(inUl){html+='</ul>';inUl=false}if(!inOl){html+='<ol>';inOl=true}html+='<li>'+inline(ol[1])+'</li>'}
+      else if(l.trim()){if(inUl){html+='</ul>';inUl=false}if(inOl){html+='</ol>';inOl=false}html+='<p>'+inline(l)+'</p>'}
+    });
+    if(inUl)html+='</ul>';if(inOl)html+='</ol>';
+    return html;
+  }
+
+  async function callAI(){
+    var p=$('prov').value,key=$('key').value.trim(),model=$('model').value.trim();
+    if(!key)throw new Error('Please enter your API key under AI Settings first.');
+    var sys=getInstr(),user=userMessage();
+
+    if(p==='gemini'){
+      var tryList=[model,'gemini-3.8-flash','gemini-2.5-flash','gemini-2.0-flash'];
+      var uniqueModels=tryList.filter(function(v,i,a){return v&&a.indexOf(v)===i});
+      var lastErr='Model request failed';
+      for(var i=0;i<uniqueModels.length;i++){
+        var curModel=uniqueModels[i];
+        var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(curModel)+':generateContent',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-goog-api-key':key},
+          body:JSON.stringify({
+            systemInstruction:{parts:[{text:sys}]},
+            contents:[{role:'user',parts:[{text:user}]}],
+            generationConfig:{temperature:0.3,maxOutputTokens:8192}
+          })
+        });
+        var d=await r.json();
+        if(r.status===404){lastErr=(d.error&&d.error.message)||lastErr;continue}
+        if(!r.ok)throw new Error(friendly(r.status,d.error&&d.error.message));
+        var parts=d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts;
+        if(!parts)throw new Error('The model returned no text. Please retry.');
+        if(curModel!==model){$('model').value=curModel;store('ss_model_gemini',curModel)}
+        return parts.map(function(x){return x.text||''}).join('');
+      }
+      throw new Error(lastErr+'. Click "Check key and list models" to see available models.');
+    }
+
+    var g=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:model,messages:[{role:'system',content:sys},{role:'user',content:user}]})});
+    var gd=await g.json();
+    if(!g.ok)throw new Error(friendly(g.status,gd.error&&gd.error.message));
+    return gd.choices[0].message.content;
+  }
+
+  $('sumBtn').addEventListener('click',async function(){
+    var btn=$('sumBtn');
+    autoSaveKey();
+    btn.disabled=true;$('copyNotes').disabled=true;
+    out.removeAttribute('contenteditable');
+    out.innerHTML='<div class="loading"><span class="spin"></span>Generating notes... Long analysis may take up to a minute.</div>';
+    try{
+      var rawNotes=await callAI();
+      out.innerHTML=mdToHtml(rawNotes);
+      out.setAttribute('contenteditable','true');
+      out.setAttribute('data-has-notes','true');
+      $('copyNotes').disabled=false;
+      toast('Notes generated. You can click inside to edit.');
+    }catch(e){
+      if(!$('key').value.trim())$('cfg').open=true;
+      out.removeAttribute('data-has-notes');
+      out.innerHTML='<div class="err">'+esc(e.message||'Something went wrong.')+'</div>';
+    }
+    btn.disabled=false;
+  });
+
+  $('copyNotes').addEventListener('click',function(){
+    var textToCopy = out.innerText.trim();
+    copy(textToCopy).then(function(){toast('Notes copied (including your edits)')},function(){toast('Copy failed')});
+  });
+
+  window.addEventListener('beforeunload',function(e){if(page.value.length>40){e.preventDefault();e.returnValue=''}});
+
+  var qs=(location.search.match(/[?&]mode=(\w+)/)||[])[1];
+  applyMode(MODES[qs]?qs:(MODES[load('ss_mode')]?load('ss_mode'):'sermon'));
+})();
 </script>
 </body>
 </html>
