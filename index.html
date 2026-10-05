@@ -686,24 +686,46 @@ var SITE_PATH = "/sites/Bible_App";
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(SR){
     recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang='en-US';
-    recognition.onresult=function(e){
-      var tmp='';
-      for(var i=e.resultIndex;i<e.results.length;i++){
-        var r=e.results[i];
-        if(r.isFinal){
-          var chunk=r[0].transcript.trim();
-          if(chunk){
-            var now=Date.now(),gap=lastResultAt&&(now-lastResultAt>4000);
-            var currentText=page.value;
-            var sep=currentText?(gap?'\n\n':' '):'';
-            page.value=currentText+sep+chunk;lastResultAt=now;
-            page.scrollTop=page.scrollHeight;updateUI();
+   var lastChunk = '';
+    var lastChunkTime = 0;
+
+    recognition.onresult = function(e){
+      var tmp = '';
+      for (var i = e.resultIndex; i < e.results.length; i++){
+        var r = e.results[i];
+        if (r.isFinal) {
+          var chunk = r[0].transcript.trim();
+          var now = Date.now();
+
+          // DEDUPLICATION SHIELD:
+          // Rejects repeating phrases/sentences fired in rapid succession by room echo
+          if (chunk) {
+            var currentText = page.value.trim();
+            var isDuplicate = (chunk === lastChunk && (now - lastChunkTime < 3000)) || 
+                              (currentText.endsWith(chunk) && (now - lastChunkTime < 3000));
+
+            if (!isDuplicate) {
+              var gap = lastResultAt && (now - lastResultAt > 4000);
+              var sep = currentText ? (gap ? '\n\n' : ' ') : '';
+              page.value = currentText + sep + chunk;
+              lastResultAt = now;
+              lastChunk = chunk;
+              lastChunkTime = now;
+              page.scrollTop = page.scrollHeight;
+              updateUI();
+            }
           }
-        }else{tmp+=r[0].transcript}
+        } else {
+          tmp += r[0].transcript;
+        }
       }
-      interim=tmp;
-      if(interim){interimBox.textContent='... '+interim;interimBox.style.display='block'}
-      else{interimBox.style.display='none'}
+      interim = tmp;
+      if (interim) {
+        interimBox.textContent = '... ' + interim;
+        interimBox.style.display = 'block';
+      } else {
+        interimBox.style.display = 'none';
+      }
     };
     recognition.onend=function(){
       running=false;
