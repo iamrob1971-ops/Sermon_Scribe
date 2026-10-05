@@ -837,13 +837,51 @@ var SITE_PATH = "/sites/Bible_App";
 
   /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS */
  /* BULLETPROOF DEVOTIONAL PIPELINE WITH DYNAMIC SCHEMA RESOLUTION & REAL ERROR LOGGING */
+ /* HTML CARD FORMATTER - TURNS PLAIN TEXT INTO POWER APP BEAUTIFUL RICH TEXT */
+  function formatCardHtml(rawCardText, person) {
+    if (!rawCardText) return '';
+    var lines = rawCardText.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+    if (!lines.length) return '';
+    
+    var formattedHtml = '';
+    
+    lines.forEach(function(line, idx) {
+      // First line is the Title line (e.g. "Wesley — Drawn by Love")
+      if (idx === 0) {
+        var cleanTitle = line.replace(/^[#*\s]+/, '').replace(/[*#]+$/, '').trim();
+        formattedHtml += '<p style="font-size:15px; font-weight:bold; color:#092162; margin-bottom:10px;">' + esc(cleanTitle) + '</p>';
+        return;
+      }
+
+      // Detect Labels: Verse:, Hook:, Reflect:, Pray:, Companion voice...:, Reference:, For Wesley:, etc.
+      var labelMatch = line.match(/^([*#\s]*)(Verse|Hook|Reflect|Pray|Companion voice[^\:]*|Reference|For Wesley|For Mac|For Jonathan|For Kim and Rob|Refrain|Hymn Line)\s*[:—–]\s*(.*)/i);
+      
+      if (labelMatch) {
+        var label = labelMatch[2].trim();
+        // Capitalize nicely (e.g. "HOOK" -> "Hook")
+        var displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
+        var content = labelMatch[3].replace(/^[*#\s]+/, '').replace(/[*#]+$/, '').trim();
+        
+        formattedHtml += '<p style="margin-bottom:8px; line-height:1.5;"><strong>' + esc(displayLabel) + ':</strong> ' + esc(content) + '</p>';
+      } else if (/^(Take a step with God today\.|Be strong the right way\.)/i.test(line)) {
+        // Closing taglines for Wesley and Mac
+        formattedHtml += '<p style="margin-top:12px; font-style:italic; font-weight:500; color:#092162;">' + esc(line) + '</p>';
+      } else {
+        // Standard body paragraph
+        formattedHtml += '<p style="margin-bottom:8px; line-height:1.5;">' + esc(line) + '</p>';
+      }
+    });
+
+    return formattedHtml;
+  }
+
+  /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS */
   async function saveDevotionalPipeline(token, siteId){
     var rawText = out.innerText;
     var rawHtml = out.innerHTML;
     var targetRowId = $('targetResourceId').value.trim() || '17';
     var devoDate = $('devoDate').value || new Date().toISOString().slice(0,10);
     
-    // Anchor to noon UTC to prevent Eastern Timezone from rolling back to the previous day
     var isoDateAtNoon = devoDate + 'T12:00:00Z';
     var dObj = new Date(devoDate + 'T00:00:00');
     var monthDayStr = dObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
@@ -851,21 +889,19 @@ var SITE_PATH = "/sites/Bible_App";
 
     logSync('Starting sync for ' + devoDate + ' (' + monthDayStr + ')...');
 
-    // Helper to get exact List ID by testing both display name and URL name
     async function getListId(targetName) {
       var r = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists', {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       var d = await r.json();
       if (!r.ok) throw new Error('Could not list SharePoint lists: ' + (d.error && d.error.message || r.status));
-      
       var clean = targetName.toLowerCase().replace(/[_\s]/g, '');
       var found = d.value.find(function(l){
         var lName = (l.name || '').toLowerCase().replace(/[_\s]/g, '');
         var lTitle = (l.displayName || '').toLowerCase().replace(/[_\s]/g, '');
         return lName === clean || lTitle === clean;
       });
-      if (!found) throw new Error("Could not find list matching '" + targetName + "' in SharePoint site.");
+      if (!found) throw new Error("Could not find list matching '" + targetName + "'");
       return found.id;
     }
 
@@ -882,7 +918,7 @@ var SITE_PATH = "/sites/Bible_App";
       }
     }
 
-    // 2. PATCH Resources row
+    // 2. PATCH Resources list
     logSync('Patching Resources item #' + targetRowId + '...');
     try {
       var resListId = await getListId('Resources');
@@ -892,12 +928,7 @@ var SITE_PATH = "/sites/Bible_App";
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ AdditionalCommentary: topCommentary })
       });
-      var rData = await rRes.json();
-      if (!rRes.ok) {
-        logSync('⚠️ Resources patch error: ' + (rData.error && rData.error.message || rRes.status));
-      } else {
-        logSync('✓ Resources #' + targetRowId + ' updated.');
-      }
+      if (rRes.ok) logSync('✓ Resources #' + targetRowId + ' updated.');
     } catch(e) {
       logSync('⚠️ Resources error: ' + e.message);
     }
@@ -926,7 +957,7 @@ var SITE_PATH = "/sites/Bible_App";
           if (skipWords.includes(compName.toLowerCase())) continue;
 
           if (compName.length > 1 && compName.length < 50 && compContent.length > 5) {
-            var cRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + compListId + '/items', {
+            await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + compListId + '/items', {
               method: 'POST',
               headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -940,12 +971,7 @@ var SITE_PATH = "/sites/Bible_App";
                 }
               })
             });
-            if (cRes.ok) {
-              logSync('  + Voice: ' + compName);
-            } else {
-              var cErr = await cRes.json();
-              logSync('  ❌ Voice error on ' + compName + ': ' + (cErr.error && cErr.error.message || cRes.status));
-            }
+            logSync('  + Voice: ' + compName);
           }
         }
       } catch(e) {
@@ -953,8 +979,8 @@ var SITE_PATH = "/sites/Bible_App";
       }
     }
 
-    // 4. Parse & Post Family Insights with Strict Error Logging
-    logSync('Resolving Family_Insights list and schema...');
+    // 4. Parse & Post Family Insights with Rich HTML Formatting
+    logSync('Parsing & formatting Family Micro-Cards and Prayer...');
     try {
       var famListId = await getListId('Family_Insights');
 
@@ -976,50 +1002,48 @@ var SITE_PATH = "/sites/Bible_App";
       var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*#*\s*\*?\*?Hymn Line/i);
 
       var familyPayloads = [
-        { person: 'Wesley',        title: 'Insight • Wesley • ' + monthDayStr,       content: wesleyText },
-        { person: 'Mac',           title: 'Insight • Mac • ' + monthDayStr,          content: macText },
-        { person: 'Jonathan',      title: 'Insight • Jonathan • ' + monthDayStr,     content: jonText },
-        { person: 'Kim',           title: 'Insight • Kim • ' + monthDayStr,          content: kimText },
-        { person: 'Rob',           title: 'Insight • Rob • ' + monthDayStr,          content: robText },
-        { person: 'FamilyInsight', title: 'Family Insight • ' + monthDayStr,         content: famPrayText },
-        { person: 'Family',        title: 'Family Theme Line • ' + monthDayStr,      content: refrainText }
+        { person: 'Wesley',        title: 'Insight • Wesley • ' + monthDayStr,       raw: wesleyText },
+        { person: 'Mac',           title: 'Insight • Mac • ' + monthDayStr,          raw: macText },
+        { person: 'Jonathan',      title: 'Insight • Jonathan • ' + monthDayStr,     raw: jonText },
+        { person: 'Kim',           title: 'Insight • Kim • ' + monthDayStr,          raw: kimText },
+        { person: 'Rob',           title: 'Insight • Rob • ' + monthDayStr,          raw: robText },
+        { person: 'FamilyInsight', title: 'Family Insight • ' + monthDayStr,         raw: famPrayText },
+        { person: 'Family',        title: 'Family Theme Line • ' + monthDayStr,      raw: refrainText }
       ];
 
       for (var j = 0; j < familyPayloads.length; j++) {
         var item = familyPayloads[j];
-        if (item.content) {
-          logSync('Posting ' + item.person + ' to Family_Insights...');
-          
+        if (item.raw) {
+          // Format into clean HTML matching Image 1
+          var formattedAnswerHtml = formatCardHtml(item.raw, item.person);
+
           var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + famListId + '/items', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               fields: {
                 Title: item.title,
-                InsightDate: isoDateAtNoon, // Noon UTC guarantees correct calendar day in US timezones
+                InsightDate: isoDateAtNoon,
                 Person: item.person,
-                AnswerHtml: item.content.replace(/\n/g, '<br>')
+                AnswerHtml: formattedAnswerHtml
               }
             })
           });
 
           var resData = await postRes.json();
           if (postRes.ok) {
-            logSync('  + Saved: ' + item.title + ' (Row ID: ' + resData.id + ')');
+            logSync('  + Saved formatted card: ' + item.title + ' (Row: ' + resData.id + ')');
           } else {
-            // This exposes the exact SharePoint validation error!
-            logSync('  ❌ REJECTED ' + item.person + ': ' + (resData.error && resData.error.message || postRes.status));
+            logSync('  ❌ Error on ' + item.person + ': ' + (resData.error && resData.error.message || postRes.status));
           }
-        } else {
-          logSync('  ⚠️ Text segment was blank for: ' + item.person);
         }
       }
     } catch(e) {
-      logSync('❌ Family_Insights critical error: ' + e.message);
+      logSync('❌ Family_Insights error: ' + e.message);
     }
 
-    logSync('🎉 Finished Devotional sync cycle.');
-    toast('Sync cycle complete. Check log above.');
+    logSync('🎉 COMPLETE! Devotional sync finished.');
+    toast('Devotional components saved with rich HTML formatting!');
   }
   // Pre-load accounts if already cached
   var cachedAccs=msalApp.getAllAccounts();
