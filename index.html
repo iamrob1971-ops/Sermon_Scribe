@@ -26,7 +26,7 @@ html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;min-height:100vh;padding:20px}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--violet);outline-offset:2px}
-.shell{max-width:1300px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(380px,1.1fr);gap:20px;align-items:start}
+.shell{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(400px,1.15fr);gap:20px;align-items:start}
 header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 4px 0;flex-wrap:wrap}
 .brand{font-family:var(--serif);font-size:24px;font-weight:500;letter-spacing:-.01em}
 .brand small{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:10px;font-weight:400}
@@ -63,7 +63,7 @@ header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:spac
 .on-air .bars i:nth-child(4){animation-delay:.45s}.on-air .bars i:nth-child(5){animation-delay:.6s}
 @keyframes bar{0%,100%{height:4px}50%{height:16px}}
 
-/* Context Bar (Theme / Target Row) */
+/* Context Bar */
 .ctx-bar{padding:10px 22px;border-bottom:1px solid var(--line);background:var(--paper);display:flex;gap:12px;align-items:center;font-size:13px;flex-wrap:wrap}
 .ctx-bar select,.ctx-bar input{border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:13px;background:#fff}
 
@@ -94,7 +94,7 @@ textarea.page::placeholder{color:#A9A5BD;font-family:var(--sans);font-size:15px;
 .btn.sm{padding:5px 9px;font-size:12px}
 .spacer{flex:1}
 
-/* NOTES & OVERLAY */
+/* NOTES AREA & GHOST PLACEHOLDER */
 .notes{display:flex;flex-direction:column;min-height:calc(100vh - 100px);transition:all .2s ease}
 .notes.overlay-mode{
   position:fixed;inset:16px;z-index:1000;max-height:calc(100vh - 32px);min-height:calc(100vh - 32px);
@@ -113,9 +113,16 @@ details.cfg summary{cursor:pointer;padding:10px 0;font-size:13px;color:var(--mut
 
 .out{
   flex:1;padding:20px 24px;overflow-y:auto;max-height:calc(100vh - 460px);min-height:240px;
-  font-family:var(--serif);font-size:16px;line-height:1.6;outline:none;
+  font-family:var(--serif);font-size:16px;line-height:1.6;outline:none;cursor:text;position:relative;
 }
-.out[contenteditable="true"]{cursor:text}
+.out:empty::before{
+  content:attr(data-placeholder);
+  color:var(--muted);
+  font-family:var(--sans);
+  font-size:14px;
+  font-style:italic;
+  pointer-events:none;
+}
 .out h2,.out h3{font-family:var(--sans);font-size:14px;font-weight:600;color:var(--violet);margin:1.3em 0 .3em;text-transform:uppercase;letter-spacing:0.04em}
 .out h2:first-child,.out h3:first-child{margin-top:0}
 .out ul,.out ol{margin:0 0 1em;padding-left:1.2em}
@@ -128,10 +135,9 @@ details.cfg summary{cursor:pointer;padding:10px 0;font-size:13px;color:var(--mut
 @keyframes sp{to{transform:rotate(360deg)}}
 .err{color:#8E2236;font-family:var(--sans);font-size:13px;background:#FDECEF;padding:10px;border-radius:8px}
 
-/* Progress Drawer / Log */
-.sync-status{padding:10px 22px;background:#F6F5FB;border-top:1px solid var(--line);font-size:12px;color:var(--muted);font-family:Consolas,monospace;max-height:110px;overflow-y:auto;display:none}
+.sync-status{padding:10px 22px;background:#F6F5FB;border-top:1px solid var(--line);font-size:12px;color:var(--muted);font-family:Consolas,monospace;max-height:120px;overflow-y:auto;display:none}
 
-dialog{border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);padding:0;width:min(800px,94vw)}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);padding:0;width:min(820px,94vw)}
 dialog::backdrop{background:rgba(29,25,48,.45)}
 .dlg-h{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
 .dlg-h h2{margin:0;font-family:var(--serif);font-size:20px;font-weight:500}
@@ -184,7 +190,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       </div>
     </div>
 
-    <!-- Dynamic Context Bar (Theme for Sermon / Target Row for Devotional) -->
+    <!-- Context Bar (Theme for Sermon / Target Row for Devotional) -->
     <div class="ctx-bar" id="ctxBar">
       <div id="sermonCtx" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <b>Theme:</b>
@@ -215,6 +221,10 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       <button class="btn primary" id="copyBtn" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
         Copy transcript
+      </button>
+      <button class="btn" id="copyPromptBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        Copy prompt + transcript
       </button>
       <button class="btn" id="dlBtn" disabled>Save .txt</button>
       <button class="btn" id="sampleBtn">Load sample</button>
@@ -254,7 +264,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       </div>
     </details>
 
-    <div class="out" id="out" spellcheck="true"></div>
+    <div class="out" id="out" contenteditable="true" spellcheck="true" data-placeholder="Notes appear here after clicking Summarize, or click/paste pre-generated notes from Claude/ChatGPT here..."></div>
     <div class="sync-status" id="syncStatus"></div>
 
     <div class="actions">
@@ -271,7 +281,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 <dialog id="instDlg" aria-labelledby="dlgT">
   <div class="dlg-h"><h2 id="dlgT">AI Instructions</h2><button class="btn sm" id="dlgX" aria-label="Close">Close</button></div>
   <div class="dlg-b">
-    <p id="dlgP"></p>
+    <p id="dlgP" style="font-size:13px;color:var(--muted);margin:0"></p>
     <textarea id="instText" spellcheck="false"></textarea>
     <span class="count" id="instCount" style="font-size:12px;color:var(--muted)"></span>
   </div>
@@ -286,8 +296,69 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 
 <script>
 /* =====================================================================
-   SECTION 1 - SYSTEM PROMPTS (SERMON & SPURGEON DEVOTIONAL)
+   =====================================================================
+   SECTION 1 - SYSTEM PROMPTS (EASILY MANAGED FROM CODEBASE)
+   =====================================================================
    ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   PROMPT A: SERMON EXPOSITORY NOTES (DEFAULT SERMON MODE)
+   >>> EDIT HERE TO CHANGE DEFAULT SERMON NOTES <<<
+   --------------------------------------------------------------------- */
+var SERMON_STANDARD = `You are a biblical research assistant producing an expositional, Christ-centered study of a sermon transcript. Interpret within historic Protestant, Reformed orthodoxy.
+
+OUTPUT HEADINGS IN MARKDOWN:
+## Main Idea
+[Central thesis of the message]
+
+## Key Takeaways
+[4-6 bulleted takeaways grounded in the text]
+
+## Scripture Focus
+[Bulleted list: each reference cited and how the speaker used it]
+
+## Theological Synthesis
+[Doctrinal anchors: Christology, grace, justification, sanctification, providence]
+
+## Application
+[Direct life application for conscience, work, family, and spiritual walk]
+
+## Reflection Questions
+[5 searching questions for personal meditation]
+
+Stay faithful to what was spoken in the transcript without introducing external teachings.`;
+
+/* ---------------------------------------------------------------------
+   PROMPT B: FULL REFORMED ANALYSIS (PCA / WESTMINSTER COMPATIBLE)
+   >>> EDIT HERE FOR DEEP 13-SECTION SCHOLARLY ANALYSIS <<<
+   --------------------------------------------------------------------- */
+var SERMON_FULL = `You are a biblical research assistant producing a Scripture-first, historically informed and pastorally useful analysis of a sermon transcript. Interpret within historic Protestant, Reformed, PCA-compatible theology (Westminster Confession of Faith and the Catechisms).
+
+AUTHORITY, IN ORDER
+1. Holy Scripture: the final authority. Scripture interprets Scripture. Read each passage in its immediate, historical and literary context.
+2. Historic Christian orthodoxy (Trinity, deity and humanity of Christ, substitutionary atonement, bodily resurrection, salvation in Christ, authority of Scripture, final judgment).
+3. Historic Reformed theology (sovereignty and providence of God, grace alone through faith alone in Christ alone, union with Christ, justification, adoption, sanctification, perseverance, covenant, means of grace).
+4. Theologians and catechisms as valuable but subordinate witnesses: Spurgeon, Calvin, Matthew Henry, Luther, Augustine, Sproul, MacArthur, Owen, Watson, Edwards, the Heidelberg Catechism and the Westminster Standards.
+
+OUTPUT HEADINGS IN MARKDOWN:
+## A. Sermon identification
+## B. Executive summary
+## C. Biblical foundation
+## D. Detailed sermon summary
+## E. Major theological themes
+## F. Key insights and memorable statements
+## G. Scripture cross-reference study
+## H. Theological review
+## I. Practical Christian applications
+## J. Reflection and self-examination
+## K. Final sermon synthesis
+## L. Companion voices
+## M. Related prayer`;
+
+/* ---------------------------------------------------------------------
+   PROMPT C: SPURGEON FAITH'S CHECKBOOK & FAMILY MICRO-CARDS
+   >>> EDIT HERE FOR DEVOTIONAL & FAMILY SECTION <<<
+   --------------------------------------------------------------------- */
 var DEVOTIONAL_SPURGEON = `You are expanding Charles Spurgeon's Faith's Checkbook devotionals into substantial family devotionals that are Scripture-governed, Christ-centered, grace-centered, Reformed in theological orientation, pastorally useful, and formatted for a family Bible Power App.
 
 PRIMARY AUTHORITY
@@ -380,31 +451,9 @@ PromiseNum{{TAB}}PromiseTitle{{TAB}}ScriptureWEBU{{TAB}}The Promise Itself{{TAB}
 [Data row with 27 fields separated by {{TAB}}, ending with {{TAB}}{{TAB}}FALSE{{TAB}}Pending]
 \`\`\``;
 
-var SERMON_STANDARD = `You are a biblical research assistant producing an expositional, Christ-centered study of a sermon transcript. Interpret within historic Protestant, Reformed orthodoxy.
-
-OUTPUT HEADINGS IN MARKDOWN:
-## Main Idea
-[Central thesis of the message]
-
-## Key Takeaways
-[4-6 bulleted takeaways grounded in the text]
-
-## Scripture Focus
-[Bulleted list: each reference cited and how the speaker used it]
-
-## Theological Synthesis
-[Doctrinal anchors: Christology, grace, justification, sanctification, providence]
-
-## Application
-[Direct life application for conscience, work, family, and spiritual walk]
-
-## Reflection Questions
-[5 searching questions for personal meditation]
-
-Stay faithful to what was spoken in the transcript without introducing external teachings.`;
-
 var PRESETS = {
   'sermon-std':    {mode:'sermon',     label:'Expository Sermon Notes',                text:SERMON_STANDARD},
+  'sermon-full':   {mode:'sermon',     label:'Sermon: Full Reformed Analysis',         text:SERMON_FULL},
   'devo-spurgeon': {mode:'devotional', label:"Spurgeon Faith's Checkbook Devotional",  text:DEVOTIONAL_SPURGEON}
 };
 
@@ -432,7 +481,7 @@ var MODES = {
 
 var MSAL_CONFIG = {
   auth: {
-    clientId: "bc4efc91-8b56-4f59-bf0e-f42e4724e2f6", // Your verified Client ID (e2f6)
+    clientId: "bc4efc91-8b56-4f59-bf0e-f42e4724e2f6", // Verified Client ID (e2f6)
     authority: "https://login.microsoftonline.com/daa6322e-b4e5-415c-8cc7-258c866f29d7",
     redirectUri: window.location.href.split('?')[0].split('#')[0]
   },
@@ -479,7 +528,6 @@ var SITE_PATH = "/sites/Bible_App";
     s.scrollTop=s.scrollHeight;
   }
 
-  // Set default devotional date
   $('devoDate').value=new Date().toISOString().slice(0,10);
 
   /* Mode Management */
@@ -498,7 +546,8 @@ var SITE_PATH = "/sites/Bible_App";
 
     presetId=c.defaultPreset;
     fillPresets();
-    if(!out.getAttribute('data-has-notes'))out.innerHTML='<div class="placeholder">Notes will appear here after clicking Summarize.</div>';
+    if(!out.innerText.trim()) out.innerHTML='';
+    checkNotesState();
     store('ss_mode_last',m);
     updateUI();
   }
@@ -516,6 +565,7 @@ var SITE_PATH = "/sites/Bible_App";
     return sel;
   }
 
+  /* Preset & Instructions Management */
   function fillPresets(){
     var sel=$('preset');sel.innerHTML='';
     Object.keys(PRESETS).forEach(function(id){
@@ -530,6 +580,38 @@ var SITE_PATH = "/sites/Bible_App";
   }
   function getInstr(){return load('ss_inst_'+presetId)||PRESETS[presetId].text}
   $('preset').addEventListener('change',function(){presetId=$('preset').value});
+
+  /* Instructions Dialog Logic */
+  var dlg=$('instDlg');
+  function countInst(){
+    var t=$('instText').value;
+    $('instCount').textContent=(t.trim()?t.trim().split(/\s+/).length:0)+' words';
+  }
+  $('editInst').addEventListener('click',function(){
+    $('dlgT').textContent='AI instructions: '+(PRESETS[presetId]?PRESETS[presetId].label:'Current Style');
+    $('dlgP').textContent='These instructions are sent to the AI with your prompt. Edit freely. Saved edits stay on your device only.';
+    $('instText').value=getInstr();
+    countInst();
+    if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open','');
+  });
+  $('instText').addEventListener('input',countInst);
+  $('instSave').addEventListener('click',function(){
+    var v=$('instText').value.trim();
+    if(!v){toast('Instructions cannot be empty');return}
+    store('ss_inst_'+presetId, v===PRESETS[presetId].text.trim()?null:v);
+    fillPresets();
+    dlg.close();
+    toast('Instructions saved as default for this device');
+  });
+  $('instReset').addEventListener('click',function(){
+    store('ss_inst_'+presetId,null);
+    $('instText').value=PRESETS[presetId].text;
+    countInst();
+    fillPresets();
+    toast('Reset to built-in instructions');
+  });
+  $('instCancel').addEventListener('click',function(){dlg.close()});
+  $('dlgX').addEventListener('click',function(){dlg.close()});
 
   /* URL Parameters Launch Detection from Power Apps */
   var qParams=new URLSearchParams(window.location.search);
@@ -580,6 +662,19 @@ var SITE_PATH = "/sites/Bible_App";
     renderRibbon();
   }
   page.addEventListener('input',updateUI);
+
+  /* Sample Data */
+  var SAMPLES = {
+    sermon: "Good morning. Turn with me to Romans 8:28. We often read this when things go wrong and assume it means everything will turn out comfortable. But Paul does not say every circumstance is good; he says God works in all things toward ultimate good for those who love Him.\n\nNow flip back to Genesis 50:20. When Joseph confronts his brothers who sold him into slavery, he says: 'You intended to harm me, but God intended it for good.' Notice the parallel.\n\nOur takeaway this week: Trust God's direction even when the present moment feels broken. Identify one hardship this week where you need to surrender control.",
+    devotional: "Faith's Checkbook — October 6\nAt God's Bidding\n\n'And the Lord said to Abram, Get thee out of thy country, and from thy kindred, and from thy father's house, unto a land that I will show thee.' — Genesis 12:1\n\nIt was a divine mandate with a divine promise. Faith steps out into the unknown because God has spoken. When we leave behind our self-reliance, we find that God's provision is more real than the familiar ground we left behind."
+  };
+
+  $('sampleBtn').addEventListener('click',function(){
+    page.value=SAMPLES[mode];
+    $('title').value=$('title').value||(mode==='sermon'?'Sample Message (Romans 8)':'October 6 At God\'s Bidding');
+    setStatus('Sample loaded',false);
+    updateUI();
+  });
 
   /* Expand Overlay */
   $('expandBtn').addEventListener('click',function(){
@@ -636,13 +731,30 @@ var SITE_PATH = "/sites/Bible_App";
     wantListening=true;startUI();try{recognition.start()}catch(e){}
   });
 
+  /* Transcript Copy & Prompt Bundler */
   $('copyBtn').addEventListener('click',function(){copy(page.value).then(function(){toast('Transcript copied')})});
+  
+  function getFullPromptText(){
+    var title = ($('title').value || '').trim();
+    var refs = findRefs(page.value).join(', ');
+    var text = getInstr() + '\n\n';
+    if(title) text += 'Title: ' + title + '\n';
+    if(refs) text += 'Passage References: ' + refs + '\n';
+    text += '\nSource Content:\n' + (page.value.trim() || '(No transcript entered yet)');
+    return text;
+  }
+
+  $('copyPromptBtn').addEventListener('click',function(){
+    copy(getFullPromptText()).then(function(){
+      toast('Copied instructions + transcript! Ready to paste into Claude/ChatGPT.');
+    }).catch(function(){toast('Copy failed')});
+  });
+
   $('clearBtn').addEventListener('click',function(){
     if(!confirm('Clear transcript and notes?'))return;
     page.value='';interim='';seconds=0;lastResultAt=0;$('timer').textContent='0:00';
-    out.removeAttribute('data-has-notes');out.removeAttribute('contenteditable');
-    out.innerHTML='<div class="placeholder">Notes will appear here after clicking Summarize.</div>';
-    $('copyNotes').disabled=true;$('saveSharePointBtn').disabled=true;
+    out.innerHTML='';
+    checkNotesState();
     $('syncStatus').style.display='none';$('syncStatus').textContent='';
     updateUI();
   });
@@ -696,14 +808,35 @@ var SITE_PATH = "/sites/Bible_App";
     return html;
   }
 
+  /* Notes State Watcher & Smart Paste */
+  function checkNotesState(){
+    var has=out.innerText.trim().length>0;
+    $('copyNotes').disabled=!has;
+    $('saveSharePointBtn').disabled=!has;
+  }
+
+  out.addEventListener('input', checkNotesState);
+
+  out.addEventListener('paste', function(e){
+    var text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    var html = (e.clipboardData || window.clipboardData).getData('text/html');
+
+    if (!html && (/^#{1,4}\s/m.test(text) || text.includes('Family Micro-Cards'))) {
+      e.preventDefault();
+      document.execCommand('insertHTML', false, mdToHtml(text));
+      checkNotesState();
+    } else {
+      setTimeout(checkNotesState, 50);
+    }
+  });
+
   /* Call AI */
   $('sumBtn').addEventListener('click',async function(){
     var k=$('key').value.trim(),m=$('model').value.trim();
     if(!k){$('cfg').open=true;alert('Add your Gemini API key under AI settings.');return}
-    var prompt=getInstr()+'\n\nTitle: '+($('title').value.trim()||'Untitled')+'\n\nSource Content:\n'+page.value.trim();
+    var prompt=getFullPromptText();
     this.disabled=true;$('copyNotes').disabled=true;$('saveSharePointBtn').disabled=true;
-    out.removeAttribute('contenteditable');
-    out.innerHTML='<div class="loading"><span class="spin"></span>Analyzing and formulating theological notes...</div>';
+    out.innerHTML='<div class="loading"><span class="spin"></span>Formulating study notes...</div>';
 
     try{
       var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(m)+':generateContent',{
@@ -713,10 +846,7 @@ var SITE_PATH = "/sites/Bible_App";
       var d=await r.json();if(!r.ok)throw new Error(d.error&&d.error.message||'Gemini error');
       var notesText=d.candidates[0].content.parts.map(function(p){return p.text||''}).join('');
       out.innerHTML=mdToHtml(notesText);
-      out.setAttribute('contenteditable','true');
-      out.setAttribute('data-has-notes','true');
-      $('copyNotes').disabled=false;
-      $('saveSharePointBtn').disabled=false;
+      checkNotesState();
       toast('Notes generated! Click anywhere in notes to edit.');
     }catch(e){
       out.innerHTML='<div class="err">'+esc(e.message)+'</div>';
@@ -814,7 +944,7 @@ var SITE_PATH = "/sites/Bible_App";
         Theme_Name: themeName,
         Study_Date: new Date().toISOString(),
         StudyNotes_HTML: notesHtml,
-        KeyHighlights_HTML: transcriptText.slice(0, 3000), // First portion of speech
+        KeyHighlights_HTML: transcriptText.slice(0, 3000),
         Scripture_Reference: scriptures,
         Status: 'Active',
         IsDeleted: false,
@@ -835,9 +965,7 @@ var SITE_PATH = "/sites/Bible_App";
     toast('Saved to Devotional_Topics successfully!');
   }
 
-  /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS */
- /* BULLETPROOF DEVOTIONAL PIPELINE WITH DYNAMIC SCHEMA RESOLUTION & REAL ERROR LOGGING */
- /* HTML CARD FORMATTER - TURNS PLAIN TEXT INTO POWER APP BEAUTIFUL RICH TEXT */
+  /* HTML CARD FORMATTER - TURNS PLAIN TEXT INTO BEAUTIFUL RICH TEXT FOR POWER APPS */
   function formatCardHtml(rawCardText, person) {
     if (!rawCardText) return '';
     var lines = rawCardText.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
@@ -846,28 +974,22 @@ var SITE_PATH = "/sites/Bible_App";
     var formattedHtml = '';
     
     lines.forEach(function(line, idx) {
-      // First line is the Title line (e.g. "Wesley — Drawn by Love")
       if (idx === 0) {
         var cleanTitle = line.replace(/^[#*\s]+/, '').replace(/[*#]+$/, '').trim();
         formattedHtml += '<p style="font-size:15px; font-weight:bold; color:#092162; margin-bottom:10px;">' + esc(cleanTitle) + '</p>';
         return;
       }
 
-      // Detect Labels: Verse:, Hook:, Reflect:, Pray:, Companion voice...:, Reference:, For Wesley:, etc.
       var labelMatch = line.match(/^([*#\s]*)(Verse|Hook|Reflect|Pray|Companion voice[^\:]*|Reference|For Wesley|For Mac|For Jonathan|For Kim and Rob|Refrain|Hymn Line)\s*[:—–]\s*(.*)/i);
       
       if (labelMatch) {
         var label = labelMatch[2].trim();
-        // Capitalize nicely (e.g. "HOOK" -> "Hook")
         var displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
         var content = labelMatch[3].replace(/^[*#\s]+/, '').replace(/[*#]+$/, '').trim();
-        
         formattedHtml += '<p style="margin-bottom:8px; line-height:1.5;"><strong>' + esc(displayLabel) + ':</strong> ' + esc(content) + '</p>';
       } else if (/^(Take a step with God today\.|Be strong the right way\.)/i.test(line)) {
-        // Closing taglines for Wesley and Mac
         formattedHtml += '<p style="margin-top:12px; font-style:italic; font-weight:500; color:#092162;">' + esc(line) + '</p>';
       } else {
-        // Standard body paragraph
         formattedHtml += '<p style="margin-bottom:8px; line-height:1.5;">' + esc(line) + '</p>';
       }
     });
@@ -882,6 +1004,7 @@ var SITE_PATH = "/sites/Bible_App";
     var targetRowId = $('targetResourceId').value.trim() || '17';
     var devoDate = $('devoDate').value || new Date().toISOString().slice(0,10);
     
+    // Anchor to noon UTC to prevent Eastern Timezone from rolling back to previous day
     var isoDateAtNoon = devoDate + 'T12:00:00Z';
     var dObj = new Date(devoDate + 'T00:00:00');
     var monthDayStr = dObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
@@ -1014,7 +1137,6 @@ var SITE_PATH = "/sites/Bible_App";
       for (var j = 0; j < familyPayloads.length; j++) {
         var item = familyPayloads[j];
         if (item.raw) {
-          // Format into clean HTML matching Image 1
           var formattedAnswerHtml = formatCardHtml(item.raw, item.person);
 
           var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + famListId + '/items', {
@@ -1045,6 +1167,7 @@ var SITE_PATH = "/sites/Bible_App";
     logSync('🎉 COMPLETE! Devotional sync finished.');
     toast('Devotional components saved with rich HTML formatting!');
   }
+
   // Pre-load accounts if already cached
   var cachedAccs=msalApp.getAllAccounts();
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
