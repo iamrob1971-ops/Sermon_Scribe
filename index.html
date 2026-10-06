@@ -26,7 +26,7 @@ html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;min-height:100vh;padding:20px}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--violet);outline-offset:2px}
-.shell{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(400px,1.15fr);gap:20px;align-items:start}
+.shell{max-width:1340px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(400px,1.15fr);gap:20px;align-items:start}
 header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 4px 0;flex-wrap:wrap}
 .brand{font-family:var(--serif);font-size:24px;font-weight:500;letter-spacing:-.01em}
 .brand small{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:10px;font-weight:400}
@@ -62,6 +62,13 @@ header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:spac
 .on-air .bars i:nth-child(2){animation-delay:.15s}.on-air .bars i:nth-child(3){animation-delay:.3s}
 .on-air .bars i:nth-child(4){animation-delay:.45s}.on-air .bars i:nth-child(5){animation-delay:.6s}
 @keyframes bar{0%,100%{height:4px}50%{height:16px}}
+#saveState{font-size:12px;color:var(--muted)}
+#saveState.bad{color:var(--live)}
+
+/* Restore Banner */
+.restore-bar{display:none;padding:10px 22px;background:#FFFBEB;border-bottom:1px solid #FDE68A;font-size:13px;color:#92400E;align-items:center;gap:10px;flex-wrap:wrap}
+.restore-bar.show{display:flex}
+.restore-bar b{color:#78350F}
 
 /* Context Bar */
 .ctx-bar{padding:10px 22px;border-bottom:1px solid var(--line);background:var(--paper);display:flex;gap:12px;align-items:center;font-size:13px;flex-wrap:wrap}
@@ -73,15 +80,19 @@ header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:spac
 .chip{white-space:nowrap;text-decoration:none;font-family:var(--serif);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid color-mix(in srgb,var(--gold) 35%,white);border-radius:6px;padding:2px 8px}
 a.chip:hover{border-color:var(--gold)}
 
+/* Audio Queue Progress Banner */
+.audio-queue-status{
+  padding:8px 22px;background:#EFF6FF;border-bottom:1px solid #BFDBFE;
+  font-size:13px;color:#1E40AF;display:none;align-items:center;gap:10px;font-weight:500;
+}
+
 .transcript-area{flex:1;display:flex;flex-direction:column;position:relative}
 textarea.page{
   flex:1;width:100%;padding:22px 28px;border:0;outline:none;background:transparent;resize:none;
-  font-family:var(--serif);font-size:19px;line-height:1.7;color:var(--ink);min-height:280px;max-height:calc(100vh - 420px);
+  font-family:var(--serif);font-size:19px;line-height:1.7;color:var(--ink);min-height:280px;max-height:calc(100vh - 440px);
 }
 textarea.page::placeholder{color:#A9A5BD;font-family:var(--sans);font-size:15px;line-height:1.5}
 .interim-preview{padding:4px 28px 10px;color:#9A96AE;font-style:italic;font-family:var(--serif);font-size:17px;display:none}
-.notice{margin:12px 22px 0;padding:10px 14px;border-radius:8px;background:#FDECEF;color:#8E2236;font-size:13px;display:none}
-.notice.show{display:block}
 
 .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 22px;border-top:1px solid var(--line)}
 .btn{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:7px 13px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;font-size:13px;transition:.15s}
@@ -161,7 +172,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 
 <div class="shell" id="shell">
   <header class="top">
-    <div class="brand"><span id="brand">Sermon Scribe</span><small id="sub">Live transcript, Reformed notes &amp; SharePoint sync</small></div>
+    <div class="brand"><span id="brand">Sermon Scribe</span><small id="sub">Live transcript &amp; Reformed study workstation</small></div>
     <div class="top-r">
       <div class="seg" role="group" aria-label="Mode">
         <button id="mSermon" aria-pressed="true">Sermon</button>
@@ -185,9 +196,17 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
         <div class="meta" id="meta">
           <span id="timer">0:00</span>
           <span id="words">0 words</span>
+          <span id="saveState" title="Saved automatically in this browser"></span>
           <span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
         </div>
       </div>
+    </div>
+
+    <!-- Autosave restore banner -->
+    <div class="restore-bar" id="restoreBar" role="alert">
+      <span id="restoreText">An unsaved session was found.</span>
+      <button class="btn sm" id="restoreBtn" style="margin-left:auto">Restore</button>
+      <button class="btn sm" id="discardBtn">Discard</button>
     </div>
 
     <!-- Context Bar (Theme for Sermon / Target Row for Devotional) -->
@@ -203,14 +222,19 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
         <input type="text" id="customThemeInput" placeholder="New Theme Title..." style="display:none;width:180px">
       </div>
       <div id="devotionalCtx" style="display:none;gap:12px;align-items:center;flex-wrap:wrap">
-        <span><b>Target Resource ID / Row:</b> <input type="number" id="targetResourceId" value="17" style="width:70px" title="SharePoint Resources item ID"></span>
-        <span><b>Source:</b> <input type="text" id="devoSource" value="FCB" style="width:70px"></span>
+        <span><b>Target Resource Row ID:</b> <input type="number" id="targetResourceId" value="17" style="width:75px" title="SharePoint Resources item ID"></span>
+        <span><b>Source:</b> <input type="text" id="devoSource" value="FCB" style="width:65px"></span>
         <span><b>Date:</b> <input type="date" id="devoDate"></span>
       </div>
     </div>
 
-    <div class="notice" id="notice" role="alert"></div>
     <div class="ribbon" id="ribbon"></div>
+
+    <!-- Sequential Audio File Processing Banner -->
+    <div class="audio-queue-status" id="audioQueueBar">
+      <span class="spin" style="width:14px;height:14px;border-top-color:#1E40AF"></span>
+      <span id="audioQueueText">Processing audio file...</span>
+    </div>
     
     <div class="transcript-area">
       <textarea class="page" id="page" spellcheck="true"></textarea>
@@ -218,14 +242,24 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     </div>
 
     <div class="actions">
+      <!-- Hidden file input for audio files -->
+      <input type="file" id="audioFileInput" multiple accept="audio/*,.wav,.mp3,.m4a,.aac,.webm,.ogg,.mp4" style="display:none">
+      
+      <button class="btn" id="attachAudioBtn" title="Upload audio recordings (MP3, M4A, WAV, WebM). Long recordings are sliced in 5-minute chunks automatically!">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        📁 Attach Audio
+      </button>
+
       <button class="btn primary" id="copyBtn" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
         Copy transcript
       </button>
+
       <button class="btn" id="copyPromptBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
         Copy prompt + transcript
       </button>
+
       <button class="btn" id="dlBtn" disabled>Save .txt</button>
       <button class="btn" id="sampleBtn">Load sample</button>
       <span class="spacer"></span>
@@ -259,7 +293,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
         </label>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn sm" id="checkKey" type="button">Verify key &amp; list models</button>
-          <label class="row" style="font-size:12px;margin:0"><input type="checkbox" id="remember" checked> Remember on this device</label>
+          <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:4px"><input type="checkbox" id="remember" checked> Remember on this device</label>
         </div>
       </div>
     </details>
@@ -269,9 +303,16 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 
     <div class="actions">
       <button class="btn success" id="saveSharePointBtn" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         <span id="saveSpBtnText">Save to SharePoint</span>
       </button>
+
+      <!-- EMAIL BROADCAST BUTTON -->
+      <button class="btn" id="emailDigestBtn" disabled title="Draft an Outlook email with study notes or family digest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <span id="emailDigestText">✉️ Email Notes</span>
+      </button>
+
       <button class="btn" id="copyNotes" disabled>Copy notes</button>
     </div>
   </aside>
@@ -281,7 +322,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 <dialog id="instDlg" aria-labelledby="dlgT">
   <div class="dlg-h"><h2 id="dlgT">AI Instructions</h2><button class="btn sm" id="dlgX" aria-label="Close">Close</button></div>
   <div class="dlg-b">
-    <p id="dlgP" style="font-size:13px;color:var(--muted);margin:0"></p>
+    <p id="dlgP" style="font-size:13px;color:var(--muted);margin:0">These instructions are sent to the AI with your prompt. Edit freely. Saved edits stay on your device only.</p>
     <textarea id="instText" spellcheck="false"></textarea>
     <span class="count" id="instCount" style="font-size:12px;color:var(--muted)"></span>
   </div>
@@ -465,17 +506,19 @@ var MODES = {
     brand:'Sermon Scribe', sub:'Live transcript, Reformed notes & Devotional Topics',
     titlePh:'Sermon Title or Scripture Focus',
     ribbonLbl:'Scripture heard',
-    pagePh:'Press the microphone to record live sermon, or paste transcript text here...',
+    pagePh:'Press the microphone to record live sermon, attach audio files below, or paste transcript text here...',
     defaultPreset:'sermon-std',
-    saveBtnText:'Save to Devotional_Topics'
+    saveBtnText:'Save to Devotional_Topics',
+    emailBtnText:'✉️ Email Sermon Notes'
   },
   devotional:{
     brand:'Devotional Scribe', sub:'Spurgeon Faith Checkbook & Family Insights',
-    titlePh:'Devotional Title (e.g., October 4 The Mighty Magnet)',
+    titlePh:'Devotional Title (e.g., October 6 At God\'s Bidding)',
     ribbonLbl:'Passages detected',
-    pagePh:'Paste Spurgeon devotional text or dictate morning meditation...',
+    pagePh:'Paste Spurgeon devotional text, attach audio files below, or dictate morning meditation...',
     defaultPreset:'devo-spurgeon',
-    saveBtnText:'Save Devotional & Family Insights'
+    saveBtnText:'Save Devotional & Family Insights',
+    emailBtnText:'✉️ Email Family Digest'
   }
 };
 
@@ -539,6 +582,7 @@ var SITE_PATH = "/sites/Bible_App";
     $('title').placeholder=c.titlePh;
     page.placeholder=c.pagePh;
     $('saveSpBtnText').textContent=c.saveBtnText;
+    $('emailDigestText').textContent=c.emailBtnText;
     $('mSermon').setAttribute('aria-pressed',m==='sermon');
     $('mDevotional').setAttribute('aria-pressed',m==='devotional');
     $('sermonCtx').style.display=(m==='sermon'?'flex':'none');
@@ -557,6 +601,7 @@ var SITE_PATH = "/sites/Bible_App";
 
   $('themeSelect').addEventListener('change',function(){
     $('customThemeInput').style.display=(this.value==='_custom'?'inline-block':'none');
+    scheduleSave();
   });
 
   function getActiveTheme(){
@@ -589,7 +634,6 @@ var SITE_PATH = "/sites/Bible_App";
   }
   $('editInst').addEventListener('click',function(){
     $('dlgT').textContent='AI instructions: '+(PRESETS[presetId]?PRESETS[presetId].label:'Current Style');
-    $('dlgP').textContent='These instructions are sent to the AI with your prompt. Edit freely. Saved edits stay on your device only.';
     $('instText').value=getInstr();
     countInst();
     if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open','');
@@ -660,6 +704,7 @@ var SITE_PATH = "/sites/Bible_App";
     $('words').textContent=words+' words';
     ['copyBtn','dlBtn','clearBtn','sumBtn'].forEach(function(id){$(id).disabled=!has});
     renderRibbon();
+    scheduleSave();
   }
   page.addEventListener('input',updateUI);
 
@@ -682,15 +727,15 @@ var SITE_PATH = "/sites/Bible_App";
     this.textContent=isMax?'🗗 Minimize':'⛶ Expand';
   });
 
-  /* Live Speech */
+  /* Live Speech with Deduplication Shield & Clean Pause Guard */
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(SR){
     recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang='en-US';
-   var lastChunk = '';
-    var lastChunkTime = 0;
+    var lastChunk='';
+    var lastChunkTime=0;
 
-    recognition.onresult = function(e){
-      var tmp = '';
+    recognition.onresult=function(e){
+      var tmp='';
       for (var i = e.resultIndex; i < e.results.length; i++){
         var r = e.results[i];
         if (r.isFinal) {
@@ -715,42 +760,265 @@ var SITE_PATH = "/sites/Bible_App";
               updateUI();
             }
           }
-        } else {
-          tmp += r[0].transcript;
-        }
+        }else{tmp+=r[0].transcript}
       }
-      interim = tmp;
-      if (interim) {
-        interimBox.textContent = '... ' + interim;
-        interimBox.style.display = 'block';
-      } else {
-        interimBox.style.display = 'none';
-      }
+      interim=tmp;
+      if(interim){interimBox.textContent='... '+interim;interimBox.style.display='block'}
+      else{interimBox.style.display='none'}
     };
+
+    // Pause Guard inside onend to prevent zombie mic restarts
     recognition.onend=function(){
       running=false;
-      if(wantListening){clearTimeout(restartT);restartT=setTimeout(function(){try{recognition.start()}catch(e){}},300)}
-      else{stopUI()}
+      if(wantListening){
+        clearTimeout(restartT);
+        restartT=setTimeout(function(){
+          if(!wantListening) return;
+          try{recognition.start()}catch(e){}
+        },300);
+      }else{
+        stopUI();
+      }
     };
   }
 
   function startUI(){
     recBtn.classList.add('on');$('meta').classList.add('on-air');scribe.classList.add('on-air');
     setStatus('Listening live',true);
+
+    var nowStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    var cur = page.value.trim();
+    var header = "\n\n--- [Live Recording · " + nowStr + "] ---\n";
+    page.value = cur ? (cur + header) : ("--- [Live Recording · " + nowStr + "] ---\n");
+
     if('wakeLock' in navigator){navigator.wakeLock.request('screen').then(function(l){wakeLock=l}).catch(function(){})}
     clearInterval(tick);tick=setInterval(function(){seconds++;$('timer').textContent=fmt(seconds)},1000);
+    updateUI();
   }
+
   function stopUI(){
     recBtn.classList.remove('on');scribe.classList.remove('on-air');$('meta').classList.remove('on-air');
     if(wakeLock){wakeLock.release().catch(function(){});wakeLock=null}
     clearInterval(tick);interim='';interimBox.style.display='none';
-    setStatus(page.value.trim()?'Paused':'Ready',false);updateUI();
+    
+    var cur = page.value.trim();
+    if (cur && !cur.endsWith("---")) {
+      page.value = cur + "\n--- [End of Recording] ---\n\n";
+    }
+
+    setStatus(page.value.trim()?'Paused':'Ready',false);
+    updateUI();
   }
 
+  // Clear restart timer immediately on pause click
   recBtn.addEventListener('click',function(){
     if(!recognition)return;
-    if(wantListening){wantListening=false;recognition.stop();stopUI();return}
+    if(wantListening){
+      wantListening=false;
+      clearTimeout(restartT);
+      recognition.stop();
+      stopUI();
+      return;
+    }
     wantListening=true;startUI();try{recognition.start()}catch(e){}
+  });
+
+  /* =====================================================================
+     SECTION 4 - IN-BROWSER AUDIO SLICER & RECURSIVE CHUNK QUEUE
+     ===================================================================== */
+  var attachAudioBtn = $('attachAudioBtn');
+  var audioFileInput = $('audioFileInput');
+  var audioQueueBar  = $('audioQueueBar');
+  var audioQueueText = $('audioQueueText');
+
+  attachAudioBtn.addEventListener('click', function(){
+    var key = ($('key').value || '').trim();
+    if (!key) {
+      $('cfg').open = true;
+      alert('Please add your free Gemini API Key under AI Settings first before transcribing audio files.');
+      return;
+    }
+    audioFileInput.click();
+  });
+
+  function fileToBase64(blob) {
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onloadend = function(){ resolve(reader.result.split(',')[1]); };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function bufferToMonoWav(buffer, sampleRate) {
+    var length = buffer.length * 2 + 44;
+    var outData = new DataView(new ArrayBuffer(length));
+    var channel = buffer.getChannelData(0);
+    var pos = 0;
+
+    function setUint16(data) { outData.setUint16(pos, data, true); pos += 2; }
+    function setUint32(data) { outData.setUint32(pos, data, true); pos += 4; }
+
+    setUint32(0x46464952); // "RIFF"
+    setUint32(length - 8);
+    setUint32(0x45564157); // "WAVE"
+    setUint32(0x20746d66); // "fmt "
+    setUint32(16);
+    setUint16(1);          // PCM
+    setUint16(1);          // Mono
+    setUint32(sampleRate);
+    setUint32(sampleRate * 2);
+    setUint16(2);
+    setUint16(16);
+    setUint32(0x61746164); // "data"
+    setUint32(length - pos - 4);
+
+    for (var i = 0; i < buffer.length; i++) {
+      var s = Math.max(-1, Math.min(1, channel[i]));
+      outData.setInt16(pos, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      pos += 2;
+    }
+    return new Blob([outData.buffer], { type: 'audio/wav' });
+  }
+
+  // Slices Audio into 5-minute (300s) 16kHz Mono Chunks
+  async function sliceAndDownsampleAudio(file, onProgress) {
+    onProgress('Decoding ' + file.name + ' in browser memory...');
+    var arrayBuffer = await file.arrayBuffer();
+    var AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+    var audioCtx = new AudioCtxClass();
+
+    try {
+      var audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      var totalDuration = audioBuffer.duration;
+      var targetRate = 16000;
+      var chunkDuration = 300; // 5-minute slices
+      var totalChunks = Math.ceil(totalDuration / chunkDuration);
+      var chunkPayloads = [];
+
+      for (var c = 0; c < totalChunks; c++) {
+        var startSec = c * chunkDuration;
+        var endSec = Math.min(totalDuration, (c + 1) * chunkDuration);
+        var sliceLengthSec = endSec - startSec;
+
+        onProgress('Preparing slice ' + (c + 1) + ' of ' + totalChunks + ' (' + fmt(Math.round(startSec)) + ' - ' + fmt(Math.round(endSec)) + ')...');
+
+        var offlineCtx = new OfflineAudioContext(1, Math.ceil(sliceLengthSec * targetRate), targetRate);
+        var src = offlineCtx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(offlineCtx.destination);
+        src.start(0, startSec, sliceLengthSec);
+
+        var rendered = await offlineCtx.startRendering();
+        var wavBlob = bufferToMonoWav(rendered, targetRate);
+        var b64 = await fileToBase64(wavBlob);
+
+        chunkPayloads.push({
+          base64: b64,
+          mimeType: 'audio/wav',
+          label: fmt(Math.round(startSec)) + ' - ' + fmt(Math.round(endSec)),
+          chunkIndex: c + 1,
+          totalChunks: totalChunks
+        });
+      }
+
+      await audioCtx.close();
+      return chunkPayloads;
+    } catch(err) {
+      await audioCtx.close();
+      var rawB64 = await fileToBase64(file);
+      return [{
+        base64: rawB64,
+        mimeType: file.type || 'audio/mp3',
+        label: 'Full',
+        chunkIndex: 1,
+        totalChunks: 1
+      }];
+    }
+  }
+
+  async function transcribeChunkWithGemini(chunkPayload, key, model) {
+    var prompt = "Please provide an accurate, complete, verbatim transcript of all spoken dialogue in this audio segment. Do not summarize or omit speech. Maintain chronological flow.";
+
+    var res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': key
+      },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: chunkPayload.mimeType,
+                data: chunkPayload.base64
+              }
+            },
+            { text: prompt }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 8192
+        }
+      })
+    });
+
+    var data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error && data.error.message || ('Gemini Audio API Error: ' + res.status));
+    }
+    return data.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('').trim();
+  }
+
+  audioFileInput.addEventListener('change', async function(e){
+    var files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    var key = ($('key').value || '').trim();
+    var model = ($('model').value || 'gemini-3.8-flash').trim();
+
+    audioQueueBar.style.display = 'flex';
+    attachAudioBtn.disabled = true;
+
+    for (var f = 0; f < files.length; f++) {
+      var file = files[f];
+      var fileLabel = 'File ' + (f + 1) + '/' + files.length + ' (' + file.name + ')';
+
+      try {
+        var chunks = await sliceAndDownsampleAudio(file, function(statusText){
+          audioQueueText.textContent = '[' + fileLabel + '] ' + statusText;
+        });
+
+        for (var c = 0; c < chunks.length; c++) {
+          var chunk = chunks[c];
+          audioQueueText.textContent = '[' + fileLabel + '] Transcribing slice ' + chunk.chunkIndex + '/' + chunk.totalChunks + ' (' + chunk.label + ')...';
+          
+          var transcript = await transcribeChunkWithGemini(chunk, key, model);
+
+          var timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          var chunkHeader = "\n\n--- [Audio: " + file.name + " (" + chunk.label + ") · " + timeStr + "] ---\n";
+          var chunkFooter = "\n--- [End Slice: " + chunk.label + "] ---\n";
+
+          var current = page.value.trim();
+          page.value = (current ? (current + chunkHeader) : (chunkHeader.trimStart())) + transcript + chunkFooter;
+
+          page.scrollTop = page.scrollHeight;
+          updateUI();
+        }
+        toast('Completed ' + file.name);
+      } catch(err) {
+        alert('Error processing ' + file.name + ': ' + err.message);
+        page.value += "\n\n--- [Failed Audio: " + file.name + " (" + err.message + ")] ---\n\n";
+      }
+    }
+
+    audioQueueBar.style.display = 'none';
+    attachAudioBtn.disabled = false;
+    audioFileInput.value = '';
+    toast('Audio files transcribed successfully!');
   });
 
   /* Transcript Copy & Prompt Bundler */
@@ -768,7 +1036,7 @@ var SITE_PATH = "/sites/Bible_App";
 
   $('copyPromptBtn').addEventListener('click',function(){
     copy(getFullPromptText()).then(function(){
-      toast('Copied instructions + transcript! Ready to paste into Claude/ChatGPT.');
+      toast('Copied prompt + transcript! Ready to paste into Claude/ChatGPT.');
     }).catch(function(){toast('Copy failed')});
   });
 
@@ -780,6 +1048,7 @@ var SITE_PATH = "/sites/Bible_App";
     $('syncStatus').style.display='none';$('syncStatus').textContent='';
     updateUI();
   });
+
   $('dlBtn').addEventListener('click',function(){
     var t=($('title').value||'sermon').replace(/[^\w\- ]+/g,'').trim()||'sermon';
     var b=new Blob([page.value],{type:'text/plain'}),a=document.createElement('a');
@@ -835,19 +1104,21 @@ var SITE_PATH = "/sites/Bible_App";
     var has=out.innerText.trim().length>0;
     $('copyNotes').disabled=!has;
     $('saveSharePointBtn').disabled=!has;
+    $('emailDigestBtn').disabled=!has;
+    scheduleSave();
   }
 
   out.addEventListener('input', checkNotesState);
 
   out.addEventListener('paste', function(e){
-    var text = (e.clipboardData || window.clipboardData).getData('text/plain');
-    var html = (e.clipboardData || window.clipboardData).getData('text/html');
+    var text=(e.clipboardData||window.clipboardData).getData('text/plain');
+    var html=(e.clipboardData||window.clipboardData).getData('text/html');
 
-    if (!html && (/^#{1,4}\s/m.test(text) || text.includes('Family Micro-Cards'))) {
+    if(!html && (/^#{1,4}\s/m.test(text) || text.includes('Family Micro-Cards'))){
       e.preventDefault();
       document.execCommand('insertHTML', false, mdToHtml(text));
       checkNotesState();
-    } else {
+    }else{
       setTimeout(checkNotesState, 50);
     }
   });
@@ -880,7 +1151,7 @@ var SITE_PATH = "/sites/Bible_App";
   $('copyNotes').addEventListener('click',function(){copy(out.innerText.trim()).then(function(){toast('Notes copied (with edits)')})});
 
   /* =====================================================================
-     SECTION 4 - MICROSOFT GRAPH & SHAREPOINT SAVE PIPELINE
+     SECTION 5 - MICROSOFT GRAPH & SHAREPOINT SAVE PIPELINE
      ===================================================================== */
   async function getMsalToken(){
     var accounts=msalApp.getAllAccounts();
@@ -925,9 +1196,7 @@ var SITE_PATH = "/sites/Bible_App";
     return cachedSiteId;
   }
 
-  /* -------------------------------------------------------------
-     SAVE TO SHAREPOINT DISPATCHER (Sermon vs Devotional)
-     ------------------------------------------------------------- */
+  /* Dispatcher */
   $('saveSharePointBtn').addEventListener('click',async function(){
     var btn=this;btn.disabled=true;
     $('syncStatus').textContent='';$('syncStatus').style.display='block';
@@ -987,7 +1256,7 @@ var SITE_PATH = "/sites/Bible_App";
     toast('Saved to Devotional_Topics successfully!');
   }
 
-  /* HTML CARD FORMATTER - TURNS PLAIN TEXT INTO BEAUTIFUL RICH TEXT FOR POWER APPS */
+  /* HTML CARD FORMATTER - TURNS PLAIN TEXT INTO POWER APP BEAUTIFUL RICH TEXT */
   function formatCardHtml(rawCardText, person) {
     if (!rawCardText) return '';
     var lines = rawCardText.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
@@ -1026,7 +1295,6 @@ var SITE_PATH = "/sites/Bible_App";
     var targetRowId = $('targetResourceId').value.trim() || '17';
     var devoDate = $('devoDate').value || new Date().toISOString().slice(0,10);
     
-    // Anchor to noon UTC to prevent Eastern Timezone from rolling back to previous day
     var isoDateAtNoon = devoDate + 'T12:00:00Z';
     var dObj = new Date(devoDate + 'T00:00:00');
     var monthDayStr = dObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
@@ -1190,11 +1458,115 @@ var SITE_PATH = "/sites/Bible_App";
     toast('Devotional components saved with rich HTML formatting!');
   }
 
+  /* =====================================================================
+     SECTION 6 - EMAIL BROADCAST (OUTLOOK DEEPLINK)
+     ===================================================================== */
+  $('emailDigestBtn').addEventListener('click', function(){
+    var title = $('title').value.trim() || 'Devotional & Family Focus';
+    var devoDate = $('devoDate').value || new Date().toISOString().slice(0,10);
+    var notesText = out.innerText.trim();
+
+    copy(notesText).then(function(){
+      toast('Digest copied to clipboard! Opening Outlook compose window...');
+      var subject = encodeURIComponent((mode === 'devotional' ? 'Family Devotional Digest • ' : 'Sermon Study Notes • ') + title);
+      var owaUrl = 'https://outlook.office.com/mail/deeplink/compose?subject=' + subject;
+      window.open(owaUrl, '_blank', 'noopener');
+    });
+  });
+
+  /* =====================================================================
+     SECTION 7 - AUTOSAVE (LOCAL STORAGE SNAPSHOT)
+     ===================================================================== */
+  var AS_KEY='sermonScribe_autosave_v1', AS_PREV='sermonScribe_autosave_prev_v1';
+  var saveT=null, pendingPrev=null, saveReady=false;
+
+  function snapshot(){
+    var notesHtml = out.querySelector('.loading') ? '' : out.innerHTML.trim();
+    return {
+      text: page.value, notes: notesHtml,
+      title: $('title').value, mode: mode,
+      themeSelect: $('themeSelect').value, customTheme: $('customThemeInput').value,
+      targetResourceId: $('targetResourceId').value, devoSource: $('devoSource').value, devoDate: $('devoDate').value,
+      seconds: seconds, savedAt: Date.now()
+    };
+  }
+  function isEmpty(s){return !s||(!(s.text||'').trim()&&!(s.notes||'').trim())}
+  function timeStr(ms){return new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+  function setSaveState(msg,bad){var el=$('saveState');el.textContent=msg;el.className=bad?'bad':''}
+
+  function saveNow(){
+    clearTimeout(saveT);
+    if(!saveReady)return;
+    var snap=snapshot();
+    try{
+      if(isEmpty(snap)){localStorage.removeItem(AS_KEY);setSaveState('');return}
+      localStorage.setItem(AS_KEY,JSON.stringify(snap));
+      setSaveState('Saved '+timeStr(snap.savedAt));
+    }catch(e){
+      setSaveState('Autosave failed: local storage full',true);
+    }
+  }
+  function scheduleSave(){
+    if(!saveReady)return;
+    clearTimeout(saveT);saveT=setTimeout(saveNow,1000);
+  }
+
+  ['title','customThemeInput','targetResourceId','devoSource','devoDate'].forEach(function(id){
+    var el = $(id); if(el) el.addEventListener('input', scheduleSave);
+  });
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveNow()});
+  window.addEventListener('pagehide',saveNow);
+
+  function applySession(s){
+    page.value=s.text||'';
+    out.innerHTML=s.notes||'';
+    if(s.title)$('title').value=s.title;
+    if(s.mode && s.mode !== mode) applyMode(s.mode);
+    if(s.themeSelect)$('themeSelect').value=s.themeSelect;
+    if(s.customTheme)$('customThemeInput').value=s.customTheme;
+    if(s.targetResourceId)$('targetResourceId').value=s.targetResourceId;
+    if(s.devoSource)$('devoSource').value=s.devoSource;
+    if(s.devoDate)$('devoDate').value=s.devoDate;
+    seconds=s.seconds||0;$('timer').textContent=fmt(seconds);
+    page.scrollTop=page.scrollHeight;
+    setStatus('Session restored',false);
+    checkNotesState();updateUI();saveNow();
+  }
+  function hideRestore(){$('restoreBar').classList.remove('show');pendingPrev=null;try{localStorage.removeItem(AS_PREV)}catch(e){}}
+
+  $('restoreBtn').addEventListener('click',function(){
+    if(!pendingPrev){hideRestore();return}
+    if(page.value.trim()&&!confirm('Replace what is on screen now with the saved session?'))return;
+    var s=pendingPrev;hideRestore();applySession(s);toast('Session restored');
+  });
+  $('discardBtn').addEventListener('click',function(){
+    if(!confirm('Discard the saved session? This cannot be undone.'))return;
+    hideRestore();toast('Saved session discarded');
+  });
+
+  (function initAutosave(){
+    var raw=null,prevRaw=null;
+    try{raw=localStorage.getItem(AS_KEY);prevRaw=localStorage.getItem(AS_PREV)}catch(e){}
+    var s=null;
+    try{s=raw?JSON.parse(raw):(prevRaw?JSON.parse(prevRaw):null)}catch(e){s=null}
+    if(s&&!isEmpty(s)){
+      pendingPrev=s;
+      try{localStorage.setItem(AS_PREV,JSON.stringify(s));localStorage.removeItem(AS_KEY)}catch(e){}
+      var w=(s.text||'').trim()?s.text.trim().split(/\s+/).length:0;
+      var when=new Date(s.savedAt);
+      var day=when.toDateString()===new Date().toDateString()?'today':when.toLocaleDateString();
+      $('restoreText').innerHTML='<b>Unsaved session found</b> from '+day+' at '+timeStr(s.savedAt)+
+        (s.title?' &middot; '+esc(s.title):'')+' &middot; '+w+' words'+((s.notes||'').trim()?' + notes':'')+'.';
+      $('restoreBar').classList.add('show');
+    }
+    saveReady=true;
+  })();
+
   // Pre-load accounts if already cached
   var cachedAccs=msalApp.getAllAccounts();
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
 
-  // Apply default mode
+  // Apply initial mode
   applyMode(mode);
 })();
 </script>
