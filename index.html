@@ -1218,42 +1218,75 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* A. SERMON MODE -> DEVOTIONAL_TOPICS */
+ /* A. SERMON MODE -> DEVOTIONAL_TOPICS (CLEAN HIGHLIGHTS + STUDY NOTES) */
   async function saveSermonToTopics(token, siteId){
-    var titleVal=$('title').value.trim()||('Study Entry — '+new Date().toLocaleDateString());
-    var themeName=getActiveTheme();
-    var scriptures=findRefs(page.value).join(', ');
-    var notesHtml=out.innerHTML;
-    var transcriptText=page.value.trim();
+    var titleVal = $('title').value.trim() || ('Study Entry — ' + new Date().toLocaleDateString());
+    var themeName = getActiveTheme();
+    var scriptures = findRefs(page.value).join(', ');
+    var fullNotesHtml = out.innerHTML;
+    var rawNotesText = out.innerText;
+    
+    // Check if an existing Topic ID was passed from Power Apps or entered
+    var existingTopicId = $('meetingIdInput') ? $('meetingIdInput').value.trim() : '';
 
-    logSync('Posting new record to Devotional_Topics list...');
-    logSync('Theme: '+themeName+' | Title: '+titleVal);
-
-    var payload={
-      fields:{
-        Title: titleVal,
-        Theme_Name: themeName,
-        Study_Date: new Date().toISOString(),
-        StudyNotes_HTML: notesHtml,
-        KeyHighlights_HTML: transcriptText.slice(0, 3000),
-        Scripture_Reference: scriptures,
-        Status: 'Active',
-        IsDeleted: false,
-        OrganizerEmail: ($('userAccountName').textContent||'')
+    // 1. EXTRACT STRUCTURED KEY HIGHLIGHTS (Main Idea + Key Takeaways ONLY)
+    // Avoids dumping raw transcript timestamps into KeyHighlights_HTML!
+    var keyHighlightsHtml = '';
+    var takeawaysMatch = rawNotesText.match(/(?:^|\n)\s*##\s*(?:Main Idea|Key Takeaways)[\s\S]*?(?=(?:\n\s*##\s*(?:Scripture Focus|Theological|Application)|$))/gi);
+    
+    if (takeawaysMatch && takeawaysMatch.length > 0) {
+      // Convert the extracted takeaways into clean HTML
+      keyHighlightsHtml = mdToHtml(takeawaysMatch.join('\n\n').trim());
+    } else {
+      // Fallback: take first 2 paragraphs of generated notes
+      var tempDiv = document.createElement('div');
+      tempDiv.innerHTML = fullNotesHtml;
+      var ps = tempDiv.querySelectorAll('p, ul, h3');
+      var sliceHtml = '';
+      for (var p = 0; p < Math.min(ps.length, 4); p++) {
+        sliceHtml += ps[p].outerHTML;
       }
+      keyHighlightsHtml = sliceHtml || '<p><strong>' + esc(titleVal) + '</strong></p>';
+    }
+
+    logSync('Syncing to Devotional_Topics list...');
+    logSync('Theme: ' + themeName + ' | Title: ' + titleVal);
+
+    var fieldsPayload = {
+      Title: titleVal,
+      Theme_Name: themeName,
+      Study_Date: new Date().toISOString(),
+      StudyNotes_HTML: fullNotesHtml,       // Full comprehensive study document
+      KeyHighlights_HTML: keyHighlightsHtml, // Clean Main Idea + Takeaways (Powers rteSummaryNotes!)
+      Scripture_Reference: scriptures,
+      Status: 'Active',
+      IsDeleted: false,
+      OrganizerEmail: ($('userAccountName').textContent || '')
     };
 
-    var postUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/Devotional_Topics/items';
-    var res=await fetch(postUrl,{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    var data=await res.json();
-    if(!res.ok)throw new Error(data.error&&data.error.message||'Devotional_Topics creation failed');
+    var targetUrl, method;
+    if (existingTopicId) {
+      logSync('Updating EXISTING Topic #' + existingTopicId + ' (PATCH)...');
+      targetUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Devotional_Topics/items/' + existingTopicId + '/fields';
+      method = 'PATCH';
+    } else {
+      logSync('Creating NEW Topic record (POST)...');
+      targetUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Devotional_Topics/items';
+      method = 'POST';
+    }
 
-    logSync('🎉 SUCCESS! Saved to Devotional_Topics under ID: '+data.id);
-    toast('Saved to Devotional_Topics successfully!');
+    var res = await fetch(targetUrl, {
+      method: method,
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(method === 'POST' ? { fields: fieldsPayload } : fieldsPayload)
+    });
+
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error && data.error.message || ('Topic sync failed: HTTP ' + res.status));
+
+    var finalId = existingTopicId || data.id;
+    logSync('🎉 SUCCESS! Devotional_Topics record #' + finalId + ' synchronized successfully.');
+    toast('Saved to Devotional_Topics (#' + finalId + ')!');
   }
 
   /* HTML CARD FORMATTER - TURNS PLAIN TEXT INTO POWER APP BEAUTIFUL RICH TEXT */
