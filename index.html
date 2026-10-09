@@ -8,7 +8,7 @@
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#ECEAF3;--paper:#FBFAFD;--ink:#1D1930;--muted:#6E6A82;--line:#D9D5E6;
@@ -146,15 +146,29 @@ details.cfg summary{cursor:pointer;padding:10px 0;font-size:13px;color:var(--mut
 @keyframes sp{to{transform:rotate(360deg)}}
 .err{color:#8E2236;font-family:var(--sans);font-size:13px;background:#FDECEF;padding:10px;border-radius:8px}
 
-.sync-status{padding:10px 22px;background:#F6F5FB;border-top:1px solid var(--line);font-size:12px;color:var(--muted);font-family:Consolas,monospace;max-height:120px;overflow-y:auto;display:none}
+/* COLLAPSIBLE SHAREPOINT ACTIVITY PANEL */
+.sync-panel{border-top:1px solid var(--line);background:#F8FAFD;display:none;flex-direction:column}
+.sync-panel-header{
+  padding:8px 18px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid #E2E8F0;font-size:12px;font-weight:600;color:var(--navy);
+}
+.sync-title{display:inline-flex;align-items:center;gap:8px}
+.sync-panel-actions{display:flex;align-items:center;gap:6px}
+.sync-log-body{
+  padding:10px 18px;font-size:12px;color:var(--muted);font-family:Consolas,monospace;
+  max-height:120px;overflow-y:auto;line-height:1.5;white-space:pre-wrap;
+}
+.sync-panel.collapsed .sync-log-body{display:none}
 
-dialog{border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);padding:0;width:min(820px,94vw)}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);padding:0;width:min(840px,94vw)}
 dialog::backdrop{background:rgba(29,25,48,.45)}
 .dlg-h{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
 .dlg-h h2{margin:0;font-family:var(--serif);font-size:20px;font-weight:500}
 .dlg-b{padding:16px 20px;display:grid;gap:10px}
-.dlg-b textarea{width:100%;min-height:55vh;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5}
-.dlg-f{display:flex;gap:10px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
+.dlg-meta-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.dlg-meta-row input,.dlg-meta-row select{border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px;background:#fff}
+.dlg-b textarea{width:100%;min-height:50vh;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5}
+.dlg-f{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
 
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:9999}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -245,7 +259,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       <!-- Hidden file input for audio files -->
       <input type="file" id="audioFileInput" multiple accept="audio/*,.wav,.mp3,.m4a,.aac,.webm,.ogg,.mp4" style="display:none">
       
-      <button class="btn" id="attachAudioBtn" title="Upload audio recordings (MP3, M4A, WAV, WebM). Long recordings are sliced in 5-minute chunks automatically!">
+      <button class="btn" id="attachAudioBtn" title="Upload audio recordings (MP3, M4A, WAV, WebM). Slices in 5-minute chunks automatically!">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
         📁 Attach Audio
       </button>
@@ -299,7 +313,21 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     </details>
 
     <div class="out" id="out" contenteditable="true" spellcheck="true" data-placeholder="Notes appear here after clicking Summarize, or click/paste pre-generated notes from Claude/ChatGPT here..."></div>
-    <div class="sync-status" id="syncStatus"></div>
+
+    <!-- COLLAPSIBLE SHAREPOINT ACTIVITY PANEL -->
+    <div class="sync-panel" id="syncPanel">
+      <div class="sync-panel-header">
+        <span class="sync-title">
+          <span class="dot" style="background:var(--green)"></span>
+          <span id="syncPanelTitle">SharePoint Activity Log</span>
+        </span>
+        <div class="sync-panel-actions">
+          <button class="btn sm" id="clearLogBtn" type="button">Clear</button>
+          <button class="btn sm" id="toggleSyncLogBtn" type="button">▾ Collapse</button>
+        </div>
+      </div>
+      <div class="sync-log-body" id="syncStatus"></div>
+    </div>
 
     <div class="actions">
       <button class="btn success" id="saveSharePointBtn" disabled>
@@ -318,18 +346,36 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
   </aside>
 </div>
 
-<!-- INSTRUCTIONS MODAL -->
+<!-- INSTRUCTIONS MODAL (WITH NAMED PRESET MANAGEMENT & GITHUB EXPORT) -->
 <dialog id="instDlg" aria-labelledby="dlgT">
-  <div class="dlg-h"><h2 id="dlgT">AI Instructions</h2><button class="btn sm" id="dlgX" aria-label="Close">Close</button></div>
+  <div class="dlg-h">
+    <h2 id="dlgT">AI Instructions &amp; Presets</h2>
+    <button class="btn sm" id="dlgX" aria-label="Close">Close</button>
+  </div>
   <div class="dlg-b">
-    <p id="dlgP" style="font-size:13px;color:var(--muted);margin:0">These instructions are sent to the AI with your prompt. Edit freely. Saved edits stay on your device only.</p>
-    <textarea id="instText" spellcheck="false"></textarea>
-    <span class="count" id="instCount" style="font-size:12px;color:var(--muted)"></span>
+    <div class="dlg-meta-row">
+      <span style="font-weight:600;font-size:13px">Style Name:</span>
+      <input type="text" id="instTitle" placeholder="e.g. My Pastoral Brief" style="flex:1;min-width:200px">
+      <span style="font-weight:600;font-size:13px">Applicable Mode:</span>
+      <select id="instMode">
+        <option value="sermon">Sermon Mode</option>
+        <option value="devotional">Devotional Mode</option>
+        <option value="any">Both Modes</option>
+      </select>
+    </div>
+    <textarea id="instText" spellcheck="false" placeholder="Write or paste your custom AI instructions here..."></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="count" id="instCount" style="font-size:12px;color:var(--muted)"></span>
+      <small style="color:var(--muted)">Saved edits are stored on this device. Click "Export for GitHub" to bake them permanently into code.</small>
+    </div>
   </div>
   <div class="dlg-f">
-    <button class="btn primary" id="instSave">Save as my default</button>
-    <button class="btn" id="instReset">Reset to built-in</button>
+    <button class="btn primary" id="instSave">Save</button>
+    <button class="btn" id="instSaveAsNew" title="Create a new named style with this prompt">Save as New Style</button>
+    <button class="btn" id="instDelete" style="display:none;color:#B91C1C" title="Delete this custom preset">Delete Style</button>
+    <button class="btn" id="instReset">Reset to Built-in</button>
     <span class="spacer"></span>
+    <button class="btn" id="exportHtmlBtn" title="Download updated index.html with all your custom presets baked in for GitHub">📥 Export for GitHub (Make Global)</button>
     <button class="btn" id="instCancel">Cancel</button>
   </div>
 </dialog>
@@ -492,11 +538,17 @@ PromiseNum{{TAB}}PromiseTitle{{TAB}}ScriptureWEBU{{TAB}}The Promise Itself{{TAB}
 [Data row with 27 fields separated by {{TAB}}, ending with {{TAB}}{{TAB}}FALSE{{TAB}}Pending]
 \`\`\``;
 
-var PRESETS = {
+/* BUILT-IN PRESETS DEFINITION */
+var BUILTIN_PRESETS = {
   'sermon-std':    {mode:'sermon',     label:'Expository Sermon Notes',                text:SERMON_STANDARD},
   'sermon-full':   {mode:'sermon',     label:'Sermon: Full Reformed Analysis',         text:SERMON_FULL},
   'devo-spurgeon': {mode:'devotional', label:"Spurgeon Faith's Checkbook Devotional",  text:DEVOTIONAL_SPURGEON}
 };
+
+/* CUSTOM PRESETS BAKED FROM PREVIOUS EXPORTS (Populated when exported) */
+/* BAKE_PRESETS_START */
+var BAKED_CUSTOM_PRESETS = {};
+/* BAKE_PRESETS_END */
 
 /* =====================================================================
    SECTION 2 - MODES & CONFIG
@@ -524,7 +576,7 @@ var MODES = {
 
 var MSAL_CONFIG = {
   auth: {
-    clientId: "bc4efc91-8b56-4f59-bf0e-f42e4724e2f6", // Verified Client ID (e2f6)
+    clientId: "bc4efc91-8b56-4f59-bf0e-f42e4724e2f6", // Verified Client ID
     authority: "https://login.microsoftonline.com/daa6322e-b4e5-415c-8cc7-258c866f29d7",
     redirectUri: window.location.href.split('?')[0].split('#')[0]
   },
@@ -566,10 +618,23 @@ var SITE_PATH = "/sites/Bible_App";
   function setStatus(text,live){$('statusText').textContent=text;$('status').className='pill'+(live?' live':'')}
 
   function logSync(msg){
-    var s=$('syncStatus');s.style.display='block';
+    var panel=$('syncPanel');panel.style.display='flex';
+    panel.classList.remove('collapsed');
+    $('toggleSyncLogBtn').textContent='▾ Collapse';
+    var s=$('syncStatus');
     s.textContent+='['+new Date().toLocaleTimeString()+'] '+msg+'\n';
     s.scrollTop=s.scrollHeight;
   }
+
+  // Collapsible Sync Log actions
+  $('toggleSyncLogBtn').addEventListener('click',function(){
+    var panel=$('syncPanel');
+    var isCol=panel.classList.toggle('collapsed');
+    this.textContent=isCol?'▸ Expand':'▾ Collapse';
+  });
+  $('clearLogBtn').addEventListener('click',function(){
+    $('syncStatus').textContent='';
+  });
 
   $('devoDate').value=new Date().toISOString().slice(0,10);
 
@@ -610,52 +675,204 @@ var SITE_PATH = "/sites/Bible_App";
     return sel;
   }
 
-  /* Preset & Instructions Management */
+  /* =====================================================================
+     NAMED PRESETS & INSTRUCTIONS MANAGEMENT (LOCAL STORAGE + GLOBAL EXPORT)
+     ===================================================================== */
+  var CUSTOM_KEY='ss_custom_presets_v1';
+  function getCustomPresets(){
+    var raw=load(CUSTOM_KEY);
+    var local={};
+    try{ local=raw?JSON.parse(raw):{}; }catch(e){}
+    return Object.assign({}, BAKED_CUSTOM_PRESETS, local);
+  }
+  function saveCustomPresets(obj){
+    store(CUSTOM_KEY, JSON.stringify(obj));
+  }
+
+  function getAllPresets(){
+    var customs=getCustomPresets();
+    return Object.assign({}, BUILTIN_PRESETS, customs);
+  }
+
   function fillPresets(){
     var sel=$('preset');sel.innerHTML='';
-    Object.keys(PRESETS).forEach(function(id){
-      var p=PRESETS[id];
+    var all=getAllPresets();
+    var keys=Object.keys(all);
+
+    // Grouping
+    keys.forEach(function(id){
+      var p=all[id];
       if(p.mode===mode||p.mode==='any'){
         var o=document.createElement('option');o.value=id;
-        o.textContent=p.label+(load('ss_inst_'+id)?' (edited)':'');
+        var isCustom=!!getCustomPresets()[id];
+        var isEdited=!!load('ss_inst_'+id);
+        o.textContent=p.label+(isCustom?' [Custom]':(isEdited?' [Edited]':''));
         sel.appendChild(o);
       }
     });
+
+    // Add "+ Add new style..." at bottom
+    var newOpt=document.createElement('option');
+    newOpt.value='__new__';
+    newOpt.textContent='➕ Create New Style...';
+    sel.appendChild(newOpt);
+
+    if(!all[presetId]||(all[presetId].mode!==mode&&all[presetId].mode!=='any')){
+      presetId=MODES[mode].defaultPreset;
+    }
     sel.value=presetId;
   }
-  function getInstr(){return load('ss_inst_'+presetId)||PRESETS[presetId].text}
-  $('preset').addEventListener('change',function(){presetId=$('preset').value});
 
-  /* Instructions Dialog Logic */
+  function getInstr(){
+    var all=getAllPresets();
+    return load('ss_inst_'+presetId)||(all[presetId]&&all[presetId].text)||'';
+  }
+
+  $('preset').addEventListener('change',function(){
+    if(this.value==='__new__'){
+      openNewPresetModal();
+    } else {
+      presetId=this.value;
+    }
+  });
+
+  /* Instructions Dialog Controls */
   var dlg=$('instDlg');
   function countInst(){
     var t=$('instText').value;
     $('instCount').textContent=(t.trim()?t.trim().split(/\s+/).length:0)+' words';
   }
-  $('editInst').addEventListener('click',function(){
-    $('dlgT').textContent='AI instructions: '+(PRESETS[presetId]?PRESETS[presetId].label:'Current Style');
+
+  function openPresetModal(targetId){
+    var all=getAllPresets();
+    var p=all[targetId]||all[presetId];
+    var isCustom=!!getCustomPresets()[targetId||presetId];
+
+    $('dlgT').textContent='Edit Style: '+(p?p.label:'Instructions');
+    $('instTitle').value=p?p.label:'';
+    $('instMode').value=(p&&p.mode)?p.mode:mode;
     $('instText').value=getInstr();
+    $('instDelete').style.display=isCustom?'inline-flex':'none';
+    $('instReset').style.display=isCustom?'none':'inline-flex';
     countInst();
     if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open','');
+  }
+
+  function openNewPresetModal(){
+    $('dlgT').textContent='Create New AI Instruction Style';
+    $('instTitle').value='';
+    $('instMode').value=mode;
+    $('instText').value=getInstr()||'';
+    $('instDelete').style.display='none';
+    $('instReset').style.display='none';
+    countInst();
+    if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open','');
+  }
+
+  $('editInst').addEventListener('click',function(){
+    openPresetModal(presetId);
   });
   $('instText').addEventListener('input',countInst);
+
+  // Save current preset
   $('instSave').addEventListener('click',function(){
     var v=$('instText').value.trim();
+    var title=$('instTitle').value.trim();
     if(!v){toast('Instructions cannot be empty');return}
-    store('ss_inst_'+presetId, v===PRESETS[presetId].text.trim()?null:v);
+    
+    var customs=getCustomPresets();
+    if(customs[presetId]){
+      customs[presetId].label=title||customs[presetId].label;
+      customs[presetId].mode=$('instMode').value;
+      customs[presetId].text=v;
+      saveCustomPresets(customs);
+      toast('Custom style updated');
+    } else {
+      // Built-in override
+      store('ss_inst_'+presetId, v===BUILTIN_PRESETS[presetId].text.trim()?null:v);
+      toast('Saved as default for this device');
+    }
     fillPresets();
     dlg.close();
-    toast('Instructions saved as default for this device');
   });
+
+  // Save as new preset
+  $('instSaveAsNew').addEventListener('click',function(){
+    var v=$('instText').value.trim();
+    var title=$('instTitle').value.trim()||('Custom Style '+(new Date().toLocaleDateString()));
+    if(!v){toast('Instructions cannot be empty');return}
+
+    var newId='custom_'+Date.now().toString(36);
+    var customs=getCustomPresets();
+    customs[newId]={
+      id:newId,
+      mode:$('instMode').value,
+      label:title,
+      text:v
+    };
+    saveCustomPresets(customs);
+    presetId=newId;
+    fillPresets();
+    dlg.close();
+    toast('New style "'+title+'" created!');
+  });
+
+  // Delete custom preset
+  $('instDelete').addEventListener('click',function(){
+    if(!confirm('Delete this custom instruction style?'))return;
+    var customs=getCustomPresets();
+    delete customs[presetId];
+    saveCustomPresets(customs);
+    store('ss_inst_'+presetId,null);
+    presetId=MODES[mode].defaultPreset;
+    fillPresets();
+    dlg.close();
+    toast('Custom style deleted');
+  });
+
   $('instReset').addEventListener('click',function(){
     store('ss_inst_'+presetId,null);
-    $('instText').value=PRESETS[presetId].text;
+    $('instText').value=BUILTIN_PRESETS[presetId].text;
     countInst();
     fillPresets();
     toast('Reset to built-in instructions');
   });
   $('instCancel').addEventListener('click',function(){dlg.close()});
   $('dlgX').addEventListener('click',function(){dlg.close()});
+
+  /* -------------------------------------------------------------
+     EXPORT MASTER HTML (BAKES CUSTOM PRESETS TO MAKE GLOBAL FOR GITHUB)
+     ------------------------------------------------------------- */
+  $('exportHtmlBtn').addEventListener('click', async function(){
+    toast('Packaging master index.html with all custom presets baked in...');
+    try {
+      var customs=getCustomPresets();
+      var serializedCustoms=JSON.stringify(customs, null, 2);
+
+      // Fetch the current page source code cleanly
+      var res=await fetch(window.location.href);
+      var srcText=await res.text();
+
+      // Replace the BAKED_CUSTOM_PRESETS block
+      var reBake=/\/\* BAKE_PRESETS_START \*\/[\s\S]*?\/\* BAKE_PRESETS_END \*\//;
+      var newBlock="/* BAKE_PRESETS_START */\nvar BAKED_CUSTOM_PRESETS = " + serializedCustoms + ";\n/* BAKE_PRESETS_END */";
+
+      var finalHtml=srcText.replace(reBake, newBlock);
+
+      // Trigger download of index.html
+      var blob=new Blob([finalHtml], {type:'text/html'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='index.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      alert('Downloaded updated index.html! Commit this file to your GitHub repository, and all your custom styles will be permanently baked in across all devices.');
+    } catch(e) {
+      alert('Export failed: ' + e.message);
+    }
+  });
 
   /* URL Parameters Launch Detection from Power Apps */
   var qParams=new URLSearchParams(window.location.search);
@@ -742,8 +959,7 @@ var SITE_PATH = "/sites/Bible_App";
           var chunk = r[0].transcript.trim();
           var now = Date.now();
 
-          // DEDUPLICATION SHIELD:
-          // Rejects repeating phrases/sentences fired in rapid succession by room echo
+          // DEDUPLICATION SHIELD
           if (chunk) {
             var currentText = page.value.trim();
             var isDuplicate = (chunk === lastChunk && (now - lastChunkTime < 3000)) || 
@@ -810,7 +1026,6 @@ var SITE_PATH = "/sites/Bible_App";
     updateUI();
   }
 
-  // Clear restart timer immediately on pause click
   recBtn.addEventListener('click',function(){
     if(!recognition)return;
     if(wantListening){
@@ -859,19 +1074,10 @@ var SITE_PATH = "/sites/Bible_App";
     function setUint16(data) { outData.setUint16(pos, data, true); pos += 2; }
     function setUint32(data) { outData.setUint32(pos, data, true); pos += 4; }
 
-    setUint32(0x46464952); // "RIFF"
-    setUint32(length - 8);
-    setUint32(0x45564157); // "WAVE"
-    setUint32(0x20746d66); // "fmt "
-    setUint32(16);
-    setUint16(1);          // PCM
-    setUint16(1);          // Mono
-    setUint32(sampleRate);
-    setUint32(sampleRate * 2);
-    setUint16(2);
-    setUint16(16);
-    setUint32(0x61746164); // "data"
-    setUint32(length - pos - 4);
+    setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
+    setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(1);
+    setUint32(sampleRate); setUint32(sampleRate * 2); setUint16(2); setUint16(16);
+    setUint32(0x61746164); setUint32(length - pos - 4);
 
     for (var i = 0; i < buffer.length; i++) {
       var s = Math.max(-1, Math.min(1, channel[i]));
@@ -881,7 +1087,6 @@ var SITE_PATH = "/sites/Bible_App";
     return new Blob([outData.buffer], { type: 'audio/wav' });
   }
 
-  // Slices Audio into 5-minute (300s) 16kHz Mono Chunks
   async function sliceAndDownsampleAudio(file, onProgress) {
     onProgress('Decoding ' + file.name + ' in browser memory...');
     var arrayBuffer = await file.arrayBuffer();
@@ -950,12 +1155,7 @@ var SITE_PATH = "/sites/Bible_App";
         contents: [{
           role: 'user',
           parts: [
-            {
-              inlineData: {
-                mimeType: chunkPayload.mimeType,
-                data: chunkPayload.base64
-              }
-            },
+            { inlineData: { mimeType: chunkPayload.mimeType, data: chunkPayload.base64 } },
             { text: prompt }
           ]
         }],
@@ -1045,7 +1245,7 @@ var SITE_PATH = "/sites/Bible_App";
     page.value='';interim='';seconds=0;lastResultAt=0;$('timer').textContent='0:00';
     out.innerHTML='';
     checkNotesState();
-    $('syncStatus').style.display='none';$('syncStatus').textContent='';
+    $('syncPanel').style.display='none';$('syncStatus').textContent='';
     updateUI();
   });
 
@@ -1056,7 +1256,7 @@ var SITE_PATH = "/sites/Bible_App";
   });
 
   /* AI Settings */
-  var defaultModels=['gemini-3.8-flash','gemini-2.5-flash','gemini-2.0-flash','gemini-1.5-flash'];
+  var defaultModels=['gemini-3.8-flash','gemini-3.5-flash-lite','gemini-3.7-flash','gemini-2.5-flash'];
   function initModels(){
     var sel=$('model');sel.innerHTML='';
     defaultModels.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o)});
@@ -1123,29 +1323,60 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* Call AI */
+  /* Call AI with Modern Gemini Waterfall Failover */
   $('sumBtn').addEventListener('click',async function(){
-    var k=$('key').value.trim(),m=$('model').value.trim();
+    var k=$('key').value.trim();
+    var chosenModel=$('model').value.trim()||'gemini-3.8-flash';
     if(!k){$('cfg').open=true;alert('Add your Gemini API key under AI settings.');return}
     var prompt=getFullPromptText();
     this.disabled=true;$('copyNotes').disabled=true;$('saveSharePointBtn').disabled=true;
     out.innerHTML='<div class="loading"><span class="spin"></span>Formulating study notes...</div>';
 
-    try{
-      var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(m)+':generateContent',{
-        method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},
-        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.25,maxOutputTokens:8192}})
-      });
-      var d=await r.json();if(!r.ok)throw new Error(d.error&&d.error.message||'Gemini error');
-      var notesText=d.candidates[0].content.parts.map(function(p){return p.text||''}).join('');
-      out.innerHTML=mdToHtml(notesText);
-      checkNotesState();
-      toast('Notes generated! Click anywhere in notes to edit.');
-    }catch(e){
-      out.innerHTML='<div class="err">'+esc(e.message)+'</div>';
-    }finally{
-      $('sumBtn').disabled=false;
+    var fallbackChain=[chosenModel,'gemini-3.8-flash','gemini-3.5-flash-lite','gemini-3.7-flash'];
+    var uniqueChain=fallbackChain.filter(function(v,i,a){return v&&a.indexOf(v)===i});
+    var success=false, lastError='';
+
+    for(var i=0;i<uniqueChain.length;i++){
+      var curModel=uniqueChain[i];
+      try{
+        if(i>0){
+          out.innerHTML='<div class="loading"><span class="spin"></span>'+uniqueChain[i-1]+' is busy. Failing over to '+curModel+'...</div>';
+          await new Promise(function(res){setTimeout(res,1000)});
+        }
+
+        var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(curModel)+':generateContent',{
+          method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},
+          body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.25,maxOutputTokens:8192}})
+        });
+        var d=await r.json();
+
+        if(!r.ok){
+          var errMsg=d.error&&d.error.message||('HTTP '+r.status);
+          if(r.status===503||r.status===429||/demand|overload|exhaust/i.test(errMsg)){
+            lastError=curModel+': '+errMsg;
+            continue;
+          }else{
+            throw new Error(errMsg);
+          }
+        }
+
+        var notesText=d.candidates[0].content.parts.map(function(p){return p.text||''}).join('');
+        out.innerHTML=mdToHtml(notesText);
+        checkNotesState();
+        if(curModel!==chosenModel) toast('Generated via '+curModel+' ('+chosenModel+' was busy)');
+        else toast('Notes generated! Click inside to edit.');
+        success=true;
+        break;
+      }catch(e){
+        lastError=e.message;
+        if(/API_KEY_INVALID/i.test(e.message)) break;
+      }
     }
+
+    if(!success){
+      out.innerHTML='<div class="err">High demand reported across models. Please retry in 20 seconds.<br><small style="color:#666">'+esc(lastError)+'</small></div>';
+    }
+    $('sumBtn').disabled=false;
   });
 
   $('copyNotes').addEventListener('click',function(){copy(out.innerText.trim()).then(function(){toast('Notes copied (with edits)')})});
@@ -1199,7 +1430,7 @@ var SITE_PATH = "/sites/Bible_App";
   /* Dispatcher */
   $('saveSharePointBtn').addEventListener('click',async function(){
     var btn=this;btn.disabled=true;
-    $('syncStatus').textContent='';$('syncStatus').style.display='block';
+    $('syncStatus').textContent='';
 
     try{
       var token=await getMsalToken();
@@ -1218,103 +1449,97 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
- /* A. SERMON MODE -> DEVOTIONAL_TOPICS (CLEAN HIGHLIGHTS + STUDY NOTES) */
+  /* A. SERMON MODE -> DEVOTIONAL_TOPICS (CLEAN HIGHLIGHTS + STUDY NOTES) */
   async function saveSermonToTopics(token, siteId){
-    var titleVal = $('title').value.trim() || ('Study Entry — ' + new Date().toLocaleDateString());
-    var themeName = getActiveTheme();
-    var scriptures = findRefs(page.value).join(', ');
-    var fullNotesHtml = out.innerHTML;
-    var rawNotesText = out.innerText;
+    var titleVal=$('title').value.trim()||('Study Entry — '+new Date().toLocaleDateString());
+    var themeName=getActiveTheme();
+    var scriptures=findRefs(page.value).join(', ');
+    var fullNotesHtml=out.innerHTML;
+    var rawNotesText=out.innerText;
     
     // Check if an existing Topic ID was passed from Power Apps or entered
-    var existingTopicId = $('meetingIdInput') ? $('meetingIdInput').value.trim() : '';
+    var existingTopicId=qParams.get('topicId')||qParams.get('itemId')||'';
 
-    // 1. EXTRACT STRUCTURED KEY HIGHLIGHTS (Main Idea + Key Takeaways ONLY)
-    // Avoids dumping raw transcript timestamps into KeyHighlights_HTML!
-    var keyHighlightsHtml = '';
-    var takeawaysMatch = rawNotesText.match(/(?:^|\n)\s*##\s*(?:Main Idea|Key Takeaways)[\s\S]*?(?=(?:\n\s*##\s*(?:Scripture Focus|Theological|Application)|$))/gi);
+    // Extract Structured Key Highlights (Main Idea + Key Takeaways ONLY)
+    var keyHighlightsHtml='';
+    var takeawaysMatch=rawNotesText.match(/(?:^|\n)\s*##\s*(?:Main Idea|Key Takeaways)[\s\S]*?(?=(?:\n\s*##\s*(?:Scripture Focus|Theological|Application)|$))/gi);
     
-    if (takeawaysMatch && takeawaysMatch.length > 0) {
-      // Convert the extracted takeaways into clean HTML
-      keyHighlightsHtml = mdToHtml(takeawaysMatch.join('\n\n').trim());
-    } else {
-      // Fallback: take first 2 paragraphs of generated notes
-      var tempDiv = document.createElement('div');
-      tempDiv.innerHTML = fullNotesHtml;
-      var ps = tempDiv.querySelectorAll('p, ul, h3');
-      var sliceHtml = '';
-      for (var p = 0; p < Math.min(ps.length, 4); p++) {
-        sliceHtml += ps[p].outerHTML;
-      }
-      keyHighlightsHtml = sliceHtml || '<p><strong>' + esc(titleVal) + '</strong></p>';
+    if(takeawaysMatch&&takeawaysMatch.length>0){
+      keyHighlightsHtml=mdToHtml(takeawaysMatch.join('\n\n').trim());
+    }else{
+      var tempDiv=document.createElement('div');
+      tempDiv.innerHTML=fullNotesHtml;
+      var ps=tempDiv.querySelectorAll('p, ul, h3');
+      var sliceHtml='';
+      for(var p=0;p<Math.min(ps.length,4);p++){sliceHtml+=ps[p].outerHTML}
+      keyHighlightsHtml=sliceHtml||('<p><strong>'+esc(titleVal)+'</strong></p>');
     }
 
     logSync('Syncing to Devotional_Topics list...');
-    logSync('Theme: ' + themeName + ' | Title: ' + titleVal);
+    logSync('Theme: '+themeName+' | Title: '+titleVal);
 
-    var fieldsPayload = {
+    var fieldsPayload={
       Title: titleVal,
       Theme_Name: themeName,
       Study_Date: new Date().toISOString(),
-      StudyNotes_HTML: fullNotesHtml,       // Full comprehensive study document
-      KeyHighlights_HTML: keyHighlightsHtml, // Clean Main Idea + Takeaways (Powers rteSummaryNotes!)
+      StudyNotes_HTML: fullNotesHtml,
+      KeyHighlights_HTML: keyHighlightsHtml,
       Scripture_Reference: scriptures,
       Status: 'Active',
       IsDeleted: false,
-      OrganizerEmail: ($('userAccountName').textContent || '')
+      OrganizerEmail: ($('userAccountName').textContent||'')
     };
 
     var targetUrl, method;
-    if (existingTopicId) {
-      logSync('Updating EXISTING Topic #' + existingTopicId + ' (PATCH)...');
-      targetUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Devotional_Topics/items/' + existingTopicId + '/fields';
-      method = 'PATCH';
-    } else {
+    if(existingTopicId){
+      logSync('Updating EXISTING Topic #'+existingTopicId+' (PATCH)...');
+      targetUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/Devotional_Topics/items/'+existingTopicId+'/fields';
+      method='PATCH';
+    }else{
       logSync('Creating NEW Topic record (POST)...');
-      targetUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Devotional_Topics/items';
-      method = 'POST';
+      targetUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/Devotional_Topics/items';
+      method='POST';
     }
 
-    var res = await fetch(targetUrl, {
-      method: method,
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify(method === 'POST' ? { fields: fieldsPayload } : fieldsPayload)
+    var res=await fetch(targetUrl,{
+      method:method,
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(method==='POST'?{fields:fieldsPayload}:fieldsPayload)
     });
 
-    var data = await res.json();
-    if (!res.ok) throw new Error(data.error && data.error.message || ('Topic sync failed: HTTP ' + res.status));
+    var data=await res.json();
+    if(!res.ok)throw new Error(data.error&&data.error.message||('Topic sync failed: HTTP '+res.status));
 
-    var finalId = existingTopicId || data.id;
-    logSync('🎉 SUCCESS! Devotional_Topics record #' + finalId + ' synchronized successfully.');
-    toast('Saved to Devotional_Topics (#' + finalId + ')!');
+    var finalId=existingTopicId||data.id;
+    logSync('🎉 SUCCESS! Devotional_Topics record #'+finalId+' synchronized successfully.');
+    toast('Saved to Devotional_Topics (#'+finalId+')!');
   }
 
   /* HTML CARD FORMATTER - TURNS PLAIN TEXT INTO POWER APP BEAUTIFUL RICH TEXT */
   function formatCardHtml(rawCardText, person) {
-    if (!rawCardText) return '';
-    var lines = rawCardText.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
-    if (!lines.length) return '';
+    if(!rawCardText) return '';
+    var lines=rawCardText.split('\n').map(function(l){return l.trim()}).filter(Boolean);
+    if(!lines.length) return '';
     
-    var formattedHtml = '';
-    
-    lines.forEach(function(line, idx) {
-      if (idx === 0) {
-        var cleanTitle = line.replace(/^[#*\s]+/, '').replace(/[*#]+$/, '').trim();
-        formattedHtml += '<p style="font-size:15px; font-weight:bold; color:#092162; margin-bottom:10px;">' + esc(cleanTitle) + '</p>';
+    var formattedHtml='';
+    lines.forEach(function(line, idx){
+      if(idx===0){
+        var cleanTitle=line.replace(/^[#*\s]+/,'').replace(/[*#]+$/,'').trim();
+        formattedHtml+='<p style="font-size:15px;font-weight:bold;color:#092162;margin-bottom:10px;">'+esc(cleanTitle)+'</p>';
         return;
       }
 
-      var labelMatch = line.match(/^([*#\s]*)(Verse|Hook|Reflect|Pray|Companion voice[^\:]*|Reference|For Wesley|For Mac|For Jonathan|For Kim and Rob|Refrain|Hymn Line)\s*[:—–]\s*(.*)/i);
+      var labelMatch=line.match(/^([*#\s]*)(Verse|Hook|Reflect|Pray|Companion voice[^\:]*|Reference|For Wesley|For Mac|For Jonathan|For Kim and Rob|Refrain|Hymn Line)\s*[:—–]\s*(.*)/i);
       
-      if (labelMatch) {
-        var label = labelMatch[2].trim();
-        var displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
-        var content = labelMatch[3].replace(/^[*#\s]+/, '').replace(/[*#]+$/, '').trim();
-        formattedHtml += '<p style="margin-bottom:8px; line-height:1.5;"><strong>' + esc(displayLabel) + ':</strong> ' + esc(content) + '</p>';
-      } else if (/^(Take a step with God today\.|Be strong the right way\.)/i.test(line)) {
-        formattedHtml += '<p style="margin-top:12px; font-style:italic; font-weight:500; color:#092162;">' + esc(line) + '</p>';
-      } else {
-        formattedHtml += '<p style="margin-bottom:8px; line-height:1.5;">' + esc(line) + '</p>';
+      if(labelMatch){
+        var label=labelMatch[2].trim();
+        var displayLabel=label.charAt(0).toUpperCase()+label.slice(1);
+        var content=labelMatch[3].replace(/^[*#\s]+/,'').replace(/[*#]+$/,'').trim();
+        formattedHtml+='<p style="margin-bottom:8px;line-height:1.5;"><strong>'+esc(displayLabel)+':</strong> '+esc(content)+'</p>';
+      }else if(/^(Take a step with God today\.|Be strong the right way\.)/i.test(line)){
+        formattedHtml+='<p style="margin-top:12px;font-style:italic;font-weight:500;color:#092162;">'+esc(line)+'</p>';
+      }else{
+        formattedHtml+='<p style="margin-bottom:8px;line-height:1.5;">'+esc(line)+'</p>';
       }
     });
 
@@ -1323,120 +1548,120 @@ var SITE_PATH = "/sites/Bible_App";
 
   /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS */
   async function saveDevotionalPipeline(token, siteId){
-    var rawText = out.innerText;
-    var rawHtml = out.innerHTML;
-    var targetRowId = $('targetResourceId').value.trim() || '17';
-    var devoDate = $('devoDate').value || new Date().toISOString().slice(0,10);
+    var rawText=out.innerText;
+    var rawHtml=out.innerHTML;
+    var targetRowId=$('targetResourceId').value.trim()||'17';
+    var devoDate=$('devoDate').value||new Date().toISOString().slice(0,10);
     
-    var isoDateAtNoon = devoDate + 'T12:00:00Z';
-    var dObj = new Date(devoDate + 'T00:00:00');
-    var monthDayStr = dObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-    var mmDdYyyyStr = (dObj.getMonth()+1) + '-' + dObj.getDate() + '-' + dObj.getFullYear();
+    var isoDateAtNoon=devoDate+'T12:00:00Z';
+    var dObj=new Date(devoDate+'T00:00:00');
+    var monthDayStr=dObj.toLocaleDateString('en-US',{month:'long',day:'numeric'});
+    var mmDdYyyyStr=(dObj.getMonth()+1)+'-'+dObj.getDate()+'-'+dObj.getFullYear();
 
-    logSync('Starting sync for ' + devoDate + ' (' + monthDayStr + ')...');
+    logSync('Starting sync for '+devoDate+' ('+monthDayStr+')...');
 
-    async function getListId(targetName) {
-      var r = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists', {
-        headers: { 'Authorization': 'Bearer ' + token }
+    async function getListId(targetName){
+      var r=await fetch('https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists',{
+        headers:{'Authorization':'Bearer '+token}
       });
-      var d = await r.json();
-      if (!r.ok) throw new Error('Could not list SharePoint lists: ' + (d.error && d.error.message || r.status));
-      var clean = targetName.toLowerCase().replace(/[_\s]/g, '');
-      var found = d.value.find(function(l){
-        var lName = (l.name || '').toLowerCase().replace(/[_\s]/g, '');
-        var lTitle = (l.displayName || '').toLowerCase().replace(/[_\s]/g, '');
-        return lName === clean || lTitle === clean;
+      var d=await r.json();
+      if(!r.ok)throw new Error('Could not list SharePoint lists: '+(d.error&&d.error.message||r.status));
+      var clean=targetName.toLowerCase().replace(/[_\s]/g,'');
+      var found=d.value.find(function(l){
+        var lName=(l.name||'').toLowerCase().replace(/[_\s]/g,'');
+        var lTitle=(l.displayName||'').toLowerCase().replace(/[_\s]/g,'');
+        return lName===clean||lTitle===clean;
       });
-      if (!found) throw new Error("Could not find list matching '" + targetName + "'");
+      if(!found)throw new Error("Could not find list matching '"+targetName+"'");
       return found.id;
     }
 
     // 1. Separate Top Commentary from Family Micro-Cards
-    var familySplitIdx = rawText.search(/Family Micro-Cards/i);
-    var topCommentary = rawHtml;
-    var familyRaw = "";
+    var familySplitIdx=rawText.search(/Family Micro-Cards/i);
+    var topCommentary=rawHtml;
+    var familyRaw="";
 
-    if (familySplitIdx > -1) {
-      familyRaw = rawText.slice(familySplitIdx);
-      var htmlSplitIdx = rawHtml.search(/Family Micro-Cards/i);
-      if (htmlSplitIdx > -1) {
-        topCommentary = rawHtml.slice(0, htmlSplitIdx);
+    if(familySplitIdx>-1){
+      familyRaw=rawText.slice(familySplitIdx);
+      var htmlSplitIdx=rawHtml.search(/Family Micro-Cards/i);
+      if(htmlSplitIdx>-1){
+        topCommentary=rawHtml.slice(0,htmlSplitIdx);
       }
     }
 
     // 2. PATCH Resources list
-    logSync('Patching Resources item #' + targetRowId + '...');
-    try {
-      var resListId = await getListId('Resources');
-      var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + resListId + '/items/' + targetRowId + '/fields';
-      var rRes = await fetch(patchUrl, {
-        method: 'PATCH',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ AdditionalCommentary: topCommentary })
+    logSync('Patching Resources item #'+targetRowId+'...');
+    try{
+      var resListId=await getListId('Resources');
+      var patchUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/'+resListId+'/items/'+targetRowId+'/fields';
+      var rRes=await fetch(patchUrl,{
+        method:'PATCH',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({AdditionalCommentary:topCommentary})
       });
-      if (rRes.ok) logSync('✓ Resources #' + targetRowId + ' updated.');
-    } catch(e) {
-      logSync('⚠️ Resources error: ' + e.message);
+      if(rRes.ok)logSync('✓ Resources #'+targetRowId+' updated.');
+    }catch(e){
+      logSync('⚠️ Resources error: '+e.message);
     }
 
     // 3. Parse & Post Companion Voices
-    var compStart = rawText.toLowerCase().indexOf('companion voices');
-    if (compStart > -1) {
-      try {
-        var compListId = await getListId('Companion_Voices');
-        var compEnd = (familySplitIdx > compStart) ? familySplitIdx : rawText.length;
-        var compSection = rawText.slice(compStart, compEnd);
+    var compStart=rawText.toLowerCase().indexOf('companion voices');
+    if(compStart>-1){
+      try{
+        var compListId=await getListId('Companion_Voices');
+        var compEnd=(familySplitIdx>compStart)?familySplitIdx:rawText.length;
+        var compSection=rawText.slice(compStart,compEnd);
         
-        var compLines = compSection.split('\n').filter(function(l){
-          var trimmed = l.trim();
-          return trimmed.length > 5 && (trimmed.includes(':') || trimmed.includes('—')) && !trimmed.startsWith('#');
+        var compLines=compSection.split('\n').filter(function(l){
+          var trimmed=l.trim();
+          return trimmed.length>5&&(trimmed.includes(':')||trimmed.includes('—'))&&!trimmed.startsWith('#');
         });
 
-        logSync('Posting ' + compLines.length + ' Companion Voices...');
-        for (var i = 0; i < compLines.length; i++) {
-          var line = compLines[i];
-          var sepIdx = line.indexOf(':') > -1 ? line.indexOf(':') : line.indexOf('—');
-          var compName = line.slice(0, sepIdx).replace(/^[-*•#\s]+/, '').trim();
-          var compContent = line.slice(sepIdx + 1).trim();
+        logSync('Posting '+compLines.length+' Companion Voices...');
+        for(var i=0;i<compLines.length;i++){
+          var line=compLines[i];
+          var sepIdx=line.indexOf(':')>-1?line.indexOf(':'):line.indexOf('—');
+          var compName=line.slice(0,sepIdx).replace(/^[-*•#\s]+/,'').trim();
+          var compContent=line.slice(sepIdx+1).trim();
 
-          var skipWords = ['verse', 'hook', 'reflect', 'pray', 'reference', 'hymn', 'refrain'];
-          if (skipWords.includes(compName.toLowerCase())) continue;
+          var skipWords=['verse','hook','reflect','pray','reference','hymn','refrain'];
+          if(skipWords.includes(compName.toLowerCase()))continue;
 
-          if (compName.length > 1 && compName.length < 50 && compContent.length > 5) {
-            await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + compListId + '/items', {
-              method: 'POST',
-              headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                fields: {
-                  Title: 'Companion Voice • ' + mmDdYyyyStr,
-                  Companion: compName,
-                  Voice: compContent.slice(0, 255),
-                  Voice_Extended: topCommentary,
-                  InsightDate: isoDateAtNoon,
-                  ResourceType: ($('devoSource').value.trim() || 'FCB')
+          if(compName.length>1&&compName.length<50&&compContent.length>5){
+            await fetch('https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/'+compListId+'/items',{
+              method:'POST',
+              headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+              body:JSON.stringify({
+                fields:{
+                  Title:'Companion Voice • '+mmDdYyyyStr,
+                  Companion:compName,
+                  Voice:compContent.slice(0,255),
+                  Voice_Extended:topCommentary,
+                  InsightDate:isoDateAtNoon,
+                  ResourceType:($('devoSource').value.trim()||'FCB')
                 }
               })
             });
-            logSync('  + Voice: ' + compName);
+            logSync('  + Voice: '+compName);
           }
         }
-      } catch(e) {
-        logSync('⚠️ Companion_Voices error: ' + e.message);
+      }catch(e){
+        logSync('⚠️ Companion_Voices error: '+e.message);
       }
     }
 
     // 4. Parse & Post Family Insights with Rich HTML Formatting
     logSync('Parsing & formatting Family Micro-Cards and Prayer...');
-    try {
-      var famListId = await getListId('Family_Insights');
+    try{
+      var famListId=await getListId('Family_Insights');
 
-      function getSlice(startRegex, endRegex) {
-        var matchStart = familyRaw.search(startRegex);
-        if (matchStart === -1) return '';
-        var sub = familyRaw.slice(matchStart);
-        if (!endRegex) return sub.trim();
-        var matchEnd = sub.search(endRegex);
-        return (matchEnd > -1 ? sub.slice(0, matchEnd) : sub).trim();
+      function getSlice(startRegex, endRegex){
+        var matchStart=familyRaw.search(startRegex);
+        if(matchStart===-1)return '';
+        var sub=familyRaw.slice(matchStart);
+        if(!endRegex)return sub.trim();
+        var matchEnd=sub.search(endRegex);
+        return (matchEnd>-1?sub.slice(0,matchEnd):sub).trim();
       }
 
       var wesleyText  = getSlice(/(?:^|\n)\s*\*?\*?Wesley\s*[-—–]/i,       /(?:^|\n)\s*\*?\*?Mac\s*[-—–]/i);
@@ -1448,43 +1673,43 @@ var SITE_PATH = "/sites/Bible_App";
       var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*#*\s*\*?\*?Hymn Line/i);
 
       var familyPayloads = [
-        { person: 'Wesley',        title: 'Insight • Wesley • ' + monthDayStr,       raw: wesleyText },
-        { person: 'Mac',           title: 'Insight • Mac • ' + monthDayStr,          raw: macText },
-        { person: 'Jonathan',      title: 'Insight • Jonathan • ' + monthDayStr,     raw: jonText },
-        { person: 'Kim',           title: 'Insight • Kim • ' + monthDayStr,          raw: kimText },
-        { person: 'Rob',           title: 'Insight • Rob • ' + monthDayStr,          raw: robText },
-        { person: 'FamilyInsight', title: 'Family Insight • ' + monthDayStr,         raw: famPrayText },
-        { person: 'Family',        title: 'Family Theme Line • ' + monthDayStr,      raw: refrainText }
+        { person:'Wesley',        title:'Insight • Wesley • '+monthDayStr,       raw:wesleyText },
+        { person:'Mac',           title:'Insight • Mac • '+monthDayStr,          raw:macText },
+        { person:'Jonathan',      title:'Insight • Jonathan • '+monthDayStr,     raw:jonText },
+        { person:'Kim',           title:'Insight • Kim • '+monthDayStr,          raw:kimText },
+        { person:'Rob',           title:'Insight • Rob • '+monthDayStr,          raw:robText },
+        { person:'FamilyInsight', title:'Family Insight • '+monthDayStr,         raw:famPrayText },
+        { person:'Family',        title:'Family Theme Line • '+monthDayStr,      raw:refrainText }
       ];
 
-      for (var j = 0; j < familyPayloads.length; j++) {
-        var item = familyPayloads[j];
-        if (item.raw) {
-          var formattedAnswerHtml = formatCardHtml(item.raw, item.person);
+      for(var j=0;j<familyPayloads.length;j++){
+        var item=familyPayloads[j];
+        if(item.raw){
+          var formattedAnswerHtml=formatCardHtml(item.raw, item.person);
 
-          var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + famListId + '/items', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fields: {
-                Title: item.title,
-                InsightDate: isoDateAtNoon,
-                Person: item.person,
-                AnswerHtml: formattedAnswerHtml
+          var postRes=await fetch('https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/'+famListId+'/items',{
+            method:'POST',
+            headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+            body:JSON.stringify({
+              fields:{
+                Title:item.title,
+                InsightDate:isoDateAtNoon,
+                Person:item.person,
+                AnswerHtml:formattedAnswerHtml
               }
             })
           });
 
-          var resData = await postRes.json();
-          if (postRes.ok) {
-            logSync('  + Saved formatted card: ' + item.title + ' (Row: ' + resData.id + ')');
-          } else {
-            logSync('  ❌ Error on ' + item.person + ': ' + (resData.error && resData.error.message || postRes.status));
+          var resData=await postRes.json();
+          if(postRes.ok){
+            logSync('  + Saved: '+item.title+' (Row: '+resData.id+')');
+          }else{
+            logSync('  ❌ Error on '+item.person+': '+(resData.error&&resData.error.message||postRes.status));
           }
         }
       }
-    } catch(e) {
-      logSync('❌ Family_Insights error: ' + e.message);
+    }catch(e){
+      logSync('❌ Family_Insights error: '+e.message);
     }
 
     logSync('🎉 COMPLETE! Devotional sync finished.');
@@ -1536,7 +1761,7 @@ var SITE_PATH = "/sites/Bible_App";
       localStorage.setItem(AS_KEY,JSON.stringify(snap));
       setSaveState('Saved '+timeStr(snap.savedAt));
     }catch(e){
-      setSaveState('Autosave failed: local storage full',true);
+      setSaveState('Autosave failed: storage full',true);
     }
   }
   function scheduleSave(){
@@ -1545,7 +1770,7 @@ var SITE_PATH = "/sites/Bible_App";
   }
 
   ['title','customThemeInput','targetResourceId','devoSource','devoDate'].forEach(function(id){
-    var el = $(id); if(el) el.addEventListener('input', scheduleSave);
+    var el=$(id); if(el) el.addEventListener('input', scheduleSave);
   });
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveNow()});
   window.addEventListener('pagehide',saveNow);
@@ -1554,7 +1779,7 @@ var SITE_PATH = "/sites/Bible_App";
     page.value=s.text||'';
     out.innerHTML=s.notes||'';
     if(s.title)$('title').value=s.title;
-    if(s.mode && s.mode !== mode) applyMode(s.mode);
+    if(s.mode&&s.mode!==mode) applyMode(s.mode);
     if(s.themeSelect)$('themeSelect').value=s.themeSelect;
     if(s.customTheme)$('customThemeInput').value=s.customTheme;
     if(s.targetResourceId)$('targetResourceId').value=s.targetResourceId;
