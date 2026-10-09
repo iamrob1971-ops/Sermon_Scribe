@@ -194,6 +194,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       </div>
       <span class="user-badge" id="userBadge" style="display:none">● <span id="userAccountName"></span></span>
       <button class="btn sm" id="authBtn">Sign in with Microsoft</button>
+      <button class="btn sm" id="topExportHtmlBtn" title="Download updated index.html with all presets baked in for GitHub">📥 Export for GitHub</button>
       <span class="pill" id="status"><span class="dot"></span><span id="statusText">Ready</span></span>
     </div>
   </header>
@@ -873,7 +874,8 @@ var SITE_PATH = "/sites/Bible_App";
       alert('Export failed: ' + e.message);
     }
   });
-
+var topExp = $('topExportHtmlBtn');
+if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').click(); });
   /* URL Parameters Launch Detection from Power Apps */
   var qParams=new URLSearchParams(window.location.search);
   if(qParams.get('mode')&&MODES[qParams.get('mode')]) mode=qParams.get('mode');
