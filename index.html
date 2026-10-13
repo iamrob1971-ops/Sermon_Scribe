@@ -224,9 +224,9 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       <button class="btn sm" id="discardBtn">Discard</button>
     </div>
 
-    <!-- Context Bar (Theme for Sermon / Target Row for Devotional) -->
+    <!-- Context Bar (Theme & Topic ID for Sermon / Target Row for Devotional) -->
     <div class="ctx-bar" id="ctxBar">
-      <div id="sermonCtx" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div id="sermonCtx" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <b>Theme:</b>
         <select id="themeSelect">
           <option value="Signal Mountain Church Sermons">Signal Mountain Church Sermons</option>
@@ -235,7 +235,18 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
           <option value="_custom">+ Create New Theme...</option>
         </select>
         <input type="text" id="customThemeInput" placeholder="New Theme Title..." style="display:none;width:180px">
+        
+        <!-- TOPIC ID & APPEND / REPLACE SELECTOR -->
+        <span><b>Topic ID:</b> <input type="number" id="sermonTopicId" placeholder="New" style="width:75px" title="Leave blank to create a new topic, or enter an ID to update/append to an existing row"></span>
+        <span>
+          <b>Mode:</b>
+          <select id="sermonSaveMode" style="font-weight:600;color:var(--violet)">
+            <option value="APPEND" selected>➕ Append Notes</option>
+            <option value="REPLACE">⚠️ Replace / Overwrite</option>
+          </select>
+        </span>
       </div>
+
       <div id="devotionalCtx" style="display:none;gap:12px;align-items:center;flex-wrap:wrap">
         <span><b>Target Resource Row ID:</b> <input type="number" id="targetResourceId" value="17" style="width:75px" title="SharePoint Resources item ID"></span>
         <span><b>Source:</b> <input type="text" id="devoSource" value="FCB" style="width:65px"></span>
@@ -384,15 +395,10 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 
 <script>
 /* =====================================================================
-   =====================================================================
    SECTION 1 - SYSTEM PROMPTS (EASILY MANAGED FROM CODEBASE)
-   =====================================================================
    ===================================================================== */
 
-/* ---------------------------------------------------------------------
-   PROMPT A: SERMON EXPOSITORY NOTES (DEFAULT SERMON MODE)
-   >>> EDIT HERE TO CHANGE DEFAULT SERMON NOTES <<<
-   --------------------------------------------------------------------- */
+/* PROMPT A: SERMON EXPOSITORY NOTES (DEFAULT SERMON MODE) */
 var SERMON_STANDARD = `You are a biblical research assistant producing an expositional, Christ-centered study of a sermon transcript. Interpret within historic Protestant, Reformed orthodoxy.
 
 OUTPUT HEADINGS IN MARKDOWN:
@@ -416,10 +422,7 @@ OUTPUT HEADINGS IN MARKDOWN:
 
 Stay faithful to what was spoken in the transcript without introducing external teachings.`;
 
-/* ---------------------------------------------------------------------
-   PROMPT B: FULL REFORMED ANALYSIS (PCA / WESTMINSTER COMPATIBLE)
-   >>> EDIT HERE FOR DEEP 13-SECTION SCHOLARLY ANALYSIS <<<
-   --------------------------------------------------------------------- */
+/* PROMPT B: FULL REFORMED ANALYSIS (PCA / WESTMINSTER COMPATIBLE) */
 var SERMON_FULL = `You are a biblical research assistant producing a Scripture-first, historically informed and pastorally useful analysis of a sermon transcript. Interpret within historic Protestant, Reformed, PCA-compatible theology (Westminster Confession of Faith and the Catechisms).
 
 AUTHORITY, IN ORDER
@@ -443,10 +446,7 @@ OUTPUT HEADINGS IN MARKDOWN:
 ## L. Companion voices
 ## M. Related prayer`;
 
-/* ---------------------------------------------------------------------
-   PROMPT C: SPURGEON FAITH'S CHECKBOOK & FAMILY MICRO-CARDS
-   >>> EDIT HERE FOR DEVOTIONAL & FAMILY SECTION <<<
-   --------------------------------------------------------------------- */
+/* PROMPT C: SPURGEON FAITH'S CHECKBOOK & FAMILY MICRO-CARDS */
 var DEVOTIONAL_SPURGEON = `You are expanding Charles Spurgeon's Faith's Checkbook devotionals into substantial family devotionals that are Scripture-governed, Christ-centered, grace-centered, Reformed in theological orientation, pastorally useful, and formatted for a family Bible Power App.
 
 PRIMARY AUTHORITY
@@ -546,7 +546,6 @@ var BUILTIN_PRESETS = {
   'devo-spurgeon': {mode:'devotional', label:"Spurgeon Faith's Checkbook Devotional",  text:DEVOTIONAL_SPURGEON}
 };
 
-/* CUSTOM PRESETS BAKED FROM PREVIOUS EXPORTS (Populated when exported) */
 /* BAKE_PRESETS_START */
 var BAKED_CUSTOM_PRESETS = {};
 /* BAKE_PRESETS_END */
@@ -577,7 +576,7 @@ var MODES = {
 
 var MSAL_CONFIG = {
   auth: {
-    clientId: "bc4efc91-8b56-4f59-bf0e-f42e4724e2f6", // Verified Client ID
+    clientId: "bc4efc91-8b56-4f59-bf0e-f42e4724e2f6",
     authority: "https://login.microsoftonline.com/daa6322e-b4e5-415c-8cc7-258c866f29d7",
     redirectUri: window.location.href.split('?')[0].split('#')[0]
   },
@@ -627,7 +626,6 @@ var SITE_PATH = "/sites/Bible_App";
     s.scrollTop=s.scrollHeight;
   }
 
-  // Collapsible Sync Log actions
   $('toggleSyncLogBtn').addEventListener('click',function(){
     var panel=$('syncPanel');
     var isCol=panel.classList.toggle('collapsed');
@@ -676,9 +674,7 @@ var SITE_PATH = "/sites/Bible_App";
     return sel;
   }
 
-  /* =====================================================================
-     NAMED PRESETS & INSTRUCTIONS MANAGEMENT (LOCAL STORAGE + GLOBAL EXPORT)
-     ===================================================================== */
+  /* Preset & Custom Styles Management */
   var CUSTOM_KEY='ss_custom_presets_v1';
   function getCustomPresets(){
     var raw=load(CUSTOM_KEY);
@@ -700,7 +696,6 @@ var SITE_PATH = "/sites/Bible_App";
     var all=getAllPresets();
     var keys=Object.keys(all);
 
-    // Grouping
     keys.forEach(function(id){
       var p=all[id];
       if(p.mode===mode||p.mode==='any'){
@@ -712,7 +707,6 @@ var SITE_PATH = "/sites/Bible_App";
       }
     });
 
-    // Add "+ Add new style..." at bottom
     var newOpt=document.createElement('option');
     newOpt.value='__new__';
     newOpt.textContent='➕ Create New Style...';
@@ -737,7 +731,6 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* Instructions Dialog Controls */
   var dlg=$('instDlg');
   function countInst(){
     var t=$('instText').value;
@@ -775,7 +768,6 @@ var SITE_PATH = "/sites/Bible_App";
   });
   $('instText').addEventListener('input',countInst);
 
-  // Save current preset
   $('instSave').addEventListener('click',function(){
     var v=$('instText').value.trim();
     var title=$('instTitle').value.trim();
@@ -789,7 +781,6 @@ var SITE_PATH = "/sites/Bible_App";
       saveCustomPresets(customs);
       toast('Custom style updated');
     } else {
-      // Built-in override
       store('ss_inst_'+presetId, v===BUILTIN_PRESETS[presetId].text.trim()?null:v);
       toast('Saved as default for this device');
     }
@@ -797,7 +788,6 @@ var SITE_PATH = "/sites/Bible_App";
     dlg.close();
   });
 
-  // Save as new preset
   $('instSaveAsNew').addEventListener('click',function(){
     var v=$('instText').value.trim();
     var title=$('instTitle').value.trim()||('Custom Style '+(new Date().toLocaleDateString()));
@@ -818,7 +808,6 @@ var SITE_PATH = "/sites/Bible_App";
     toast('New style "'+title+'" created!');
   });
 
-  // Delete custom preset
   $('instDelete').addEventListener('click',function(){
     if(!confirm('Delete this custom instruction style?'))return;
     var customs=getCustomPresets();
@@ -841,26 +830,20 @@ var SITE_PATH = "/sites/Bible_App";
   $('instCancel').addEventListener('click',function(){dlg.close()});
   $('dlgX').addEventListener('click',function(){dlg.close()});
 
-  /* -------------------------------------------------------------
-     EXPORT MASTER HTML (BAKES CUSTOM PRESETS TO MAKE GLOBAL FOR GITHUB)
-     ------------------------------------------------------------- */
   $('exportHtmlBtn').addEventListener('click', async function(){
-    toast('Packaging master index.html with all custom presets baked in...');
+    toast('Packaging master index.html with custom styles baked in...');
     try {
       var customs=getCustomPresets();
       var serializedCustoms=JSON.stringify(customs, null, 2);
 
-      // Fetch the current page source code cleanly
       var res=await fetch(window.location.href);
       var srcText=await res.text();
 
-      // Replace the BAKED_CUSTOM_PRESETS block
       var reBake=/\/\* BAKE_PRESETS_START \*\/[\s\S]*?\/\* BAKE_PRESETS_END \*\//;
       var newBlock="/* BAKE_PRESETS_START */\nvar BAKED_CUSTOM_PRESETS = " + serializedCustoms + ";\n/* BAKE_PRESETS_END */";
 
       var finalHtml=srcText.replace(reBake, newBlock);
 
-      // Trigger download of index.html
       var blob=new Blob([finalHtml], {type:'text/html'});
       var a=document.createElement('a');
       a.href=URL.createObjectURL(blob);
@@ -874,12 +857,19 @@ var SITE_PATH = "/sites/Bible_App";
       alert('Export failed: ' + e.message);
     }
   });
-var topExp = $('topExportHtmlBtn');
-if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').click(); });
-  /* URL Parameters Launch Detection from Power Apps */
+
+  var topExp = $('topExportHtmlBtn');
+  if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').click(); });
+
+  /* URL Parameters Ingestion */
   var qParams=new URLSearchParams(window.location.search);
   if(qParams.get('mode')&&MODES[qParams.get('mode')]) mode=qParams.get('mode');
-  if(qParams.get('itemId')) $('targetResourceId').value=qParams.get('itemId');
+  if(qParams.get('topicId')) $('sermonTopicId').value=qParams.get('topicId');
+  if(qParams.get('itemId')) {
+    if(mode==='sermon') $('sermonTopicId').value=qParams.get('itemId');
+    else $('targetResourceId').value=qParams.get('itemId');
+  }
+  if(qParams.get('saveMode')) $('sermonSaveMode').value=qParams.get('saveMode').toUpperCase();
   if(qParams.get('title')) $('title').value=qParams.get('title');
   if(qParams.get('source')) $('devoSource').value=qParams.get('source');
   if(qParams.get('theme')) {
@@ -927,7 +917,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
   }
   page.addEventListener('input',updateUI);
 
-  /* Sample Data */
   var SAMPLES = {
     sermon: "Good morning. Turn with me to Romans 8:28. We often read this when things go wrong and assume it means everything will turn out comfortable. But Paul does not say every circumstance is good; he says God works in all things toward ultimate good for those who love Him.\n\nNow flip back to Genesis 50:20. When Joseph confronts his brothers who sold him into slavery, he says: 'You intended to harm me, but God intended it for good.' Notice the parallel.\n\nOur takeaway this week: Trust God's direction even when the present moment feels broken. Identify one hardship this week where you need to surrender control.",
     devotional: "Faith's Checkbook — October 6\nAt God's Bidding\n\n'And the Lord said to Abram, Get thee out of thy country, and from thy kindred, and from thy father's house, unto a land that I will show thee.' — Genesis 12:1\n\nIt was a divine mandate with a divine promise. Faith steps out into the unknown because God has spoken. When we leave behind our self-reliance, we find that God's provision is more real than the familiar ground we left behind."
@@ -940,13 +929,12 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     updateUI();
   });
 
-  /* Expand Overlay */
   $('expandBtn').addEventListener('click',function(){
     var isMax=$('notesCard').classList.toggle('overlay-mode');
     this.textContent=isMax?'🗗 Minimize':'⛶ Expand';
   });
 
-  /* Live Speech with Deduplication Shield & Clean Pause Guard */
+  /* Live Speech */
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(SR){
     recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang='en-US';
@@ -961,7 +949,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
           var chunk = r[0].transcript.trim();
           var now = Date.now();
 
-          // DEDUPLICATION SHIELD
           if (chunk) {
             var currentText = page.value.trim();
             var isDuplicate = (chunk === lastChunk && (now - lastChunkTime < 3000)) || 
@@ -985,7 +972,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
       else{interimBox.style.display='none'}
     };
 
-    // Pause Guard inside onend to prevent zombie mic restarts
     recognition.onend=function(){
       running=false;
       if(wantListening){
@@ -1040,9 +1026,7 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     wantListening=true;startUI();try{recognition.start()}catch(e){}
   });
 
-  /* =====================================================================
-     SECTION 4 - IN-BROWSER AUDIO SLICER & RECURSIVE CHUNK QUEUE
-     ===================================================================== */
+  /* Audio Slicer & Chunk Queue */
   var attachAudioBtn = $('attachAudioBtn');
   var audioFileInput = $('audioFileInput');
   var audioQueueBar  = $('audioQueueBar');
@@ -1149,10 +1133,7 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
 
     var res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': key
-      },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         contents: [{
           role: 'user',
@@ -1161,10 +1142,7 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
             { text: prompt }
           ]
         }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 8192
-        }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
       })
     });
 
@@ -1223,7 +1201,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     toast('Audio files transcribed successfully!');
   });
 
-  /* Transcript Copy & Prompt Bundler */
   $('copyBtn').addEventListener('click',function(){copy(page.value).then(function(){toast('Transcript copied')})});
   
   function getFullPromptText(){
@@ -1257,34 +1234,77 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     a.href=URL.createObjectURL(b);a.download=t+'.txt';document.body.appendChild(a);a.click();document.body.removeChild(a);
   });
 
-  /* AI Settings */
-  var defaultModels=['gemini-3.8-flash','gemini-3.5-flash-lite','gemini-3.7-flash','gemini-2.5-flash'];
+  /* =====================================================================
+     AI SETTINGS & GEMINI MULTI-MODEL FALLBACK ENGINE
+     ===================================================================== */
+  var defaultModels = [
+    'gemini-3.8-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.7-flash',
+    'gemini-2.5-flash'
+  ];
+
   function initModels(){
-    var sel=$('model');sel.innerHTML='';
-    defaultModels.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o)});
-    var saved=load('ss_gemini_model');if(saved)sel.value=saved;
-    $('key').value=load('ss_gemini_key')||'';
+    var sel = $('model'); sel.innerHTML = '';
+    defaultModels.forEach(function(m){
+      var o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o);
+    });
+    var saved = load('ss_gemini_model');
+    if (saved && defaultModels.includes(saved)) {
+      sel.value = saved;
+    } else {
+      sel.value = 'gemini-3.8-flash';
+    }
+    $('key').value = load('ss_gemini_key') || '';
   }
   initModels();
 
-  $('model').addEventListener('change',function(){store('ss_gemini_model',this.value)});
-  $('key').addEventListener('input',function(){if($('remember').checked)store('ss_gemini_key',this.value.trim())});
-  $('remember').addEventListener('change',function(){if(!this.checked)store('ss_gemini_key',null);else store('ss_gemini_key',$('key').value.trim())});
-
-  $('checkKey').addEventListener('click',async function(){
-    var k=$('key').value.trim();if(!k){alert('Paste your key first!');return}
-    try{
-      var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':k}});
-      var d=await r.json();if(!r.ok)throw new Error(d.error&&d.error.message||'Key error');
-      var names=(d.models||[]).filter(function(m){return /gemini/i.test(m.name)&&(m.supportedGenerationMethods||[]).includes('generateContent')&&!/image|audio|robotics/i.test(m.name)}).map(function(m){return m.name.replace(/^models\//,'')});
-      var sel=$('model');sel.innerHTML='';
-      names.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o)});
-      if(names.includes('gemini-3.8-flash'))sel.value='gemini-3.8-flash';
-      toast('Verified! '+names.length+' models loaded.');
-    }catch(e){alert('Verification failed: '+e.message)}
+  $('model').addEventListener('change', function(){
+    store('ss_gemini_model', this.value);
+    toast('Model set to ' + this.value);
   });
 
-  /* Markdown Parser */
+  $('key').addEventListener('input', function(){
+    if ($('remember').checked) store('ss_gemini_key', this.value.trim());
+  });
+  $('remember').addEventListener('change', function(){
+    if (!this.checked) store('ss_gemini_key', null);
+    else store('ss_gemini_key', $('key').value.trim());
+  });
+
+  $('checkKey').addEventListener('click', async function(){
+    var k = $('key').value.trim();
+    if (!k) { alert('Paste your key first!'); return; }
+    try {
+      var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': k } });
+      var d = await r.json();
+      if (!r.ok) throw new Error(d.error && d.error.message || 'Key error');
+      
+      var names = (d.models || []).filter(function(m){
+        return /gemini/i.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent') && !/image|audio|robotics/i.test(m.name);
+      }).map(function(m){ return m.name.replace(/^models\//, ''); });
+      
+      var sel = $('model');
+      var currentSelection = sel.value;
+      sel.innerHTML = '';
+      names.forEach(function(n){
+        var o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o);
+      });
+
+      // Preserve the user's selection if present, else fallback gracefully
+      if (names.includes(currentSelection)) {
+        sel.value = currentSelection;
+      } else if (names.includes('gemini-3.8-flash')) {
+        sel.value = 'gemini-3.8-flash';
+      }
+      store('ss_gemini_model', sel.value);
+      toast('Verified! ' + names.length + ' models available.');
+    } catch(e) {
+      alert('Verification failed: ' + e.message);
+    }
+  });
+
   function mdToHtml(md){
     var lines=esc(md).split('\n'),html='',inUl=false,inOl=false,inCode=false;
     function inline(x){return x.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')}
@@ -1301,7 +1321,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     return html;
   }
 
-  /* Notes State Watcher & Smart Paste */
   function checkNotesState(){
     var has=out.innerText.trim().length>0;
     $('copyNotes').disabled=!has;
@@ -1325,60 +1344,66 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     }
   });
 
-  /* Call AI with Modern Gemini Waterfall Failover */
-  $('sumBtn').addEventListener('click',async function(){
-    var k=$('key').value.trim();
-    var chosenModel=$('model').value.trim()||'gemini-3.8-flash';
-    if(!k){$('cfg').open=true;alert('Add your Gemini API key under AI settings.');return}
-    var prompt=getFullPromptText();
-    this.disabled=true;$('copyNotes').disabled=true;$('saveSharePointBtn').disabled=true;
-    out.innerHTML='<div class="loading"><span class="spin"></span>Formulating study notes...</div>';
+  /* AI SUMMARY: Strictly respects dropdown model, then waterfalls on high demand */
+  $('sumBtn').addEventListener('click', async function(){
+    var k = $('key').value.trim();
+    var chosenModel = $('model').value.trim() || 'gemini-3.8-flash';
+    if(!k){ $('cfg').open = true; alert('Add your Gemini API key under AI settings.'); return; }
+    var prompt = getFullPromptText();
+    
+    this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
+    out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes with ' + chosenModel + '...</div>';
 
-    var fallbackChain=[chosenModel,'gemini-3.8-flash','gemini-3.5-flash-lite','gemini-3.7-flash'];
-    var uniqueChain=fallbackChain.filter(function(v,i,a){return v&&a.indexOf(v)===i});
-    var success=false, lastError='';
+    // Waterfall priority: User Selection -> 3.5-flash -> 3.5-flash-lite -> 3.8-flash -> 3.7-flash
+    var fallbackChain = [chosenModel, 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash'];
+    var uniqueChain = fallbackChain.filter(function(v, i, a){ return v && a.indexOf(v) === i; });
+    var success = false, lastError = '';
 
-    for(var i=0;i<uniqueChain.length;i++){
-      var curModel=uniqueChain[i];
-      try{
-        if(i>0){
-          out.innerHTML='<div class="loading"><span class="spin"></span>'+uniqueChain[i-1]+' is busy. Failing over to '+curModel+'...</div>';
-          await new Promise(function(res){setTimeout(res,1000)});
+    for (var i = 0; i < uniqueChain.length; i++) {
+      var curModel = uniqueChain[i];
+      try {
+        if (i > 0) {
+          out.innerHTML = '<div class="loading"><span class="spin"></span>' + uniqueChain[i-1] + ' reported busy. Failing over to ' + curModel + '...</div>';
+          await new Promise(function(res){ setTimeout(res, 1200); });
         }
 
-        var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(curModel)+':generateContent',{
-          method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},
-          body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.25,maxOutputTokens:8192}})
+        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(curModel) + ':generateContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.25, maxOutputTokens: 8192 }
+          })
         });
-        var d=await r.json();
+        var d = await r.json();
 
-        if(!r.ok){
-          var errMsg=d.error&&d.error.message||('HTTP '+r.status);
-          if(r.status===503||r.status===429||/demand|overload|exhaust/i.test(errMsg)){
-            lastError=curModel+': '+errMsg;
-            continue;
-          }else{
+        if (!r.ok) {
+          var errMsg = d.error && d.error.message || ('HTTP ' + r.status);
+          if (r.status === 503 || r.status === 429 || /demand|overload|exhaust|resource/i.test(errMsg)) {
+            lastError = curModel + ': ' + errMsg;
+            continue; // Tries next in the chain
+          } else {
             throw new Error(errMsg);
           }
         }
 
-        var notesText=d.candidates[0].content.parts.map(function(p){return p.text||''}).join('');
-        out.innerHTML=mdToHtml(notesText);
+        var notesText = d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
+        out.innerHTML = mdToHtml(notesText);
         checkNotesState();
-        if(curModel!==chosenModel) toast('Generated via '+curModel+' ('+chosenModel+' was busy)');
+        if (curModel !== chosenModel) toast('Generated via ' + curModel + ' (' + chosenModel + ' was busy)');
         else toast('Notes generated! Click inside to edit.');
-        success=true;
+        success = true;
         break;
-      }catch(e){
-        lastError=e.message;
-        if(/API_KEY_INVALID/i.test(e.message)) break;
+      } catch(e) {
+        lastError = e.message;
+        if (/API_KEY_INVALID/i.test(e.message)) break;
       }
     }
 
-    if(!success){
-      out.innerHTML='<div class="err">High demand reported across models. Please retry in 20 seconds.<br><small style="color:#666">'+esc(lastError)+'</small></div>';
+    if (!success) {
+      out.innerHTML = '<div class="err">High demand reported across models. Please retry in 20 seconds.<br><small style="color:#666">' + esc(lastError) + '</small></div>';
     }
-    $('sumBtn').disabled=false;
+    $('sumBtn').disabled = false;
   });
 
   $('copyNotes').addEventListener('click',function(){copy(out.innerText.trim()).then(function(){toast('Notes copied (with edits)')})});
@@ -1451,73 +1476,132 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     }
   });
 
-  /* A. SERMON MODE -> DEVOTIONAL_TOPICS (CLEAN HIGHLIGHTS + STUDY NOTES) */
+  /* A. SERMON MODE -> DEVOTIONAL_TOPICS (APPEND / REPLACE & TITLE SYNC) */
   async function saveSermonToTopics(token, siteId){
-    var titleVal=$('title').value.trim()||('Study Entry — '+new Date().toLocaleDateString());
-    var themeName=getActiveTheme();
-    var scriptures=findRefs(page.value).join(', ');
-    var fullNotesHtml=out.innerHTML;
-    var rawNotesText=out.innerText;
+    var titleVal = $('title').value.trim() || ('Study Entry — ' + new Date().toLocaleDateString());
+    var themeName = getActiveTheme();
+    var scriptures = findRefs(page.value).join(', ');
+    var fullNotesHtml = out.innerHTML;
+    var rawNotesText = out.innerText;
     
-    // Check if an existing Topic ID was passed from Power Apps or entered
-    var existingTopicId=qParams.get('topicId')||qParams.get('itemId')||'';
+    // Topic ID input and mode selector
+    var existingTopicId = $('sermonTopicId').value.trim() || qParams.get('topicId') || qParams.get('itemId') || '';
+    var saveMode = $('sermonSaveMode').value || 'APPEND';
 
-    // Extract Structured Key Highlights (Main Idea + Key Takeaways ONLY)
-    var keyHighlightsHtml='';
-    var takeawaysMatch=rawNotesText.match(/(?:^|\n)\s*##\s*(?:Main Idea|Key Takeaways)[\s\S]*?(?=(?:\n\s*##\s*(?:Scripture Focus|Theological|Application)|$))/gi);
+    // Extract structured key highlights (Main Idea + Key Takeaways ONLY)
+    var keyHighlightsHtml = '';
+    var takeawaysMatch = rawNotesText.match(/(?:^|\n)\s*##\s*(?:Main Idea|Key Takeaways)[\s\S]*?(?=(?:\n\s*##\s*(?:Scripture Focus|Theological|Application)|$))/gi);
     
-    if(takeawaysMatch&&takeawaysMatch.length>0){
-      keyHighlightsHtml=mdToHtml(takeawaysMatch.join('\n\n').trim());
-    }else{
-      var tempDiv=document.createElement('div');
-      tempDiv.innerHTML=fullNotesHtml;
-      var ps=tempDiv.querySelectorAll('p, ul, h3');
-      var sliceHtml='';
-      for(var p=0;p<Math.min(ps.length,4);p++){sliceHtml+=ps[p].outerHTML}
-      keyHighlightsHtml=sliceHtml||('<p><strong>'+esc(titleVal)+'</strong></p>');
+    if (takeawaysMatch && takeawaysMatch.length > 0) {
+      keyHighlightsHtml = mdToHtml(takeawaysMatch.join('\n\n').trim());
+    } else {
+      var tempDiv = document.createElement('div');
+      tempDiv.innerHTML = fullNotesHtml;
+      var ps = tempDiv.querySelectorAll('p, ul, h3');
+      var sliceHtml = '';
+      for (var p = 0; p < Math.min(ps.length, 4); p++) { sliceHtml += ps[p].outerHTML; }
+      keyHighlightsHtml = sliceHtml || ('<p><strong>' + esc(titleVal) + '</strong></p>');
     }
 
-    logSync('Syncing to Devotional_Topics list...');
-    logSync('Theme: '+themeName+' | Title: '+titleVal);
+    logSync('Syncing to Devotional_Topics...');
+    logSync('Title: ' + titleVal + ' | Theme: ' + themeName);
 
-    var fieldsPayload={
-      Title: titleVal,
+    // =========================================================
+    // CASE 1: CREATE NEW TOPIC RECORD (NO ID ENTERED)
+    // =========================================================
+    if (!existingTopicId) {
+      logSync('Creating NEW Topic record (POST)...');
+      var newPayload = {
+        fields: {
+          Title: titleVal,
+          Theme_Name: themeName,
+          Study_Date: new Date().toISOString(),
+          StudyNotes_HTML: fullNotesHtml,
+          KeyHighlights_HTML: keyHighlightsHtml,
+          Scripture_Reference: scriptures,
+          Status: 'Active',
+          IsDeleted: false,
+          OrganizerEmail: ($('userAccountName').textContent || '')
+        }
+      };
+
+      var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Devotional_Topics/items', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPayload)
+      });
+      var postData = await postRes.json();
+      if (!postRes.ok) throw new Error(postData.error && postData.error.message || ('Topic creation failed: ' + postRes.status));
+
+      // Auto-fill newly created ID on screen
+      $('sermonTopicId').value = postData.id;
+      logSync('🎉 SUCCESS! Created Topic #' + postData.id + '. ID saved on screen for future appends.');
+      toast('Saved as new Topic #' + postData.id + '!');
+      scheduleSave();
+      return;
+    }
+
+    // =========================================================
+    // CASE 2: UPDATE / APPEND TO EXISTING TOPIC RECORD
+    // =========================================================
+    logSync('Targeting Topic #' + existingTopicId + ' in ' + saveMode + ' mode...');
+    
+    var finalNotesHtml = fullNotesHtml;
+    var finalHighlightsHtml = keyHighlightsHtml;
+    var finalScriptures = scriptures;
+
+    if (saveMode === 'APPEND') {
+      logSync('Reading existing content for Topic #' + existingTopicId + ' to append...');
+      var getRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Devotional_Topics/items/' + existingTopicId + '?expand=fields', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      var getData = await getRes.json();
+      if (!getRes.ok) throw new Error(getData.error && getData.error.message || ('Could not read Topic #' + existingTopicId));
+
+      var ef = getData.fields || {};
+      var oldNotes = ef.StudyNotes_HTML || '';
+      var oldHighlights = ef.KeyHighlights_HTML || '';
+      var oldRefs = ef.Scripture_Reference || '';
+
+      var appendDivider = '<hr style="margin:24px 0; border:0; border-top:2px dashed #93C5FD"><p style="font-size:12px; color:#1E40AF; font-weight:bold; text-transform:uppercase">--- Additional Summary · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ---</p>';
+
+      finalNotesHtml = oldNotes ? (oldNotes + appendDivider + fullNotesHtml) : fullNotesHtml;
+      finalHighlightsHtml = oldHighlights ? (oldHighlights + appendDivider + keyHighlightsHtml) : keyHighlightsHtml;
+      
+      // Combine Scripture references without duplicates
+      if (oldRefs && scriptures) {
+        var set = new Set(oldRefs.split(/,\s*/).concat(scriptures.split(/,\s*/)));
+        finalScriptures = Array.from(set).filter(Boolean).join(', ');
+      } else {
+        finalScriptures = oldRefs || scriptures;
+      }
+    }
+
+    logSync('Patching Topic #' + existingTopicId + ' (Title synced to: "' + titleVal + '")...');
+
+    var patchPayload = {
+      Title: titleVal, // Always updates title to match input!
       Theme_Name: themeName,
       Study_Date: new Date().toISOString(),
-      StudyNotes_HTML: fullNotesHtml,
-      KeyHighlights_HTML: keyHighlightsHtml,
-      Scripture_Reference: scriptures,
-      Status: 'Active',
-      IsDeleted: false,
-      OrganizerEmail: ($('userAccountName').textContent||'')
+      StudyNotes_HTML: finalNotesHtml,
+      KeyHighlights_HTML: finalHighlightsHtml,
+      Scripture_Reference: finalScriptures
     };
 
-    var targetUrl, method;
-    if(existingTopicId){
-      logSync('Updating EXISTING Topic #'+existingTopicId+' (PATCH)...');
-      targetUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/Devotional_Topics/items/'+existingTopicId+'/fields';
-      method='PATCH';
-    }else{
-      logSync('Creating NEW Topic record (POST)...');
-      targetUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/Devotional_Topics/items';
-      method='POST';
-    }
-
-    var res=await fetch(targetUrl,{
-      method:method,
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify(method==='POST'?{fields:fieldsPayload}:fieldsPayload)
+    var patchRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/Devotional_Topics/items/' + existingTopicId + '/fields', {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(patchPayload)
     });
 
-    var data=await res.json();
-    if(!res.ok)throw new Error(data.error&&data.error.message||('Topic sync failed: HTTP '+res.status));
+    var patchData = await patchRes.json();
+    if (!patchRes.ok) throw new Error(patchData.error && patchData.error.message || ('Topic update failed: ' + patchRes.status));
 
-    var finalId=existingTopicId||data.id;
-    logSync('🎉 SUCCESS! Devotional_Topics record #'+finalId+' synchronized successfully.');
-    toast('Saved to Devotional_Topics (#'+finalId+')!');
+    logSync('🎉 SUCCESS! Topic #' + existingTopicId + ' updated (' + saveMode + ' mode).');
+    toast('Topic #' + existingTopicId + ' updated successfully!');
   }
 
-  /* HTML CARD FORMATTER - TURNS PLAIN TEXT INTO POWER APP BEAUTIFUL RICH TEXT */
+  /* HTML CARD FORMATTER */
   function formatCardHtml(rawCardText, person) {
     if(!rawCardText) return '';
     var lines=rawCardText.split('\n').map(function(l){return l.trim()}).filter(Boolean);
@@ -1536,7 +1620,7 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
       if(labelMatch){
         var label=labelMatch[2].trim();
         var displayLabel=label.charAt(0).toUpperCase()+label.slice(1);
-        var content=labelMatch[3].replace(/^[*#\s]+/,'').replace(/[*#]+$/,'').trim();
+        var content=labelMatch[3].replace(/^[*#\s]+/, '').replace(/[*#]+$/, '').trim();
         formattedHtml+='<p style="margin-bottom:8px;line-height:1.5;"><strong>'+esc(displayLabel)+':</strong> '+esc(content)+'</p>';
       }else if(/^(Take a step with God today\.|Be strong the right way\.)/i.test(line)){
         formattedHtml+='<p style="margin-top:12px;font-style:italic;font-weight:500;color:#092162;">'+esc(line)+'</p>';
@@ -1578,7 +1662,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
       return found.id;
     }
 
-    // 1. Separate Top Commentary from Family Micro-Cards
     var familySplitIdx=rawText.search(/Family Micro-Cards/i);
     var topCommentary=rawHtml;
     var familyRaw="";
@@ -1591,7 +1674,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
       }
     }
 
-    // 2. PATCH Resources list
     logSync('Patching Resources item #'+targetRowId+'...');
     try{
       var resListId=await getListId('Resources');
@@ -1606,7 +1688,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
       logSync('⚠️ Resources error: '+e.message);
     }
 
-    // 3. Parse & Post Companion Voices
     var compStart=rawText.toLowerCase().indexOf('companion voices');
     if(compStart>-1){
       try{
@@ -1652,7 +1733,6 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
       }
     }
 
-    // 4. Parse & Post Family Insights with Rich HTML Formatting
     logSync('Parsing & formatting Family Micro-Cards and Prayer...');
     try{
       var famListId=await getListId('Family_Insights');
@@ -1718,12 +1798,8 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     toast('Devotional components saved with rich HTML formatting!');
   }
 
-  /* =====================================================================
-     SECTION 6 - EMAIL BROADCAST (OUTLOOK DEEPLINK)
-     ===================================================================== */
   $('emailDigestBtn').addEventListener('click', function(){
     var title = $('title').value.trim() || 'Devotional & Family Focus';
-    var devoDate = $('devoDate').value || new Date().toISOString().slice(0,10);
     var notesText = out.innerText.trim();
 
     copy(notesText).then(function(){
@@ -1746,6 +1822,7 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
       text: page.value, notes: notesHtml,
       title: $('title').value, mode: mode,
       themeSelect: $('themeSelect').value, customTheme: $('customThemeInput').value,
+      sermonTopicId: $('sermonTopicId').value, sermonSaveMode: $('sermonSaveMode').value,
       targetResourceId: $('targetResourceId').value, devoSource: $('devoSource').value, devoDate: $('devoDate').value,
       seconds: seconds, savedAt: Date.now()
     };
@@ -1771,9 +1848,12 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     clearTimeout(saveT);saveT=setTimeout(saveNow,1000);
   }
 
-  ['title','customThemeInput','targetResourceId','devoSource','devoDate'].forEach(function(id){
+  ['title','customThemeInput','sermonTopicId','sermonSaveMode','targetResourceId','devoSource','devoDate'].forEach(function(id){
     var el=$(id); if(el) el.addEventListener('input', scheduleSave);
   });
+  $('themeSelect').addEventListener('change', scheduleSave);
+  $('sermonSaveMode').addEventListener('change', scheduleSave);
+
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveNow()});
   window.addEventListener('pagehide',saveNow);
 
@@ -1784,6 +1864,8 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     if(s.mode&&s.mode!==mode) applyMode(s.mode);
     if(s.themeSelect)$('themeSelect').value=s.themeSelect;
     if(s.customTheme)$('customThemeInput').value=s.customTheme;
+    if(s.sermonTopicId)$('sermonTopicId').value=s.sermonTopicId;
+    if(s.sermonSaveMode)$('sermonSaveMode').value=s.sermonSaveMode;
     if(s.targetResourceId)$('targetResourceId').value=s.targetResourceId;
     if(s.devoSource)$('devoSource').value=s.devoSource;
     if(s.devoDate)$('devoDate').value=s.devoDate;
@@ -1822,11 +1904,9 @@ if (topExp) topExp.addEventListener('click', function(){ $('exportHtmlBtn').clic
     saveReady=true;
   })();
 
-  // Pre-load accounts if already cached
   var cachedAccs=msalApp.getAllAccounts();
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
 
-  // Apply initial mode
   applyMode(mode);
 })();
 </script>
