@@ -78,6 +78,7 @@ header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:spac
 .ribbon .lbl{font-size:13px;color:var(--gold);font-weight:600;white-space:nowrap}
 .ribbon .empty{font-size:13px;color:var(--muted)}
 .chip{white-space:nowrap;text-decoration:none;font-family:var(--serif);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid color-mix(in srgb,var(--gold) 35%,white);border-radius:6px;padding:2px 8px}
+.chip small{color:var(--gold);font-weight:600;margin-left:4px}
 a.chip:hover{border-color:var(--gold)}
 
 /* Audio Queue Progress Banner */
@@ -122,7 +123,7 @@ details.cfg summary{cursor:pointer;padding:10px 0;font-size:13px;color:var(--mut
 .cfg label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
 .cfg input[type=text],.cfg input[type=password],.cfg select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;color:var(--ink)}
 
-/* TIER PROFILE SWITCHER STYLES */
+/* TIER PROFILE SWITCHER */
 .tier-switcher{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#F8FAFD;border:1px solid var(--line);border-radius:8px}
 .tier-pill-label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
 .tier-section{padding:10px;border-radius:8px;background:#FBFAFD;border:1px solid var(--line);display:grid;gap:8px}
@@ -176,7 +177,6 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 .dlg-b textarea{width:100%;min-height:50vh;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5}
 .dlg-f{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
 
-/* Capacity Dialog specific styling */
 #capacityDlg{width:min(580px,94vw)}
 .cap-actions{display:grid;gap:10px;margin:12px 0}
 .cap-btn{padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:3px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:#fff;transition:.15s}
@@ -283,7 +283,6 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     </div>
 
     <div class="actions">
-      <!-- Hidden file input for audio files -->
       <input type="file" id="audioFileInput" multiple accept="audio/*,.wav,.mp3,.m4a,.aac,.webm,.ogg,.mp4" style="display:none">
       
       <button class="btn" id="attachAudioBtn" title="Upload audio recordings (MP3, M4A, WAV, WebM). Slices in 5-minute chunks automatically!">
@@ -329,8 +328,6 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     <details class="cfg" id="cfg">
       <summary>AI settings (Dual-Tier Free &amp; Paid Key Profiles)</summary>
       <div class="cfg-body">
-        
-        <!-- Active Tier Switcher -->
         <div class="tier-switcher">
           <span style="font-weight:600;font-size:13px">Active Key Tier:</span>
           <label class="tier-pill-label">
@@ -410,7 +407,6 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
         <span id="saveSpBtnText">Save to SharePoint</span>
       </button>
 
-      <!-- EMAIL BROADCAST BUTTON -->
       <button class="btn" id="emailDigestBtn" disabled title="Draft an Outlook email with study notes or family digest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         <span id="emailDigestText">✉️ Email Notes</span>
@@ -421,7 +417,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
   </aside>
 </div>
 
-<!-- INSTRUCTIONS MODAL (WITH NAMED PRESET MANAGEMENT & GITHUB EXPORT) -->
+<!-- INSTRUCTIONS MODAL -->
 <dialog id="instDlg" aria-labelledby="dlgT">
   <div class="dlg-h">
     <h2 id="dlgT">AI Instructions &amp; Presets</h2>
@@ -494,12 +490,9 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 
 <script>
 /* =====================================================================
-   =====================================================================
    SECTION 1 - SYSTEM PROMPTS (EASILY MANAGED FROM CODEBASE)
-   =====================================================================
    ===================================================================== */
 
-/* PROMPT A: SERMON EXPOSITORY NOTES (DEFAULT SERMON MODE) */
 var SERMON_STANDARD = `You are a biblical research assistant producing an expositional, Christ-centered study of a sermon transcript. Interpret within historic Protestant, Reformed orthodoxy.
 
 OUTPUT HEADINGS IN MARKDOWN:
@@ -523,7 +516,6 @@ OUTPUT HEADINGS IN MARKDOWN:
 
 Stay faithful to what was spoken in the transcript without introducing external teachings.`;
 
-/* PROMPT B: FULL REFORMED ANALYSIS (PCA / WESTMINSTER COMPATIBLE) */
 var SERMON_FULL = `You are a biblical research assistant producing a Scripture-first, historically informed and pastorally useful analysis of a sermon transcript. Interpret within historic Protestant, Reformed, PCA-compatible theology (Westminster Confession of Faith and the Catechisms).
 
 AUTHORITY, IN ORDER
@@ -547,7 +539,6 @@ OUTPUT HEADINGS IN MARKDOWN:
 ## L. Companion voices
 ## M. Related prayer`;
 
-/* PROMPT C: SPURGEON FAITH'S CHECKBOOK & FAMILY MICRO-CARDS */
 var DEVOTIONAL_SPURGEON = `You are expanding Charles Spurgeon's Faith's Checkbook devotionals into substantial family devotionals that are Scripture-governed, Christ-centered, grace-centered, Reformed in theological orientation, pastorally useful, and formatted for a family Bible Power App.
 
 PRIMARY AUTHORITY
@@ -640,7 +631,6 @@ PromiseNum{{TAB}}PromiseTitle{{TAB}}ScriptureWEBU{{TAB}}The Promise Itself{{TAB}
 [Data row with 27 fields separated by {{TAB}}, ending with {{TAB}}{{TAB}}FALSE{{TAB}}Pending]
 \`\`\``;
 
-/* BUILT-IN PRESETS DEFINITION */
 var BUILTIN_PRESETS = {
   'sermon-std':    {mode:'sermon',     label:'Expository Sermon Notes',                text:SERMON_STANDARD},
   'sermon-full':   {mode:'sermon',     label:'Sermon: Full Reformed Analysis',         text:SERMON_FULL},
@@ -652,8 +642,130 @@ var BAKED_CUSTOM_PRESETS = {};
 /* BAKE_PRESETS_END */
 
 /* =====================================================================
-   SECTION 2 - MODES & CONFIG
+   CANONICAL BIBLE BOOKS DICTIONARY (1 - 66) & CANONKEY MATHEMATICS
    ===================================================================== */
+var BIBLE_BOOKS = [
+  { num: 1,  name: "Genesis",        aliases: ["gen", "ge", "gn"] },
+  { num: 2,  name: "Exodus",         aliases: ["exo", "ex", "exod"] },
+  { num: 3,  name: "Leviticus",      aliases: ["lev", "le", "lv"] },
+  { num: 4,  name: "Numbers",        aliases: ["num", "nu", "nm", "nb"] },
+  { num: 5,  name: "Deuteronomy",    aliases: ["deut", "de", "dt"] },
+  { num: 6,  name: "Joshua",         aliases: ["josh", "jos", "jsh"] },
+  { num: 7,  name: "Judges",         aliases: ["judg", "jdg", "jg", "jdgs"] },
+  { num: 8,  name: "Ruth",           aliases: ["rth", "ru"] },
+  { num: 9,  name: "1 Samuel",       aliases: ["1 sam", "1sam", "1 sa", "1s", "1st samuel", "first samuel"] },
+  { num: 10, name: "2 Samuel",       aliases: ["2 sam", "2sam", "2 sa", "2s", "2nd samuel", "second samuel"] },
+  { num: 11, name: "1 Kings",        aliases: ["1 kgs", "1kgs", "1 ki", "1k", "1st kings", "first kings"] },
+  { num: 12, name: "2 Kings",        aliases: ["2 kgs", "2kgs", "2 ki", "2k", "2nd kings", "second kings"] },
+  { num: 13, name: "1 Chronicles",   aliases: ["1 chron", "1chron", "1 ch", "1chr", "1st chronicles", "first chronicles"] },
+  { num: 14, name: "2 Chronicles",   aliases: ["2 chron", "2chron", "2 ch", "2chr", "2nd chronicles", "second chronicles"] },
+  { num: 15, name: "Ezra",           aliases: ["ezr"] },
+  { num: 16, name: "Nehemiah",       aliases: ["neh", "ne"] },
+  { num: 17, name: "Esther",         aliases: ["esth", "es"] },
+  { num: 18, name: "Job",            aliases: ["jb"] },
+  { num: 19, name: "Psalms",         aliases: ["psalm", "ps", "psa", "pss"] },
+  { num: 20, name: "Proverbs",       aliases: ["prov", "pr", "prv"] },
+  { num: 21, name: "Ecclesiastes",   aliases: ["eccles", "ecc", "ec", "qoh"] },
+  { num: 22, name: "Song of Solomon",aliases: ["song of songs", "song", "sos", "canticles", "canticle of canticles"] },
+  { num: 23, name: "Isaiah",         aliases: ["isa", "is"] },
+  { num: 24, name: "Jeremiah",       aliases: ["jer", "je", "jr"] },
+  { num: 25, name: "Lamentations",   aliases: ["lam", "la"] },
+  { num: 26, name: "Ezekiel",        aliases: ["ezek", "eze", "ezk"] },
+  { num: 27, name: "Daniel",         aliases: ["dan", "da", "dn"] },
+  { num: 28, name: "Hosea",          aliases: ["hos", "ho"] },
+  { num: 29, name: "Joel",           aliases: ["joe", "jl"] },
+  { num: 30, name: "Amos",           aliases: ["am"] },
+  { num: 31, name: "Obadiah",        aliases: ["obad", "ob"] },
+  { num: 32, name: "Jonah",          aliases: ["jnh", "jon"] },
+  { num: 33, name: "Micah",          aliases: ["mic", "mc"] },
+  { num: 34, name: "Nahum",          aliases: ["nah", "na"] },
+  { num: 35, name: "Habakkuk",       aliases: ["hab", "hb"] },
+  { num: 36, name: "Zephaniah",      aliases: ["zeph", "zep", "zp"] },
+  { num: 37, name: "Haggai",         aliases: ["hag", "hg"] },
+  { num: 38, name: "Zechariah",      aliases: ["zech", "zec", "zc"] },
+  { num: 39, name: "Malachi",        aliases: ["mal", "ml"] },
+  { num: 40, name: "Matthew",        aliases: ["matt", "mt"] },
+  { num: 41, name: "Mark",           aliases: ["mrk", "mk", "mr"] },
+  { num: 42, name: "Luke",           aliases: ["luk", "lk"] },
+  { num: 43, name: "John",           aliases: ["jhn", "jn"] },
+  { num: 44, name: "Acts",           aliases: ["act", "ac"] },
+  { num: 45, name: "Romans",         aliases: ["rom", "ro", "rm"] },
+  { num: 46, name: "1 Corinthians",  aliases: ["1 cor", "1cor", "1 co", "1c", "1st corinthians", "first corinthians"] },
+  { num: 47, name: "2 Corinthians",  aliases: ["2 cor", "2cor", "2 co", "2c", "2nd corinthians", "second corinthians"] },
+  { num: 48, name: "Galatians",      aliases: ["gal", "ga"] },
+  { num: 49, name: "Ephesians",      aliases: ["eph", "ep"] },
+  { num: 50, name: "Philippians",    aliases: ["phil", "php", "pp"] },
+  { num: 51, name: "Colossians",     aliases: ["col", "co"] },
+  { num: 52, name: "1 Thessalonians",aliases: ["1 thess", "1thess", "1 th", "1st thessalonians", "first thessalonians"] },
+  { num: 53, name: "2 Thessalonians",aliases: ["2 thess", "2thess", "2 th", "2nd thessalonians", "second thessalonians"] },
+  { num: 54, name: "1 Timothy",      aliases: ["1 tim", "1tim", "1 ti", "1st timothy", "first timothy"] },
+  { num: 55, name: "2 Timothy",      aliases: ["2 tim", "2tim", "2 ti", "2nd timothy", "second timothy"] },
+  { num: 56, name: "Titus",          aliases: ["tit", "ti"] },
+  { num: 57, name: "Philemon",       aliases: ["philem", "phm", "pm"] },
+  { num: 58, name: "Hebrews",        aliases: ["heb", "he"] },
+  { num: 59, name: "James",          aliases: ["jas", "jm"] },
+  { num: 60, name: "1 Peter",        aliases: ["1 pet", "1pet", "1 pe", "1pt", "1st peter", "first peter"] },
+  { num: 61, name: "2 Peter",        aliases: ["2 pet", "2pet", "2 pe", "2pt", "2nd peter", "second peter"] },
+  { num: 62, name: "1 John",         aliases: ["1 jhn", "1jn", "1 jn", "1j", "1st john", "first john"] },
+  { num: 63, name: "2 John",         aliases: ["2 jhn", "2jn", "2 jn", "2j", "2nd john", "second john"] },
+  { num: 64, name: "3 John",         aliases: ["3 jhn", "3jn", "3 jn", "3j", "3rd john", "third john"] },
+  { num: 65, name: "Jude",           aliases: ["jud", "jd"] },
+  { num: 66, name: "Revelation",     aliases: ["rev", "re", "the revelation"] }
+];
+
+function computeCanonKeys(refStr) {
+  if (!refStr) return null;
+  var clean = refStr.replace(/[\u2013\u2014]/g, '-').trim();
+  var m = clean.match(/^([1-3]?\s?[A-Za-z]+(?:\s[A-Za-z]+)*)\s+(\d+)[:.](\d+)(?:\s*-\s*(\d+))?/i);
+  if (!m) return null;
+
+  var rawBook = m[1].trim().toLowerCase();
+  var chapter = parseInt(m[2], 10);
+  var startVerse = parseInt(m[3], 10);
+  var endVerse = m[4] ? parseInt(m[4], 10) : startVerse;
+
+  var bookObj = BIBLE_BOOKS.find(function(b){
+    if (b.name.toLowerCase() === rawBook) return true;
+    if (b.aliases.some(function(a){ return a.toLowerCase() === rawBook; })) return true;
+    var noSpace = rawBook.replace(/\s+/g, '');
+    if (b.name.toLowerCase().replace(/\s+/g, '') === noSpace) return true;
+    return false;
+  });
+
+  if (!bookObj) return null;
+  var bookNum = bookObj.num;
+
+  var startKey = (bookNum * 1000000) + (chapter * 1000) + startVerse;
+  var endKey = (bookNum * 1000000) + (chapter * 1000) + endVerse;
+
+  return {
+    bookNum: bookNum,
+    bookName: bookObj.name,
+    chapter: chapter,
+    startVerse: startVerse,
+    endVerse: endVerse,
+    startKey: startKey,
+    endKey: endKey,
+    cleanRef: bookObj.name + " " + chapter + ":" + startVerse + (endVerse !== startVerse ? "-" + endVerse : "")
+  };
+}
+
+function computeCrossRefKeys(refsArray) {
+  if (!Array.isArray(refsArray)) return "";
+  var keys = [];
+  refsArray.forEach(function(r) {
+    var k = computeCanonKeys(r);
+    if (k) {
+      if (k.startKey === k.endKey) keys.push(k.startKey);
+      else keys.push(k.startKey + "-" + k.endKey);
+    }
+  });
+  return keys.join("; ");
+}
+
+/* =====================================================================
+   SECTION 2 - MODES & CONFIG
+   ==================================================================== */
 var MODES = {
   sermon:{
     brand:'Sermon Scribe', sub:'Live transcript, Reformed notes & Devotional Topics',
@@ -702,7 +814,6 @@ var SITE_PATH = "/sites/Bible_App";
   var msalApp=new msal.PublicClientApplication(MSAL_CONFIG);
   var cachedSiteId=null;
 
-  // Runtime session override for capacity failures
   var sessionCapacityAction = null; 
 
   function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('show')},2800)}
@@ -867,9 +978,7 @@ var SITE_PATH = "/sites/Bible_App";
     if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open','');
   }
 
-  $('editInst').addEventListener('click',function(){
-    openPresetModal(presetId);
-  });
+  $('editInst').addEventListener('click',function(){ openPresetModal(presetId); });
   $('instText').addEventListener('input',countInst);
 
   $('instSave').addEventListener('click',function(){
@@ -899,12 +1008,7 @@ var SITE_PATH = "/sites/Bible_App";
 
     var newId='custom_'+Date.now().toString(36);
     var customs=getCustomPresets();
-    customs[newId]={
-      id:newId,
-      mode:$('instMode').value,
-      label:title,
-      text:v
-    };
+    customs[newId]={ id:newId, mode:$('instMode').value, label:title, text:v };
     saveCustomPresets(customs);
     presetId=newId;
     fillPresets();
@@ -939,13 +1043,11 @@ var SITE_PATH = "/sites/Bible_App";
     try {
       var customs=getCustomPresets();
       var serializedCustoms=JSON.stringify(customs, null, 2);
-
       var res=await fetch(window.location.href);
       var srcText=await res.text();
 
       var reBake=/\/\* BAKE_PRESETS_START \*\/[\s\S]*?\/\* BAKE_PRESETS_END \*\//;
       var newBlock="/* BAKE_PRESETS_START */\nvar BAKED_CUSTOM_PRESETS = " + serializedCustoms + ";\n/* BAKE_PRESETS_END */";
-
       var finalHtml=srcText.replace(reBake, newBlock);
 
       var blob=new Blob([finalHtml], {type:'text/html'});
@@ -987,9 +1089,10 @@ var SITE_PATH = "/sites/Bible_App";
     }
   }
 
-  /* Scripture Detection */
+  /* Scripture Detection & CanonKey Enrichment */
   var books='Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|3 John|Jude|Revelation';
   var refRe=new RegExp('\\b(?:'+books+')\\s\\d{1,3}(?:\\s?[:.]\\s?\\d{1,3}(?:\\s?[-–]\\s?\\d{1,3})?)?','gi');
+  
   function findRefs(text){
     var seen={},outArr=[],m;refRe.lastIndex=0;
     while((m=refRe.exec(text))){
@@ -998,14 +1101,21 @@ var SITE_PATH = "/sites/Bible_App";
     }
     return outArr;
   }
+
   function renderRibbon(){
     var c=MODES[mode],ribbon=$('ribbon');
     ribbon.innerHTML='<span class="lbl">'+esc(c.ribbonLbl)+'</span>';
     var items=findRefs(page.value);
     if(!items.length){ribbon.insertAdjacentHTML('beforeend','<span class="empty">Scriptures appear here as referenced.</span>');return}
     items.forEach(function(r){
+      var canon = computeCanonKeys(r);
       var el=document.createElement('a');el.href='https://www.biblegateway.com/passage/?version=ESV&search='+encodeURIComponent(r);
-      el.target='_blank';el.rel='noopener';el.textContent=r;el.className='chip';
+      el.target='_blank';el.rel='noopener';el.className='chip';
+      if(canon){
+        el.innerHTML = esc(r) + '<small>(' + canon.startKey.toLocaleString() + ')</small>';
+      } else {
+        el.textContent = r;
+      }
       ribbon.appendChild(el);
     });
   }
@@ -1188,7 +1298,7 @@ var SITE_PATH = "/sites/Bible_App";
       var audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
       var totalDuration = audioBuffer.duration;
       var targetRate = 16000;
-      var chunkDuration = 300; // 5-minute slices
+      var chunkDuration = 300;
       var totalChunks = Math.ceil(totalDuration / chunkDuration);
       var chunkPayloads = [];
 
@@ -1409,12 +1519,10 @@ var SITE_PATH = "/sites/Bible_App";
   }
 
   function initProfiles(){
-    // 1. Fill Dropdowns
     fillModelDropdown($('freePrimaryModel'), load('ss_free_primary_model') || 'gemini-3.5-flash');
     fillModelDropdown($('freeFallbackModel'), load('ss_free_fallback_model') || 'gemini-3.5-flash-lite');
     fillModelDropdown($('paidModel'), load('ss_paid_model') || 'gemini-3.8-flash');
 
-    // 2. Load Keys & Preferences
     $('freeKey').value = load('ss_free_key') || load('ss_gemini_key') || '';
     $('paidKey').value = load('ss_paid_key') || '';
 
@@ -1426,7 +1534,6 @@ var SITE_PATH = "/sites/Bible_App";
   }
   initProfiles();
 
-  // Save Settings Handlers
   function saveProfileSettings(){
     if (!$('remember').checked) return;
     store('ss_free_key', getFreeKey());
@@ -1445,7 +1552,6 @@ var SITE_PATH = "/sites/Bible_App";
     });
   });
 
-  // Verify Key Utilities
   async function verifyAnyKey(key, targetSelectEl){
     if(!key) throw new Error('Paste an API key first!');
     var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
@@ -1603,9 +1709,7 @@ var SITE_PATH = "/sites/Bible_App";
     var prompt = getFullPromptText();
     this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
     
-    // =========================================================
-    // PATH 1: RUN ON PAID KEY TIER (DIRECT / NO QUEUE)
-    // =========================================================
+    // PATH 1: RUN ON PAID KEY TIER
     if (activeTier === 'paid') {
       out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes via 💎 Paid Tier (' + paidModel + ')...</div>';
       try {
@@ -1621,16 +1725,12 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
 
-    // =========================================================
-    // PATH 2: RUN ON FREE KEY TIER (WITH SMART FAILOVER & PROMPT)
-    // =========================================================
+    // PATH 2: RUN ON FREE KEY TIER
     var targetModel = primaryFreeModel;
 
-    // Honor session memory if user previously selected an override for today
     if (sessionCapacityAction === 'fallback') {
       targetModel = fallbackFreeModel;
     } else if (sessionCapacityAction === 'paid' && paidKey) {
-      // Direct jump to paid tier
       out.innerHTML = '<div class="loading"><span class="spin"></span>Generating via 💎 Paid Tier (' + paidModel + ') [Session Override]...</div>';
       try {
         var rawPaid = await executeGeminiRequest(paidModel, paidKey, prompt);
@@ -1653,21 +1753,16 @@ var SITE_PATH = "/sites/Bible_App";
       checkNotesState();
       toast('Notes generated with ' + targetModel + '!');
     } catch(err) {
-      // Check if it failed due to Google's 503 / High Demand
       if (err.isHighDemand) {
         out.innerHTML = '<div class="err">🟢 Free model ' + targetModel + ' is currently congested on Google servers.</div>';
 
-        // Check configured policy
         var decision = { action: busyPolicy, remember: false };
         if (busyPolicy === 'ask') {
           decision = await promptCapacityResolution(targetModel, fallbackFreeModel, paidModel, !!paidKey);
         }
 
-        if (decision.remember) {
-          sessionCapacityAction = decision.action;
-        }
+        if (decision.remember) sessionCapacityAction = decision.action;
 
-        // Execute user's decision
         if (decision.action === 'fallback') {
           out.innerHTML = '<div class="loading"><span class="spin"></span>Failing over to Free: ' + fallbackFreeModel + '...</div>';
           try {
@@ -1714,7 +1809,7 @@ var SITE_PATH = "/sites/Bible_App";
   $('copyNotes').addEventListener('click',function(){copy(out.innerText.trim()).then(function(){toast('Notes copied (with edits)')})});
 
   /* =====================================================================
-     SECTION 6 - MICROSOFT GRAPH & SHAREPOINT SAVE PIPELINE
+     SECTION 5 - MICROSOFT GRAPH & SHAREPOINT SAVE PIPELINE
      ===================================================================== */
   async function getMsalToken(){
     var accounts=msalApp.getAllAccounts();
@@ -1789,7 +1884,6 @@ var SITE_PATH = "/sites/Bible_App";
     var fullNotesHtml = out.innerHTML;
     var rawNotesText = out.innerText;
     
-    // Topic ID input and mode selector
     var existingTopicId = $('sermonTopicId').value.trim() || qParams.get('topicId') || qParams.get('itemId') || '';
     var saveMode = $('sermonSaveMode').value || 'APPEND';
 
@@ -1811,7 +1905,14 @@ var SITE_PATH = "/sites/Bible_App";
     logSync('Syncing to Devotional_Topics...');
     logSync('Title: ' + titleVal + ' | Theme: ' + themeName);
 
-    // CASE 1: CREATE NEW TOPIC RECORD (NO ID ENTERED)
+    // Compute CanonKeys if Scripture found
+    var firstRef = findRefs(page.value)[0] || '';
+    var canon = computeCanonKeys(firstRef);
+    if (canon) {
+      logSync('✓ Computed Sermon CanonKeys: ' + canon.cleanRef + ' -> StartKey: ' + canon.startKey + ' | EndKey: ' + canon.endKey);
+    }
+
+    // CASE 1: CREATE NEW TOPIC RECORD
     if (!existingTopicId) {
       logSync('Creating NEW Topic record (POST)...');
       var newPayload = {
@@ -1836,7 +1937,6 @@ var SITE_PATH = "/sites/Bible_App";
       var postData = await postRes.json();
       if (!postRes.ok) throw new Error(postData.error && postData.error.message || ('Topic creation failed: ' + postRes.status));
 
-      // Auto-fill newly created ID on screen
       $('sermonTopicId').value = postData.id;
       logSync('🎉 SUCCESS! Created Topic #' + postData.id + '. ID saved on screen for future appends.');
       toast('Saved as new Topic #' + postData.id + '!');
@@ -1880,7 +1980,7 @@ var SITE_PATH = "/sites/Bible_App";
     logSync('Patching Topic #' + existingTopicId + ' (Title synced to: "' + titleVal + '")...');
 
     var patchPayload = {
-      Title: titleVal, // Always updates title to match input!
+      Title: titleVal,
       Theme_Name: themeName,
       Study_Date: new Date().toISOString(),
       StudyNotes_HTML: finalNotesHtml,
@@ -1932,7 +2032,7 @@ var SITE_PATH = "/sites/Bible_App";
     return formattedHtml;
   }
 
-  /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS */
+  /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS (WITH CANONKEYS & CROSSREFS) */
   async function saveDevotionalPipeline(token, siteId){
     var rawText=out.innerText;
     var rawHtml=out.innerHTML;
@@ -1962,6 +2062,7 @@ var SITE_PATH = "/sites/Bible_App";
       return found.id;
     }
 
+    // 1. Separate Top Commentary from Family Micro-Cards
     var familySplitIdx=rawText.search(/Family Micro-Cards/i);
     var topCommentary=rawHtml;
     var familyRaw="";
@@ -1974,20 +2075,70 @@ var SITE_PATH = "/sites/Bible_App";
       }
     }
 
-    logSync('Patching Resources item #'+targetRowId+'...');
+    // Extract Detected Passages and Compute CanonKeys
+    var detectedPassages = findRefs(rawText).concat(findRefs(page.value));
+    var uniquePassages = Array.from(new Set(detectedPassages));
+    var primaryPassage = uniquePassages[0] || '';
+    var canon = computeCanonKeys(primaryPassage);
+
+    // Extract Related Prayer
+    var prayerStart = rawText.toLowerCase().indexOf('supplemental prayer');
+    var extractedPrayer = "";
+    if (prayerStart > -1) {
+      var amenEnd = rawText.toLowerCase().indexOf('amen', prayerStart);
+      if (amenEnd > -1) {
+        extractedPrayer = rawText.slice(prayerStart + 19, amenEnd + 4).trim();
+      }
+    }
+
+    // 2. PATCH Resources list (WITH CANONKEYS & CROSSREFS)
+    logSync('Patching Resources item #' + targetRowId + '...');
     try{
       var resListId=await getListId('Resources');
       var patchUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/'+resListId+'/items/'+targetRowId+'/fields';
+      
+      var resPayload = {
+        AdditionalCommentary: topCommentary
+      };
+
+      if (extractedPrayer) {
+        resPayload.Related_Prayer = extractedPrayer;
+      }
+
+      if (canon) {
+        resPayload.StartKey = canon.startKey;
+        resPayload.EndKey = canon.endKey;
+        resPayload.BookNum = canon.bookNum;
+        resPayload.Chapter = canon.chapter;
+        resPayload.ScriptureRef = canon.cleanRef;
+        logSync('✓ Computed CanonKeys: ' + canon.cleanRef + ' -> StartKey: ' + canon.startKey + ' | EndKey: ' + canon.endKey);
+      }
+
+      var crossRefs = uniquePassages.slice(1);
+      if (crossRefs.length > 0) {
+        resPayload.BibleCrossRef = crossRefs.join('; ');
+        var crKeys = computeCrossRefKeys(crossRefs);
+        if (crKeys) {
+          resPayload.BibleCrossRefKeys = crKeys;
+          logSync('✓ Computed CrossRefKeys: ' + crKeys);
+        }
+      }
+
       var rRes=await fetch(patchUrl,{
         method:'PATCH',
         headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-        body:JSON.stringify({AdditionalCommentary:topCommentary})
+        body:JSON.stringify(resPayload)
       });
-      if(rRes.ok)logSync('✓ Resources #'+targetRowId+' updated.');
+      if(rRes.ok) logSync('✓ Resources #' + targetRowId + ' updated with CanonKeys & Commentary.');
+      else {
+        var errD = await rRes.json();
+        logSync('⚠️ Resources patch warning: ' + (errD.error && errD.error.message || rRes.status));
+      }
     }catch(e){
       logSync('⚠️ Resources error: '+e.message);
     }
 
+    // 3. Parse & Post Companion Voices
     var compStart=rawText.toLowerCase().indexOf('companion voices');
     if(compStart>-1){
       try{
@@ -2004,7 +2155,7 @@ var SITE_PATH = "/sites/Bible_App";
         for(var i=0;i<compLines.length;i++){
           var line=compLines[i];
           var sepIdx=line.indexOf(':')>-1?line.indexOf(':'):line.indexOf('—');
-          var compName=line.slice(0,sepIdx).replace(/^[-*•#\s]+/, '').trim();
+          var compName=line.slice(0,sepIdx).replace(/^[-*•#\s]+/,'').trim();
           var compContent=line.slice(sepIdx+1).trim();
 
           var skipWords=['verse','hook','reflect','pray','reference','hymn','refrain'];
@@ -2021,6 +2172,7 @@ var SITE_PATH = "/sites/Bible_App";
                   Voice:compContent.slice(0,255),
                   Voice_Extended:topCommentary,
                   InsightDate:isoDateAtNoon,
+                  VersesReference: (canon ? canon.cleanRef : primaryPassage),
                   ResourceType:($('devoSource').value.trim()||'FCB')
                 }
               })
@@ -2033,6 +2185,7 @@ var SITE_PATH = "/sites/Bible_App";
       }
     }
 
+    // 4. Parse & Post Family Insights with Rich HTML Formatting
     logSync('Parsing & formatting Family Micro-Cards and Prayer...');
     try{
       var famListId=await getListId('Family_Insights');
