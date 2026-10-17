@@ -118,9 +118,15 @@ textarea.page::placeholder{color:#A9A5BD;font-family:var(--sans);font-size:15px;
 .styleRow select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#fff;font-size:13px}
 details.cfg{border-bottom:1px solid var(--line);padding:0 22px}
 details.cfg summary{cursor:pointer;padding:10px 0;font-size:13px;color:var(--muted);font-weight:500}
-.cfg-body{display:grid;gap:10px;padding:0 0 16px}
-.cfg label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.cfg-body{display:grid;gap:12px;padding:0 0 16px}
+.cfg label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
 .cfg input[type=text],.cfg input[type=password],.cfg select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;color:var(--ink)}
+
+/* TIER PROFILE SWITCHER STYLES */
+.tier-switcher{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#F8FAFD;border:1px solid var(--line);border-radius:8px}
+.tier-pill-label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
+.tier-section{padding:10px;border-radius:8px;background:#FBFAFD;border:1px solid var(--line);display:grid;gap:8px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 .out{
   flex:1;padding:20px 24px;overflow-y:auto;max-height:calc(100vh - 460px);min-height:240px;
@@ -170,6 +176,14 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 .dlg-b textarea{width:100%;min-height:50vh;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5}
 .dlg-f{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
 
+/* Capacity Dialog specific styling */
+#capacityDlg{width:min(580px,94vw)}
+.cap-actions{display:grid;gap:10px;margin:12px 0}
+.cap-btn{padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:3px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:#fff;transition:.15s}
+.cap-btn:hover{background:var(--paper);border-color:#94A3B8}
+.cap-btn b{font-size:14px}
+.cap-btn small{font-size:12px;color:var(--muted)}
+
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:9999}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -179,6 +193,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
   .scribe,.notes{min-height:0}
   textarea.page{max-height:45vh;padding:16px}
   .out{max-height:none}
+  .grid-2{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -298,6 +313,8 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     <div class="notes-head">
       <h2 id="notesTitle">Study Notes</h2>
       <div style="display:flex;gap:8px;align-items:center">
+        <!-- 1-TAP ACTIVE TIER TOGGLE -->
+        <button class="btn sm" id="tierToggleBtn" title="Click to toggle between Free and Paid Key">🟢 Free</button>
         <button class="btn sm" id="expandBtn" title="Expand notes full screen">⛶ Expand</button>
         <button class="btn primary" id="sumBtn" disabled>Summarize with AI</button>
       </div>
@@ -308,18 +325,64 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       <button class="btn sm" id="editInst">Edit instructions</button>
     </div>
 
+    <!-- DUAL TIER AI SETTINGS (FREE & PAID PROFILES) -->
     <details class="cfg" id="cfg">
-      <summary>AI settings (free Gemini key)</summary>
+      <summary>AI settings (Dual-Tier Free &amp; Paid Key Profiles)</summary>
       <div class="cfg-body">
-        <label>API Key (Google AI Studio)
-          <input type="password" id="key" autocomplete="off" placeholder="Paste your free Gemini key here">
-        </label>
-        <label>Model
-          <select id="model"></select>
-        </label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn sm" id="checkKey" type="button">Verify key &amp; list models</button>
-          <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:4px"><input type="checkbox" id="remember" checked> Remember on this device</label>
+        
+        <!-- Active Tier Switcher -->
+        <div class="tier-switcher">
+          <span style="font-weight:600;font-size:13px">Active Key Tier:</span>
+          <label class="tier-pill-label">
+            <input type="radio" name="activeTierRadio" value="free" checked> 🟢 Free Tier
+          </label>
+          <label class="tier-pill-label">
+            <input type="radio" name="activeTierRadio" value="paid"> 💎 Paid Tier
+          </label>
+        </div>
+
+        <!-- Free Tier Profile -->
+        <div class="tier-section" id="freeTierSection">
+          <div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.04em">🟢 Free Tier Profile</div>
+          <label>Free API Key (Google AI Studio)
+            <input type="password" id="freeKey" autocomplete="off" placeholder="Paste your free Gemini key">
+          </label>
+          <div class="grid-2">
+            <label>Primary Free Model
+              <select id="freePrimaryModel"></select>
+            </label>
+            <label>Fallback Free Model
+              <select id="freeFallbackModel"></select>
+            </label>
+          </div>
+          <label>When Primary Model is Busy:
+            <select id="freeBusyPolicy">
+              <option value="ask" selected>❓ Ask me what to do (Interactive Dialog)</option>
+              <option value="auto_free">⚡ Auto-switch to Fallback Model (Always $0)</option>
+              <option value="auto_paid">💎 Auto-switch to Paid Key (Bypasses queue)</option>
+            </select>
+          </label>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
+            <button class="btn sm" id="checkFreeKey" type="button">Verify Free Key &amp; List Models</button>
+          </div>
+        </div>
+
+        <!-- Paid Tier Profile -->
+        <div class="tier-section" id="paidTierSection">
+          <div style="font-size:12px;font-weight:700;color:#1E40AF;text-transform:uppercase;letter-spacing:0.04em">💎 Paid Tier Profile (Pay-As-You-Go)</div>
+          <label>Paid API Key (Google AI Studio Billing Enabled)
+            <input type="password" id="paidKey" autocomplete="off" placeholder="Paste your paid Gemini key">
+          </label>
+          <label>Paid Model
+            <select id="paidModel"></select>
+          </label>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
+            <button class="btn sm" id="checkPaidKey" type="button">Verify Paid Key &amp; List Models</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="row" style="font-size:12px;margin:0"><input type="checkbox" id="remember" checked> Remember keys &amp; choices on this device</label>
         </div>
       </div>
     </details>
@@ -391,11 +454,49 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     <button class="btn" id="instCancel">Cancel</button>
   </div>
 </dialog>
+
+<!-- INTERACTIVE CAPACITY INTERRUPTION DIALOG -->
+<dialog id="capacityDlg" aria-labelledby="capT">
+  <div class="dlg-h">
+    <h2 id="capT" style="color:var(--gold);font-size:18px">⚠️ Google Free Tier is Busy</h2>
+    <button class="btn sm" id="capCloseX" aria-label="Close">✕</button>
+  </div>
+  <div class="dlg-b">
+    <p style="font-size:14px;margin:0 0 8px">
+      <b id="capPrimaryName">gemini-3.5-flash</b> is temporarily experiencing high demand on Google's free cluster.
+    </p>
+    <div class="cap-actions">
+      <button class="cap-btn" id="capUseFallbackBtn">
+        <b>⚡ Switch to Free: <span id="capFallbackName">gemini-3.5-flash-lite</span></b>
+        <small>Guarantees $0 spend; uses your uncrowded free fallback model.</small>
+      </button>
+      <button class="cap-btn" id="capUsePaidBtn" style="border-color:#BFDBFE;background:#EFF6FF">
+        <b style="color:#1E40AF">💎 Run on Paid Key: <span id="capPaidName">gemini-3.8-flash</span></b>
+        <small style="color:#1E40AF">Bypasses queue instantly; maximum intelligence (~$0.001 cost).</small>
+      </button>
+      <button class="cap-btn" id="capRetryBtn">
+        <b>⏳ Retry in 10s</b>
+        <small>Wait out the brief traffic spike and try again on free tier.</small>
+      </button>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+      <input type="checkbox" id="capRememberSession">
+      <label for="capRememberSession" style="cursor:pointer">Remember this choice for the rest of today's session</label>
+    </div>
+  </div>
+  <div class="dlg-f">
+    <span class="spacer"></span>
+    <button class="btn" id="capCancelBtn">Cancel</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast" role="status"></div>
 
 <script>
 /* =====================================================================
+   =====================================================================
    SECTION 1 - SYSTEM PROMPTS (EASILY MANAGED FROM CODEBASE)
+   =====================================================================
    ===================================================================== */
 
 /* PROMPT A: SERMON EXPOSITORY NOTES (DEFAULT SERMON MODE) */
@@ -600,6 +701,9 @@ var SITE_PATH = "/sites/Bible_App";
   var mode='sermon', presetId='sermon-std', running=false, restartT=null;
   var msalApp=new msal.PublicClientApplication(MSAL_CONFIG);
   var cachedSiteId=null;
+
+  // Runtime session override for capacity failures
+  var sessionCapacityAction = null; 
 
   function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('show')},2800)}
   function esc(s){return s.replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -949,6 +1053,7 @@ var SITE_PATH = "/sites/Bible_App";
           var chunk = r[0].transcript.trim();
           var now = Date.now();
 
+          // DEDUPLICATION SHIELD
           if (chunk) {
             var currentText = page.value.trim();
             var isDuplicate = (chunk === lastChunk && (now - lastChunkTime < 3000)) || 
@@ -1033,10 +1138,10 @@ var SITE_PATH = "/sites/Bible_App";
   var audioQueueText = $('audioQueueText');
 
   attachAudioBtn.addEventListener('click', function(){
-    var key = ($('key').value || '').trim();
+    var key = getActiveKey();
     if (!key) {
       $('cfg').open = true;
-      alert('Please add your free Gemini API Key under AI Settings first before transcribing audio files.');
+      alert('Please add your Gemini API Key under AI Settings first before transcribing audio files.');
       return;
     }
     audioFileInput.click();
@@ -1157,8 +1262,8 @@ var SITE_PATH = "/sites/Bible_App";
     var files = Array.from(e.target.files);
     if (!files.length) return;
 
-    var key = ($('key').value || '').trim();
-    var model = ($('model').value || 'gemini-3.8-flash').trim();
+    var key = getActiveKey();
+    var model = getActiveModel();
 
     audioQueueBar.style.display = 'flex';
     attachAudioBtn.disabled = true;
@@ -1235,76 +1340,151 @@ var SITE_PATH = "/sites/Bible_App";
   });
 
   /* =====================================================================
-     AI SETTINGS & GEMINI MULTI-MODEL FALLBACK ENGINE
+     DUAL-TIER KEY ENGINE (FREE & PAID PROFILES + WATERFALL FAILOVER)
      ===================================================================== */
   var defaultModels = [
-    'gemini-3.8-flash',
     'gemini-3.5-flash',
+    'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
     'gemini-3.7-flash',
     'gemini-2.5-flash'
   ];
 
-  function initModels(){
-    var sel = $('model'); sel.innerHTML = '';
+  function fillModelDropdown(selectEl, selectedVal){
+    selectEl.innerHTML = '';
     defaultModels.forEach(function(m){
-      var o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o);
+      var o = document.createElement('option');
+      o.value = m; o.textContent = m;
+      selectEl.appendChild(o);
     });
-    var saved = load('ss_gemini_model');
-    if (saved && defaultModels.includes(saved)) {
-      sel.value = saved;
-    } else {
-      sel.value = 'gemini-3.8-flash';
+    if (selectedVal && defaultModels.includes(selectedVal)) {
+      selectEl.value = selectedVal;
+    } else if (defaultModels.length) {
+      selectEl.value = defaultModels[0];
     }
-    $('key').value = load('ss_gemini_key') || '';
   }
-  initModels();
 
-  $('model').addEventListener('change', function(){
-    store('ss_gemini_model', this.value);
-    toast('Model set to ' + this.value);
+  function getActiveTier(){
+    var checked = document.querySelector('input[name="activeTierRadio"]:checked');
+    return checked ? checked.value : 'free';
+  }
+
+  function setActiveTier(t){
+    var radios = document.querySelectorAll('input[name="activeTierRadio"]');
+    radios.forEach(function(r){ r.checked = (r.value === t); });
+    store('ss_active_tier', t);
+    updateTierUI();
+  }
+
+  function updateTierUI(){
+    var t = getActiveTier();
+    $('tierToggleBtn').textContent = (t === 'paid') ? '💎 Paid Tier' : '🟢 Free Tier';
+    $('tierToggleBtn').style.borderColor = (t === 'paid') ? '#3B82F6' : '#16A34A';
+    $('tierToggleBtn').style.color = (t === 'paid') ? '#1D4ED8' : '#15803D';
+  }
+
+  $('tierToggleBtn').addEventListener('click', function(){
+    var cur = getActiveTier();
+    var next = (cur === 'free') ? 'paid' : 'free';
+    setActiveTier(next);
+    toast('Switched active engine to ' + (next === 'paid' ? '💎 Paid Tier' : '🟢 Free Tier'));
   });
 
-  $('key').addEventListener('input', function(){
-    if ($('remember').checked) store('ss_gemini_key', this.value.trim());
-  });
-  $('remember').addEventListener('change', function(){
-    if (!this.checked) store('ss_gemini_key', null);
-    else store('ss_gemini_key', $('key').value.trim());
+  document.querySelectorAll('input[name="activeTierRadio"]').forEach(function(r){
+    r.addEventListener('change', function(){
+      store('ss_active_tier', this.value);
+      updateTierUI();
+    });
   });
 
-  $('checkKey').addEventListener('click', async function(){
-    var k = $('key').value.trim();
-    if (!k) { alert('Paste your key first!'); return; }
-    try {
-      var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': k } });
-      var d = await r.json();
-      if (!r.ok) throw new Error(d.error && d.error.message || 'Key error');
-      
-      var names = (d.models || []).filter(function(m){
-        return /gemini/i.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent') && !/image|audio|robotics/i.test(m.name);
-      }).map(function(m){ return m.name.replace(/^models\//, ''); });
-      
-      var sel = $('model');
-      var currentSelection = sel.value;
-      sel.innerHTML = '';
-      names.forEach(function(n){
-        var o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o);
-      });
+  function getFreeKey(){ return ($('freeKey').value || '').trim(); }
+  function getPaidKey(){ return ($('paidKey').value || '').trim(); }
+  function getActiveKey(){ return (getActiveTier() === 'paid') ? getPaidKey() : getFreeKey(); }
 
-      // Preserve the user's selection if present, else fallback gracefully
-      if (names.includes(currentSelection)) {
-        sel.value = currentSelection;
-      } else if (names.includes('gemini-3.8-flash')) {
-        sel.value = 'gemini-3.8-flash';
-      }
-      store('ss_gemini_model', sel.value);
-      toast('Verified! ' + names.length + ' models available.');
-    } catch(e) {
-      alert('Verification failed: ' + e.message);
+  function getActiveModel(){
+    if (getActiveTier() === 'paid') {
+      return $('paidModel').value.trim() || 'gemini-3.8-flash';
     }
+    return $('freePrimaryModel').value.trim() || 'gemini-3.5-flash';
+  }
+
+  function initProfiles(){
+    // 1. Fill Dropdowns
+    fillModelDropdown($('freePrimaryModel'), load('ss_free_primary_model') || 'gemini-3.5-flash');
+    fillModelDropdown($('freeFallbackModel'), load('ss_free_fallback_model') || 'gemini-3.5-flash-lite');
+    fillModelDropdown($('paidModel'), load('ss_paid_model') || 'gemini-3.8-flash');
+
+    // 2. Load Keys & Preferences
+    $('freeKey').value = load('ss_free_key') || load('ss_gemini_key') || '';
+    $('paidKey').value = load('ss_paid_key') || '';
+
+    var savedPolicy = load('ss_free_busy_policy');
+    if (savedPolicy) $('freeBusyPolicy').value = savedPolicy;
+
+    var savedTier = load('ss_active_tier') || 'free';
+    setActiveTier(savedTier);
+  }
+  initProfiles();
+
+  // Save Settings Handlers
+  function saveProfileSettings(){
+    if (!$('remember').checked) return;
+    store('ss_free_key', getFreeKey());
+    store('ss_paid_key', getPaidKey());
+    store('ss_free_primary_model', $('freePrimaryModel').value);
+    store('ss_free_fallback_model', $('freeFallbackModel').value);
+    store('ss_free_busy_policy', $('freeBusyPolicy').value);
+    store('ss_paid_model', $('paidModel').value);
+  }
+
+  ['freeKey','paidKey'].forEach(function(id){ $(id).addEventListener('input', saveProfileSettings); });
+  ['freePrimaryModel','freeFallbackModel','paidModel','freeBusyPolicy'].forEach(function(id){
+    $(id).addEventListener('change', function(){
+      saveProfileSettings();
+      toast('Model settings saved');
+    });
   });
 
+  // Verify Key Utilities
+  async function verifyAnyKey(key, targetSelectEl){
+    if(!key) throw new Error('Paste an API key first!');
+    var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error && d.error.message || 'Key rejected by Google');
+    
+    var names = (d.models || []).filter(function(m){
+      return /gemini/i.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent') && !/image|audio|robotics/i.test(m.name);
+    }).map(function(m){ return m.name.replace(/^models\//, ''); });
+
+    var current = targetSelectEl.value;
+    targetSelectEl.innerHTML = '';
+    names.forEach(function(n){
+      var o = document.createElement('option'); o.value = n; o.textContent = n; targetSelectEl.appendChild(o);
+    });
+
+    if (names.includes(current)) targetSelectEl.value = current;
+    else if (names.length) targetSelectEl.value = names[0];
+    return names.length;
+  }
+
+  $('checkFreeKey').addEventListener('click', async function(){
+    try {
+      var count = await verifyAnyKey(getFreeKey(), $('freePrimaryModel'));
+      fillModelDropdown($('freeFallbackModel'), $('freeFallbackModel').value);
+      saveProfileSettings();
+      toast('Free Key Verified! ' + count + ' models available.');
+    } catch(e) { alert('Free Key Error: ' + e.message); }
+  });
+
+  $('checkPaidKey').addEventListener('click', async function(){
+    try {
+      var count = await verifyAnyKey(getPaidKey(), $('paidModel'));
+      saveProfileSettings();
+      toast('Paid Key Verified! ' + count + ' models available.');
+    } catch(e) { alert('Paid Key Error: ' + e.message); }
+  });
+
+  /* Markdown Parser */
   function mdToHtml(md){
     var lines=esc(md).split('\n'),html='',inUl=false,inOl=false,inCode=false;
     function inline(x){return x.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')}
@@ -1321,6 +1501,7 @@ var SITE_PATH = "/sites/Bible_App";
     return html;
   }
 
+  /* Notes State Watcher & Smart Paste */
   function checkNotesState(){
     var has=out.innerText.trim().length>0;
     $('copyNotes').disabled=!has;
@@ -1344,72 +1525,196 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* AI SUMMARY: Strictly respects dropdown model, then waterfalls on high demand */
-  $('sumBtn').addEventListener('click', async function(){
-    var k = $('key').value.trim();
-    var chosenModel = $('model').value.trim() || 'gemini-3.8-flash';
-    if(!k){ $('cfg').open = true; alert('Add your Gemini API key under AI settings.'); return; }
-    var prompt = getFullPromptText();
-    
-    this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
-    out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes with ' + chosenModel + '...</div>';
+  /* -------------------------------------------------------------
+     INTERACTIVE CAPACITY INTERRUPT DIALOG LOGIC
+     ------------------------------------------------------------- */
+  var capDlg = $('capacityDlg');
 
-    // Waterfall priority: User Selection -> 3.5-flash -> 3.5-flash-lite -> 3.8-flash -> 3.7-flash
-    var fallbackChain = [chosenModel, 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash'];
-    var uniqueChain = fallbackChain.filter(function(v, i, a){ return v && a.indexOf(v) === i; });
-    var success = false, lastError = '';
+  function promptCapacityResolution(primaryModel, fallbackModel, paidModel, hasPaidKey) {
+    return new Promise(function(resolve){
+      $('capPrimaryName').textContent = primaryModel;
+      $('capFallbackName').textContent = fallbackModel;
+      $('capPaidName').textContent = paidModel;
+      $('capUsePaidBtn').style.display = hasPaidKey ? 'flex' : 'none';
+      $('capRememberSession').checked = false;
 
-    for (var i = 0; i < uniqueChain.length; i++) {
-      var curModel = uniqueChain[i];
-      try {
-        if (i > 0) {
-          out.innerHTML = '<div class="loading"><span class="spin"></span>' + uniqueChain[i-1] + ' reported busy. Failing over to ' + curModel + '...</div>';
-          await new Promise(function(res){ setTimeout(res, 1200); });
-        }
-
-        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(curModel) + ':generateContent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.25, maxOutputTokens: 8192 }
-          })
-        });
-        var d = await r.json();
-
-        if (!r.ok) {
-          var errMsg = d.error && d.error.message || ('HTTP ' + r.status);
-          if (r.status === 503 || r.status === 429 || /demand|overload|exhaust|resource/i.test(errMsg)) {
-            lastError = curModel + ': ' + errMsg;
-            continue; // Tries next in the chain
-          } else {
-            throw new Error(errMsg);
-          }
-        }
-
-        var notesText = d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
-        out.innerHTML = mdToHtml(notesText);
-        checkNotesState();
-        if (curModel !== chosenModel) toast('Generated via ' + curModel + ' (' + chosenModel + ' was busy)');
-        else toast('Notes generated! Click inside to edit.');
-        success = true;
-        break;
-      } catch(e) {
-        lastError = e.message;
-        if (/API_KEY_INVALID/i.test(e.message)) break;
+      function closeWith(action) {
+        capDlg.close();
+        $('capUseFallbackBtn').onclick = null;
+        $('capUsePaidBtn').onclick = null;
+        $('capRetryBtn').onclick = null;
+        $('capCancelBtn').onclick = null;
+        $('capCloseX').onclick = null;
+        var remember = $('capRememberSession').checked;
+        resolve({ action: action, remember: remember });
       }
+
+      $('capUseFallbackBtn').onclick = function(){ closeWith('fallback'); };
+      $('capUsePaidBtn').onclick = function(){ closeWith('paid'); };
+      $('capRetryBtn').onclick = function(){ closeWith('retry'); };
+      $('capCancelBtn').onclick = function(){ closeWith('cancel'); };
+      $('capCloseX').onclick = function(){ closeWith('cancel'); };
+
+      if(capDlg.showModal) capDlg.showModal(); else capDlg.setAttribute('open','');
+    });
+  }
+
+  async function executeGeminiRequest(model, key, prompt) {
+    var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.25, maxOutputTokens: 8192 }
+      })
+    });
+    var d = await r.json();
+    if (!r.ok) {
+      var errMsg = d.error && d.error.message || ('HTTP ' + r.status);
+      var isHighDemand = (r.status === 503 || r.status === 429 || /demand|overload|exhaust|resource/i.test(errMsg));
+      var err = new Error(errMsg);
+      err.isHighDemand = isHighDemand;
+      throw err;
+    }
+    return d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
+  }
+
+  /* SUMMARIZE CLICK DISPATCHER WITH DUAL-TIER & CAPACITY INTERRUPT */
+  $('sumBtn').addEventListener('click', async function(){
+    var activeTier = getActiveTier();
+    var freeKey = getFreeKey();
+    var paidKey = getPaidKey();
+    var primaryFreeModel = $('freePrimaryModel').value.trim() || 'gemini-3.5-flash';
+    var fallbackFreeModel = $('freeFallbackModel').value.trim() || 'gemini-3.5-flash-lite';
+    var paidModel = $('paidModel').value.trim() || 'gemini-3.8-flash';
+    var busyPolicy = $('freeBusyPolicy').value;
+
+    if (activeTier === 'free' && !freeKey) {
+      $('cfg').open = true;
+      alert('Please enter your Free Gemini API Key under AI settings.');
+      return;
+    }
+    if (activeTier === 'paid' && !paidKey) {
+      $('cfg').open = true;
+      alert('Please enter your Paid Gemini API Key under AI settings.');
+      return;
     }
 
-    if (!success) {
-      out.innerHTML = '<div class="err">High demand reported across models. Please retry in 20 seconds.<br><small style="color:#666">' + esc(lastError) + '</small></div>';
+    var prompt = getFullPromptText();
+    this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
+    
+    // =========================================================
+    // PATH 1: RUN ON PAID KEY TIER (DIRECT / NO QUEUE)
+    // =========================================================
+    if (activeTier === 'paid') {
+      out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes via 💎 Paid Tier (' + paidModel + ')...</div>';
+      try {
+        var rawNotes = await executeGeminiRequest(paidModel, paidKey, prompt);
+        out.innerHTML = mdToHtml(rawNotes);
+        checkNotesState();
+        toast('Notes generated with 💎 Paid Key (' + paidModel + ')!');
+      } catch(e) {
+        out.innerHTML = '<div class="err">Paid Key Error: ' + esc(e.message) + '</div>';
+      } finally {
+        $('sumBtn').disabled = false;
+      }
+      return;
     }
-    $('sumBtn').disabled = false;
+
+    // =========================================================
+    // PATH 2: RUN ON FREE KEY TIER (WITH SMART FAILOVER & PROMPT)
+    // =========================================================
+    var targetModel = primaryFreeModel;
+
+    // Honor session memory if user previously selected an override for today
+    if (sessionCapacityAction === 'fallback') {
+      targetModel = fallbackFreeModel;
+    } else if (sessionCapacityAction === 'paid' && paidKey) {
+      // Direct jump to paid tier
+      out.innerHTML = '<div class="loading"><span class="spin"></span>Generating via 💎 Paid Tier (' + paidModel + ') [Session Override]...</div>';
+      try {
+        var rawPaid = await executeGeminiRequest(paidModel, paidKey, prompt);
+        out.innerHTML = mdToHtml(rawPaid);
+        checkNotesState();
+        toast('Notes generated via 💎 Paid Key (' + paidModel + ')!');
+      } catch(e2) {
+        out.innerHTML = '<div class="err">Paid Key Error: ' + esc(e2.message) + '</div>';
+      } finally {
+        $('sumBtn').disabled = false;
+      }
+      return;
+    }
+
+    out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes via 🟢 Free Tier (' + targetModel + ')...</div>';
+
+    try {
+      var notesText = await executeGeminiRequest(targetModel, freeKey, prompt);
+      out.innerHTML = mdToHtml(notesText);
+      checkNotesState();
+      toast('Notes generated with ' + targetModel + '!');
+    } catch(err) {
+      // Check if it failed due to Google's 503 / High Demand
+      if (err.isHighDemand) {
+        out.innerHTML = '<div class="err">🟢 Free model ' + targetModel + ' is currently congested on Google servers.</div>';
+
+        // Check configured policy
+        var decision = { action: busyPolicy, remember: false };
+        if (busyPolicy === 'ask') {
+          decision = await promptCapacityResolution(targetModel, fallbackFreeModel, paidModel, !!paidKey);
+        }
+
+        if (decision.remember) {
+          sessionCapacityAction = decision.action;
+        }
+
+        // Execute user's decision
+        if (decision.action === 'fallback') {
+          out.innerHTML = '<div class="loading"><span class="spin"></span>Failing over to Free: ' + fallbackFreeModel + '...</div>';
+          try {
+            var fbNotes = await executeGeminiRequest(fallbackFreeModel, freeKey, prompt);
+            out.innerHTML = mdToHtml(fbNotes);
+            checkNotesState();
+            toast('Notes generated via Free Fallback (' + fallbackFreeModel + ')');
+          } catch(fbErr) {
+            out.innerHTML = '<div class="err">Fallback model (' + fallbackFreeModel + ') also busy: ' + esc(fbErr.message) + '</div>';
+          }
+        } else if (decision.action === 'paid' && paidKey) {
+          out.innerHTML = '<div class="loading"><span class="spin"></span>Switching to 💎 Paid Key (' + paidModel + ')...</div>';
+          try {
+            var pNotes = await executeGeminiRequest(paidModel, paidKey, prompt);
+            out.innerHTML = mdToHtml(pNotes);
+            checkNotesState();
+            toast('Bypassed queue! Notes generated via Paid Key (' + paidModel + ')');
+          } catch(pErr) {
+            out.innerHTML = '<div class="err">Paid key error: ' + esc(pErr.message) + '</div>';
+          }
+        } else if (decision.action === 'retry') {
+          out.innerHTML = '<div class="loading"><span class="spin"></span>Retrying in 10 seconds...</div>';
+          await new Promise(function(res){ setTimeout(res, 10000); });
+          try {
+            var retryNotes = await executeGeminiRequest(targetModel, freeKey, prompt);
+            out.innerHTML = mdToHtml(retryNotes);
+            checkNotesState();
+            toast('Retry succeeded on ' + targetModel + '!');
+          } catch(rErr) {
+            out.innerHTML = '<div class="err">Retry failed: ' + esc(rErr.message) + '</div>';
+          }
+        } else {
+          out.innerHTML = '<div class="err">Summarization cancelled.</div>';
+        }
+
+      } else {
+        out.innerHTML = '<div class="err">Gemini API Error: ' + esc(err.message) + '</div>';
+      }
+    } finally {
+      $('sumBtn').disabled = false;
+    }
   });
 
   $('copyNotes').addEventListener('click',function(){copy(out.innerText.trim()).then(function(){toast('Notes copied (with edits)')})});
 
   /* =====================================================================
-     SECTION 5 - MICROSOFT GRAPH & SHAREPOINT SAVE PIPELINE
+     SECTION 6 - MICROSOFT GRAPH & SHAREPOINT SAVE PIPELINE
      ===================================================================== */
   async function getMsalToken(){
     var accounts=msalApp.getAllAccounts();
@@ -1506,9 +1811,7 @@ var SITE_PATH = "/sites/Bible_App";
     logSync('Syncing to Devotional_Topics...');
     logSync('Title: ' + titleVal + ' | Theme: ' + themeName);
 
-    // =========================================================
     // CASE 1: CREATE NEW TOPIC RECORD (NO ID ENTERED)
-    // =========================================================
     if (!existingTopicId) {
       logSync('Creating NEW Topic record (POST)...');
       var newPayload = {
@@ -1541,9 +1844,7 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
 
-    // =========================================================
     // CASE 2: UPDATE / APPEND TO EXISTING TOPIC RECORD
-    // =========================================================
     logSync('Targeting Topic #' + existingTopicId + ' in ' + saveMode + ' mode...');
     
     var finalNotesHtml = fullNotesHtml;
@@ -1568,7 +1869,6 @@ var SITE_PATH = "/sites/Bible_App";
       finalNotesHtml = oldNotes ? (oldNotes + appendDivider + fullNotesHtml) : fullNotesHtml;
       finalHighlightsHtml = oldHighlights ? (oldHighlights + appendDivider + keyHighlightsHtml) : keyHighlightsHtml;
       
-      // Combine Scripture references without duplicates
       if (oldRefs && scriptures) {
         var set = new Set(oldRefs.split(/,\s*/).concat(scriptures.split(/,\s*/)));
         finalScriptures = Array.from(set).filter(Boolean).join(', ');
@@ -1704,7 +2004,7 @@ var SITE_PATH = "/sites/Bible_App";
         for(var i=0;i<compLines.length;i++){
           var line=compLines[i];
           var sepIdx=line.indexOf(':')>-1?line.indexOf(':'):line.indexOf('—');
-          var compName=line.slice(0,sepIdx).replace(/^[-*•#\s]+/,'').trim();
+          var compName=line.slice(0,sepIdx).replace(/^[-*•#\s]+/, '').trim();
           var compContent=line.slice(sepIdx+1).trim();
 
           var skipWords=['verse','hook','reflect','pray','reference','hymn','refrain'];
