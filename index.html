@@ -78,7 +78,6 @@ header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:spac
 .ribbon .lbl{font-size:13px;color:var(--gold);font-weight:600;white-space:nowrap}
 .ribbon .empty{font-size:13px;color:var(--muted)}
 .chip{white-space:nowrap;text-decoration:none;font-family:var(--serif);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid color-mix(in srgb,var(--gold) 35%,white);border-radius:6px;padding:2px 8px}
-.chip small{color:var(--gold);font-weight:600;margin-left:4px}
 a.chip:hover{border-color:var(--gold)}
 
 /* Audio Queue Progress Banner */
@@ -119,15 +118,9 @@ textarea.page::placeholder{color:#A9A5BD;font-family:var(--sans);font-size:15px;
 .styleRow select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#fff;font-size:13px}
 details.cfg{border-bottom:1px solid var(--line);padding:0 22px}
 details.cfg summary{cursor:pointer;padding:10px 0;font-size:13px;color:var(--muted);font-weight:500}
-.cfg-body{display:grid;gap:12px;padding:0 0 16px}
-.cfg label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.cfg-body{display:grid;gap:10px;padding:0 0 16px}
+.cfg label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 .cfg input[type=text],.cfg input[type=password],.cfg select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;color:var(--ink)}
-
-/* TIER PROFILE SWITCHER */
-.tier-switcher{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#F8FAFD;border:1px solid var(--line);border-radius:8px}
-.tier-pill-label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
-.tier-section{padding:10px;border-radius:8px;background:#FBFAFD;border:1px solid var(--line);display:grid;gap:8px}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 .out{
   flex:1;padding:20px 24px;overflow-y:auto;max-height:calc(100vh - 460px);min-height:240px;
@@ -177,13 +170,6 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 .dlg-b textarea{width:100%;min-height:50vh;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5}
 .dlg-f{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
 
-#capacityDlg{width:min(580px,94vw)}
-.cap-actions{display:grid;gap:10px;margin:12px 0}
-.cap-btn{padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:3px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:#fff;transition:.15s}
-.cap-btn:hover{background:var(--paper);border-color:#94A3B8}
-.cap-btn b{font-size:14px}
-.cap-btn small{font-size:12px;color:var(--muted)}
-
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:9999}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -193,7 +179,6 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
   .scribe,.notes{min-height:0}
   textarea.page{max-height:45vh;padding:16px}
   .out{max-height:none}
-  .grid-2{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -283,6 +268,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     </div>
 
     <div class="actions">
+      <!-- Hidden file input for audio files -->
       <input type="file" id="audioFileInput" multiple accept="audio/*,.wav,.mp3,.m4a,.aac,.webm,.ogg,.mp4" style="display:none">
       
       <button class="btn" id="attachAudioBtn" title="Upload audio recordings (MP3, M4A, WAV, WebM). Slices in 5-minute chunks automatically!">
@@ -312,8 +298,6 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     <div class="notes-head">
       <h2 id="notesTitle">Study Notes</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <!-- 1-TAP ACTIVE TIER TOGGLE -->
-        <button class="btn sm" id="tierToggleBtn" title="Click to toggle between Free and Paid Key">🟢 Free</button>
         <button class="btn sm" id="expandBtn" title="Expand notes full screen">⛶ Expand</button>
         <button class="btn primary" id="sumBtn" disabled>Summarize with AI</button>
       </div>
@@ -324,62 +308,18 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       <button class="btn sm" id="editInst">Edit instructions</button>
     </div>
 
-    <!-- DUAL TIER AI SETTINGS (FREE & PAID PROFILES) -->
     <details class="cfg" id="cfg">
-      <summary>AI settings (Dual-Tier Free &amp; Paid Key Profiles)</summary>
+      <summary>AI settings (free Gemini key)</summary>
       <div class="cfg-body">
-        <div class="tier-switcher">
-          <span style="font-weight:600;font-size:13px">Active Key Tier:</span>
-          <label class="tier-pill-label">
-            <input type="radio" name="activeTierRadio" value="free" checked> 🟢 Free Tier
-          </label>
-          <label class="tier-pill-label">
-            <input type="radio" name="activeTierRadio" value="paid"> 💎 Paid Tier
-          </label>
-        </div>
-
-        <!-- Free Tier Profile -->
-        <div class="tier-section" id="freeTierSection">
-          <div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.04em">🟢 Free Tier Profile</div>
-          <label>Free API Key (Google AI Studio)
-            <input type="password" id="freeKey" autocomplete="off" placeholder="Paste your free Gemini key">
-          </label>
-          <div class="grid-2">
-            <label>Primary Free Model
-              <select id="freePrimaryModel"></select>
-            </label>
-            <label>Fallback Free Model
-              <select id="freeFallbackModel"></select>
-            </label>
-          </div>
-          <label>When Primary Model is Busy:
-            <select id="freeBusyPolicy">
-              <option value="ask" selected>❓ Ask me what to do (Interactive Dialog)</option>
-              <option value="auto_free">⚡ Auto-switch to Fallback Model (Always $0)</option>
-              <option value="auto_paid">💎 Auto-switch to Paid Key (Bypasses queue)</option>
-            </select>
-          </label>
-          <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
-            <button class="btn sm" id="checkFreeKey" type="button">Verify Free Key &amp; List Models</button>
-          </div>
-        </div>
-
-        <!-- Paid Tier Profile -->
-        <div class="tier-section" id="paidTierSection">
-          <div style="font-size:12px;font-weight:700;color:#1E40AF;text-transform:uppercase;letter-spacing:0.04em">💎 Paid Tier Profile (Pay-As-You-Go)</div>
-          <label>Paid API Key (Google AI Studio Billing Enabled)
-            <input type="password" id="paidKey" autocomplete="off" placeholder="Paste your paid Gemini key">
-          </label>
-          <label>Paid Model
-            <select id="paidModel"></select>
-          </label>
-          <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
-            <button class="btn sm" id="checkPaidKey" type="button">Verify Paid Key &amp; List Models</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="row" style="font-size:12px;margin:0"><input type="checkbox" id="remember" checked> Remember keys &amp; choices on this device</label>
+        <label>API Key (Google AI Studio)
+          <input type="password" id="key" autocomplete="off" placeholder="Paste your free Gemini key here">
+        </label>
+        <label>Model
+          <select id="model"></select>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn sm" id="checkKey" type="button">Verify key &amp; list models</button>
+          <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:4px"><input type="checkbox" id="remember" checked> Remember on this device</label>
         </div>
       </div>
     </details>
@@ -407,6 +347,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
         <span id="saveSpBtnText">Save to SharePoint</span>
       </button>
 
+      <!-- EMAIL BROADCAST BUTTON -->
       <button class="btn" id="emailDigestBtn" disabled title="Draft an Outlook email with study notes or family digest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         <span id="emailDigestText">✉️ Email Notes</span>
@@ -417,7 +358,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
   </aside>
 </div>
 
-<!-- INSTRUCTIONS MODAL -->
+<!-- INSTRUCTIONS MODAL (WITH NAMED PRESET MANAGEMENT & GITHUB EXPORT) -->
 <dialog id="instDlg" aria-labelledby="dlgT">
   <div class="dlg-h">
     <h2 id="dlgT">AI Instructions &amp; Presets</h2>
@@ -450,42 +391,6 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
     <button class="btn" id="instCancel">Cancel</button>
   </div>
 </dialog>
-
-<!-- INTERACTIVE CAPACITY INTERRUPTION DIALOG -->
-<dialog id="capacityDlg" aria-labelledby="capT">
-  <div class="dlg-h">
-    <h2 id="capT" style="color:var(--gold);font-size:18px">⚠️ Google Free Tier is Busy</h2>
-    <button class="btn sm" id="capCloseX" aria-label="Close">✕</button>
-  </div>
-  <div class="dlg-b">
-    <p style="font-size:14px;margin:0 0 8px">
-      <b id="capPrimaryName">gemini-3.5-flash</b> is temporarily experiencing high demand on Google's free cluster.
-    </p>
-    <div class="cap-actions">
-      <button class="cap-btn" id="capUseFallbackBtn">
-        <b>⚡ Switch to Free: <span id="capFallbackName">gemini-3.5-flash-lite</span></b>
-        <small>Guarantees $0 spend; uses your uncrowded free fallback model.</small>
-      </button>
-      <button class="cap-btn" id="capUsePaidBtn" style="border-color:#BFDBFE;background:#EFF6FF">
-        <b style="color:#1E40AF">💎 Run on Paid Key: <span id="capPaidName">gemini-3.8-flash</span></b>
-        <small style="color:#1E40AF">Bypasses queue instantly; maximum intelligence (~$0.001 cost).</small>
-      </button>
-      <button class="cap-btn" id="capRetryBtn">
-        <b>⏳ Retry in 10s</b>
-        <small>Wait out the brief traffic spike and try again on free tier.</small>
-      </button>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
-      <input type="checkbox" id="capRememberSession">
-      <label for="capRememberSession" style="cursor:pointer">Remember this choice for the rest of today's session</label>
-    </div>
-  </div>
-  <div class="dlg-f">
-    <span class="spacer"></span>
-    <button class="btn" id="capCancelBtn">Cancel</button>
-  </div>
-</dialog>
-
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -493,6 +398,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
    SECTION 1 - SYSTEM PROMPTS (EASILY MANAGED FROM CODEBASE)
    ===================================================================== */
 
+/* PROMPT A: SERMON EXPOSITORY NOTES (DEFAULT SERMON MODE) */
 var SERMON_STANDARD = `You are a biblical research assistant producing an expositional, Christ-centered study of a sermon transcript. Interpret within historic Protestant, Reformed orthodoxy.
 
 OUTPUT HEADINGS IN MARKDOWN:
@@ -516,6 +422,7 @@ OUTPUT HEADINGS IN MARKDOWN:
 
 Stay faithful to what was spoken in the transcript without introducing external teachings.`;
 
+/* PROMPT B: FULL REFORMED ANALYSIS (PCA / WESTMINSTER COMPATIBLE) */
 var SERMON_FULL = `You are a biblical research assistant producing a Scripture-first, historically informed and pastorally useful analysis of a sermon transcript. Interpret within historic Protestant, Reformed, PCA-compatible theology (Westminster Confession of Faith and the Catechisms).
 
 AUTHORITY, IN ORDER
@@ -539,6 +446,7 @@ OUTPUT HEADINGS IN MARKDOWN:
 ## L. Companion voices
 ## M. Related prayer`;
 
+/* PROMPT C: SPURGEON FAITH'S CHECKBOOK & FAMILY MICRO-CARDS */
 var DEVOTIONAL_SPURGEON = `You are expanding Charles Spurgeon's Faith's Checkbook devotionals into substantial family devotionals that are Scripture-governed, Christ-centered, grace-centered, Reformed in theological orientation, pastorally useful, and formatted for a family Bible Power App.
 
 PRIMARY AUTHORITY
@@ -631,6 +539,7 @@ PromiseNum{{TAB}}PromiseTitle{{TAB}}ScriptureWEBU{{TAB}}The Promise Itself{{TAB}
 [Data row with 27 fields separated by {{TAB}}, ending with {{TAB}}{{TAB}}FALSE{{TAB}}Pending]
 \`\`\``;
 
+/* BUILT-IN PRESETS DEFINITION */
 var BUILTIN_PRESETS = {
   'sermon-std':    {mode:'sermon',     label:'Expository Sermon Notes',                text:SERMON_STANDARD},
   'sermon-full':   {mode:'sermon',     label:'Sermon: Full Reformed Analysis',         text:SERMON_FULL},
@@ -642,130 +551,8 @@ var BAKED_CUSTOM_PRESETS = {};
 /* BAKE_PRESETS_END */
 
 /* =====================================================================
-   CANONICAL BIBLE BOOKS DICTIONARY (1 - 66) & CANONKEY MATHEMATICS
-   ===================================================================== */
-var BIBLE_BOOKS = [
-  { num: 1,  name: "Genesis",        aliases: ["gen", "ge", "gn"] },
-  { num: 2,  name: "Exodus",         aliases: ["exo", "ex", "exod"] },
-  { num: 3,  name: "Leviticus",      aliases: ["lev", "le", "lv"] },
-  { num: 4,  name: "Numbers",        aliases: ["num", "nu", "nm", "nb"] },
-  { num: 5,  name: "Deuteronomy",    aliases: ["deut", "de", "dt"] },
-  { num: 6,  name: "Joshua",         aliases: ["josh", "jos", "jsh"] },
-  { num: 7,  name: "Judges",         aliases: ["judg", "jdg", "jg", "jdgs"] },
-  { num: 8,  name: "Ruth",           aliases: ["rth", "ru"] },
-  { num: 9,  name: "1 Samuel",       aliases: ["1 sam", "1sam", "1 sa", "1s", "1st samuel", "first samuel"] },
-  { num: 10, name: "2 Samuel",       aliases: ["2 sam", "2sam", "2 sa", "2s", "2nd samuel", "second samuel"] },
-  { num: 11, name: "1 Kings",        aliases: ["1 kgs", "1kgs", "1 ki", "1k", "1st kings", "first kings"] },
-  { num: 12, name: "2 Kings",        aliases: ["2 kgs", "2kgs", "2 ki", "2k", "2nd kings", "second kings"] },
-  { num: 13, name: "1 Chronicles",   aliases: ["1 chron", "1chron", "1 ch", "1chr", "1st chronicles", "first chronicles"] },
-  { num: 14, name: "2 Chronicles",   aliases: ["2 chron", "2chron", "2 ch", "2chr", "2nd chronicles", "second chronicles"] },
-  { num: 15, name: "Ezra",           aliases: ["ezr"] },
-  { num: 16, name: "Nehemiah",       aliases: ["neh", "ne"] },
-  { num: 17, name: "Esther",         aliases: ["esth", "es"] },
-  { num: 18, name: "Job",            aliases: ["jb"] },
-  { num: 19, name: "Psalms",         aliases: ["psalm", "ps", "psa", "pss"] },
-  { num: 20, name: "Proverbs",       aliases: ["prov", "pr", "prv"] },
-  { num: 21, name: "Ecclesiastes",   aliases: ["eccles", "ecc", "ec", "qoh"] },
-  { num: 22, name: "Song of Solomon",aliases: ["song of songs", "song", "sos", "canticles", "canticle of canticles"] },
-  { num: 23, name: "Isaiah",         aliases: ["isa", "is"] },
-  { num: 24, name: "Jeremiah",       aliases: ["jer", "je", "jr"] },
-  { num: 25, name: "Lamentations",   aliases: ["lam", "la"] },
-  { num: 26, name: "Ezekiel",        aliases: ["ezek", "eze", "ezk"] },
-  { num: 27, name: "Daniel",         aliases: ["dan", "da", "dn"] },
-  { num: 28, name: "Hosea",          aliases: ["hos", "ho"] },
-  { num: 29, name: "Joel",           aliases: ["joe", "jl"] },
-  { num: 30, name: "Amos",           aliases: ["am"] },
-  { num: 31, name: "Obadiah",        aliases: ["obad", "ob"] },
-  { num: 32, name: "Jonah",          aliases: ["jnh", "jon"] },
-  { num: 33, name: "Micah",          aliases: ["mic", "mc"] },
-  { num: 34, name: "Nahum",          aliases: ["nah", "na"] },
-  { num: 35, name: "Habakkuk",       aliases: ["hab", "hb"] },
-  { num: 36, name: "Zephaniah",      aliases: ["zeph", "zep", "zp"] },
-  { num: 37, name: "Haggai",         aliases: ["hag", "hg"] },
-  { num: 38, name: "Zechariah",      aliases: ["zech", "zec", "zc"] },
-  { num: 39, name: "Malachi",        aliases: ["mal", "ml"] },
-  { num: 40, name: "Matthew",        aliases: ["matt", "mt"] },
-  { num: 41, name: "Mark",           aliases: ["mrk", "mk", "mr"] },
-  { num: 42, name: "Luke",           aliases: ["luk", "lk"] },
-  { num: 43, name: "John",           aliases: ["jhn", "jn"] },
-  { num: 44, name: "Acts",           aliases: ["act", "ac"] },
-  { num: 45, name: "Romans",         aliases: ["rom", "ro", "rm"] },
-  { num: 46, name: "1 Corinthians",  aliases: ["1 cor", "1cor", "1 co", "1c", "1st corinthians", "first corinthians"] },
-  { num: 47, name: "2 Corinthians",  aliases: ["2 cor", "2cor", "2 co", "2c", "2nd corinthians", "second corinthians"] },
-  { num: 48, name: "Galatians",      aliases: ["gal", "ga"] },
-  { num: 49, name: "Ephesians",      aliases: ["eph", "ep"] },
-  { num: 50, name: "Philippians",    aliases: ["phil", "php", "pp"] },
-  { num: 51, name: "Colossians",     aliases: ["col", "co"] },
-  { num: 52, name: "1 Thessalonians",aliases: ["1 thess", "1thess", "1 th", "1st thessalonians", "first thessalonians"] },
-  { num: 53, name: "2 Thessalonians",aliases: ["2 thess", "2thess", "2 th", "2nd thessalonians", "second thessalonians"] },
-  { num: 54, name: "1 Timothy",      aliases: ["1 tim", "1tim", "1 ti", "1st timothy", "first timothy"] },
-  { num: 55, name: "2 Timothy",      aliases: ["2 tim", "2tim", "2 ti", "2nd timothy", "second timothy"] },
-  { num: 56, name: "Titus",          aliases: ["tit", "ti"] },
-  { num: 57, name: "Philemon",       aliases: ["philem", "phm", "pm"] },
-  { num: 58, name: "Hebrews",        aliases: ["heb", "he"] },
-  { num: 59, name: "James",          aliases: ["jas", "jm"] },
-  { num: 60, name: "1 Peter",        aliases: ["1 pet", "1pet", "1 pe", "1pt", "1st peter", "first peter"] },
-  { num: 61, name: "2 Peter",        aliases: ["2 pet", "2pet", "2 pe", "2pt", "2nd peter", "second peter"] },
-  { num: 62, name: "1 John",         aliases: ["1 jhn", "1jn", "1 jn", "1j", "1st john", "first john"] },
-  { num: 63, name: "2 John",         aliases: ["2 jhn", "2jn", "2 jn", "2j", "2nd john", "second john"] },
-  { num: 64, name: "3 John",         aliases: ["3 jhn", "3jn", "3 jn", "3j", "3rd john", "third john"] },
-  { num: 65, name: "Jude",           aliases: ["jud", "jd"] },
-  { num: 66, name: "Revelation",     aliases: ["rev", "re", "the revelation"] }
-];
-
-function computeCanonKeys(refStr) {
-  if (!refStr) return null;
-  var clean = refStr.replace(/[\u2013\u2014]/g, '-').trim();
-  var m = clean.match(/^([1-3]?\s?[A-Za-z]+(?:\s[A-Za-z]+)*)\s+(\d+)[:.](\d+)(?:\s*-\s*(\d+))?/i);
-  if (!m) return null;
-
-  var rawBook = m[1].trim().toLowerCase();
-  var chapter = parseInt(m[2], 10);
-  var startVerse = parseInt(m[3], 10);
-  var endVerse = m[4] ? parseInt(m[4], 10) : startVerse;
-
-  var bookObj = BIBLE_BOOKS.find(function(b){
-    if (b.name.toLowerCase() === rawBook) return true;
-    if (b.aliases.some(function(a){ return a.toLowerCase() === rawBook; })) return true;
-    var noSpace = rawBook.replace(/\s+/g, '');
-    if (b.name.toLowerCase().replace(/\s+/g, '') === noSpace) return true;
-    return false;
-  });
-
-  if (!bookObj) return null;
-  var bookNum = bookObj.num;
-
-  var startKey = (bookNum * 1000000) + (chapter * 1000) + startVerse;
-  var endKey = (bookNum * 1000000) + (chapter * 1000) + endVerse;
-
-  return {
-    bookNum: bookNum,
-    bookName: bookObj.name,
-    chapter: chapter,
-    startVerse: startVerse,
-    endVerse: endVerse,
-    startKey: startKey,
-    endKey: endKey,
-    cleanRef: bookObj.name + " " + chapter + ":" + startVerse + (endVerse !== startVerse ? "-" + endVerse : "")
-  };
-}
-
-function computeCrossRefKeys(refsArray) {
-  if (!Array.isArray(refsArray)) return "";
-  var keys = [];
-  refsArray.forEach(function(r) {
-    var k = computeCanonKeys(r);
-    if (k) {
-      if (k.startKey === k.endKey) keys.push(k.startKey);
-      else keys.push(k.startKey + "-" + k.endKey);
-    }
-  });
-  return keys.join("; ");
-}
-
-/* =====================================================================
    SECTION 2 - MODES & CONFIG
-   ==================================================================== */
+   ===================================================================== */
 var MODES = {
   sermon:{
     brand:'Sermon Scribe', sub:'Live transcript, Reformed notes & Devotional Topics',
@@ -813,8 +600,6 @@ var SITE_PATH = "/sites/Bible_App";
   var mode='sermon', presetId='sermon-std', running=false, restartT=null;
   var msalApp=new msal.PublicClientApplication(MSAL_CONFIG);
   var cachedSiteId=null;
-
-  var sessionCapacityAction = null; 
 
   function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('show')},2800)}
   function esc(s){return s.replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -978,7 +763,9 @@ var SITE_PATH = "/sites/Bible_App";
     if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open','');
   }
 
-  $('editInst').addEventListener('click',function(){ openPresetModal(presetId); });
+  $('editInst').addEventListener('click',function(){
+    openPresetModal(presetId);
+  });
   $('instText').addEventListener('input',countInst);
 
   $('instSave').addEventListener('click',function(){
@@ -1008,7 +795,12 @@ var SITE_PATH = "/sites/Bible_App";
 
     var newId='custom_'+Date.now().toString(36);
     var customs=getCustomPresets();
-    customs[newId]={ id:newId, mode:$('instMode').value, label:title, text:v };
+    customs[newId]={
+      id:newId,
+      mode:$('instMode').value,
+      label:title,
+      text:v
+    };
     saveCustomPresets(customs);
     presetId=newId;
     fillPresets();
@@ -1043,11 +835,13 @@ var SITE_PATH = "/sites/Bible_App";
     try {
       var customs=getCustomPresets();
       var serializedCustoms=JSON.stringify(customs, null, 2);
+
       var res=await fetch(window.location.href);
       var srcText=await res.text();
 
       var reBake=/\/\* BAKE_PRESETS_START \*\/[\s\S]*?\/\* BAKE_PRESETS_END \*\//;
       var newBlock="/* BAKE_PRESETS_START */\nvar BAKED_CUSTOM_PRESETS = " + serializedCustoms + ";\n/* BAKE_PRESETS_END */";
+
       var finalHtml=srcText.replace(reBake, newBlock);
 
       var blob=new Blob([finalHtml], {type:'text/html'});
@@ -1089,10 +883,9 @@ var SITE_PATH = "/sites/Bible_App";
     }
   }
 
-  /* Scripture Detection & CanonKey Enrichment */
+  /* Scripture Detection */
   var books='Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|3 John|Jude|Revelation';
   var refRe=new RegExp('\\b(?:'+books+')\\s\\d{1,3}(?:\\s?[:.]\\s?\\d{1,3}(?:\\s?[-–]\\s?\\d{1,3})?)?','gi');
-  
   function findRefs(text){
     var seen={},outArr=[],m;refRe.lastIndex=0;
     while((m=refRe.exec(text))){
@@ -1101,21 +894,14 @@ var SITE_PATH = "/sites/Bible_App";
     }
     return outArr;
   }
-
   function renderRibbon(){
     var c=MODES[mode],ribbon=$('ribbon');
     ribbon.innerHTML='<span class="lbl">'+esc(c.ribbonLbl)+'</span>';
     var items=findRefs(page.value);
     if(!items.length){ribbon.insertAdjacentHTML('beforeend','<span class="empty">Scriptures appear here as referenced.</span>');return}
     items.forEach(function(r){
-      var canon = computeCanonKeys(r);
       var el=document.createElement('a');el.href='https://www.biblegateway.com/passage/?version=ESV&search='+encodeURIComponent(r);
-      el.target='_blank';el.rel='noopener';el.className='chip';
-      if(canon){
-        el.innerHTML = esc(r) + '<small>(' + canon.startKey.toLocaleString() + ')</small>';
-      } else {
-        el.textContent = r;
-      }
+      el.target='_blank';el.rel='noopener';el.textContent=r;el.className='chip';
       ribbon.appendChild(el);
     });
   }
@@ -1163,7 +949,6 @@ var SITE_PATH = "/sites/Bible_App";
           var chunk = r[0].transcript.trim();
           var now = Date.now();
 
-          // DEDUPLICATION SHIELD
           if (chunk) {
             var currentText = page.value.trim();
             var isDuplicate = (chunk === lastChunk && (now - lastChunkTime < 3000)) || 
@@ -1248,10 +1033,10 @@ var SITE_PATH = "/sites/Bible_App";
   var audioQueueText = $('audioQueueText');
 
   attachAudioBtn.addEventListener('click', function(){
-    var key = getActiveKey();
+    var key = ($('key').value || '').trim();
     if (!key) {
       $('cfg').open = true;
-      alert('Please add your Gemini API Key under AI Settings first before transcribing audio files.');
+      alert('Please add your free Gemini API Key under AI Settings first before transcribing audio files.');
       return;
     }
     audioFileInput.click();
@@ -1298,7 +1083,7 @@ var SITE_PATH = "/sites/Bible_App";
       var audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
       var totalDuration = audioBuffer.duration;
       var targetRate = 16000;
-      var chunkDuration = 300;
+      var chunkDuration = 300; // 5-minute slices
       var totalChunks = Math.ceil(totalDuration / chunkDuration);
       var chunkPayloads = [];
 
@@ -1372,8 +1157,8 @@ var SITE_PATH = "/sites/Bible_App";
     var files = Array.from(e.target.files);
     if (!files.length) return;
 
-    var key = getActiveKey();
-    var model = getActiveModel();
+    var key = ($('key').value || '').trim();
+    var model = ($('model').value || 'gemini-3.8-flash').trim();
 
     audioQueueBar.style.display = 'flex';
     attachAudioBtn.disabled = true;
@@ -1450,147 +1235,76 @@ var SITE_PATH = "/sites/Bible_App";
   });
 
   /* =====================================================================
-     DUAL-TIER KEY ENGINE (FREE & PAID PROFILES + WATERFALL FAILOVER)
+     AI SETTINGS & GEMINI MULTI-MODEL FALLBACK ENGINE
      ===================================================================== */
   var defaultModels = [
-    'gemini-3.5-flash',
     'gemini-3.8-flash',
+    'gemini-3.5-flash',
     'gemini-3.5-flash-lite',
     'gemini-3.7-flash',
     'gemini-2.5-flash'
   ];
 
-  function fillModelDropdown(selectEl, selectedVal){
-    selectEl.innerHTML = '';
+  function initModels(){
+    var sel = $('model'); sel.innerHTML = '';
     defaultModels.forEach(function(m){
-      var o = document.createElement('option');
-      o.value = m; o.textContent = m;
-      selectEl.appendChild(o);
+      var o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o);
     });
-    if (selectedVal && defaultModels.includes(selectedVal)) {
-      selectEl.value = selectedVal;
-    } else if (defaultModels.length) {
-      selectEl.value = defaultModels[0];
+    var saved = load('ss_gemini_model');
+    if (saved && defaultModels.includes(saved)) {
+      sel.value = saved;
+    } else {
+      sel.value = 'gemini-3.8-flash';
     }
+    $('key').value = load('ss_gemini_key') || '';
   }
+  initModels();
 
-  function getActiveTier(){
-    var checked = document.querySelector('input[name="activeTierRadio"]:checked');
-    return checked ? checked.value : 'free';
-  }
-
-  function setActiveTier(t){
-    var radios = document.querySelectorAll('input[name="activeTierRadio"]');
-    radios.forEach(function(r){ r.checked = (r.value === t); });
-    store('ss_active_tier', t);
-    updateTierUI();
-  }
-
-  function updateTierUI(){
-    var t = getActiveTier();
-    $('tierToggleBtn').textContent = (t === 'paid') ? '💎 Paid Tier' : '🟢 Free Tier';
-    $('tierToggleBtn').style.borderColor = (t === 'paid') ? '#3B82F6' : '#16A34A';
-    $('tierToggleBtn').style.color = (t === 'paid') ? '#1D4ED8' : '#15803D';
-  }
-
-  $('tierToggleBtn').addEventListener('click', function(){
-    var cur = getActiveTier();
-    var next = (cur === 'free') ? 'paid' : 'free';
-    setActiveTier(next);
-    toast('Switched active engine to ' + (next === 'paid' ? '💎 Paid Tier' : '🟢 Free Tier'));
+  $('model').addEventListener('change', function(){
+    store('ss_gemini_model', this.value);
+    toast('Model set to ' + this.value);
   });
 
-  document.querySelectorAll('input[name="activeTierRadio"]').forEach(function(r){
-    r.addEventListener('change', function(){
-      store('ss_active_tier', this.value);
-      updateTierUI();
-    });
+  $('key').addEventListener('input', function(){
+    if ($('remember').checked) store('ss_gemini_key', this.value.trim());
+  });
+  $('remember').addEventListener('change', function(){
+    if (!this.checked) store('ss_gemini_key', null);
+    else store('ss_gemini_key', $('key').value.trim());
   });
 
-  function getFreeKey(){ return ($('freeKey').value || '').trim(); }
-  function getPaidKey(){ return ($('paidKey').value || '').trim(); }
-  function getActiveKey(){ return (getActiveTier() === 'paid') ? getPaidKey() : getFreeKey(); }
+  $('checkKey').addEventListener('click', async function(){
+    var k = $('key').value.trim();
+    if (!k) { alert('Paste your key first!'); return; }
+    try {
+      var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': k } });
+      var d = await r.json();
+      if (!r.ok) throw new Error(d.error && d.error.message || 'Key error');
+      
+      var names = (d.models || []).filter(function(m){
+        return /gemini/i.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent') && !/image|audio|robotics/i.test(m.name);
+      }).map(function(m){ return m.name.replace(/^models\//, ''); });
+      
+      var sel = $('model');
+      var currentSelection = sel.value;
+      sel.innerHTML = '';
+      names.forEach(function(n){
+        var o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o);
+      });
 
-  function getActiveModel(){
-    if (getActiveTier() === 'paid') {
-      return $('paidModel').value.trim() || 'gemini-3.8-flash';
+      // Preserve the user's selection if present, else fallback gracefully
+      if (names.includes(currentSelection)) {
+        sel.value = currentSelection;
+      } else if (names.includes('gemini-3.8-flash')) {
+        sel.value = 'gemini-3.8-flash';
+      }
+      store('ss_gemini_model', sel.value);
+      toast('Verified! ' + names.length + ' models available.');
+    } catch(e) {
+      alert('Verification failed: ' + e.message);
     }
-    return $('freePrimaryModel').value.trim() || 'gemini-3.5-flash';
-  }
-
-  function initProfiles(){
-    fillModelDropdown($('freePrimaryModel'), load('ss_free_primary_model') || 'gemini-3.5-flash');
-    fillModelDropdown($('freeFallbackModel'), load('ss_free_fallback_model') || 'gemini-3.5-flash-lite');
-    fillModelDropdown($('paidModel'), load('ss_paid_model') || 'gemini-3.8-flash');
-
-    $('freeKey').value = load('ss_free_key') || load('ss_gemini_key') || '';
-    $('paidKey').value = load('ss_paid_key') || '';
-
-    var savedPolicy = load('ss_free_busy_policy');
-    if (savedPolicy) $('freeBusyPolicy').value = savedPolicy;
-
-    var savedTier = load('ss_active_tier') || 'free';
-    setActiveTier(savedTier);
-  }
-  initProfiles();
-
-  function saveProfileSettings(){
-    if (!$('remember').checked) return;
-    store('ss_free_key', getFreeKey());
-    store('ss_paid_key', getPaidKey());
-    store('ss_free_primary_model', $('freePrimaryModel').value);
-    store('ss_free_fallback_model', $('freeFallbackModel').value);
-    store('ss_free_busy_policy', $('freeBusyPolicy').value);
-    store('ss_paid_model', $('paidModel').value);
-  }
-
-  ['freeKey','paidKey'].forEach(function(id){ $(id).addEventListener('input', saveProfileSettings); });
-  ['freePrimaryModel','freeFallbackModel','paidModel','freeBusyPolicy'].forEach(function(id){
-    $(id).addEventListener('change', function(){
-      saveProfileSettings();
-      toast('Model settings saved');
-    });
   });
 
-  async function verifyAnyKey(key, targetSelectEl){
-    if(!key) throw new Error('Paste an API key first!');
-    var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
-    var d = await r.json();
-    if (!r.ok) throw new Error(d.error && d.error.message || 'Key rejected by Google');
-    
-    var names = (d.models || []).filter(function(m){
-      return /gemini/i.test(m.name) && (m.supportedGenerationMethods || []).includes('generateContent') && !/image|audio|robotics/i.test(m.name);
-    }).map(function(m){ return m.name.replace(/^models\//, ''); });
-
-    var current = targetSelectEl.value;
-    targetSelectEl.innerHTML = '';
-    names.forEach(function(n){
-      var o = document.createElement('option'); o.value = n; o.textContent = n; targetSelectEl.appendChild(o);
-    });
-
-    if (names.includes(current)) targetSelectEl.value = current;
-    else if (names.length) targetSelectEl.value = names[0];
-    return names.length;
-  }
-
-  $('checkFreeKey').addEventListener('click', async function(){
-    try {
-      var count = await verifyAnyKey(getFreeKey(), $('freePrimaryModel'));
-      fillModelDropdown($('freeFallbackModel'), $('freeFallbackModel').value);
-      saveProfileSettings();
-      toast('Free Key Verified! ' + count + ' models available.');
-    } catch(e) { alert('Free Key Error: ' + e.message); }
-  });
-
-  $('checkPaidKey').addEventListener('click', async function(){
-    try {
-      var count = await verifyAnyKey(getPaidKey(), $('paidModel'));
-      saveProfileSettings();
-      toast('Paid Key Verified! ' + count + ' models available.');
-    } catch(e) { alert('Paid Key Error: ' + e.message); }
-  });
-
-  /* Markdown Parser */
   function mdToHtml(md){
     var lines=esc(md).split('\n'),html='',inUl=false,inOl=false,inCode=false;
     function inline(x){return x.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')}
@@ -1607,7 +1321,6 @@ var SITE_PATH = "/sites/Bible_App";
     return html;
   }
 
-  /* Notes State Watcher & Smart Paste */
   function checkNotesState(){
     var has=out.innerText.trim().length>0;
     $('copyNotes').disabled=!has;
@@ -1631,179 +1344,66 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* -------------------------------------------------------------
-     INTERACTIVE CAPACITY INTERRUPT DIALOG LOGIC
-     ------------------------------------------------------------- */
-  var capDlg = $('capacityDlg');
-
-  function promptCapacityResolution(primaryModel, fallbackModel, paidModel, hasPaidKey) {
-    return new Promise(function(resolve){
-      $('capPrimaryName').textContent = primaryModel;
-      $('capFallbackName').textContent = fallbackModel;
-      $('capPaidName').textContent = paidModel;
-      $('capUsePaidBtn').style.display = hasPaidKey ? 'flex' : 'none';
-      $('capRememberSession').checked = false;
-
-      function closeWith(action) {
-        capDlg.close();
-        $('capUseFallbackBtn').onclick = null;
-        $('capUsePaidBtn').onclick = null;
-        $('capRetryBtn').onclick = null;
-        $('capCancelBtn').onclick = null;
-        $('capCloseX').onclick = null;
-        var remember = $('capRememberSession').checked;
-        resolve({ action: action, remember: remember });
-      }
-
-      $('capUseFallbackBtn').onclick = function(){ closeWith('fallback'); };
-      $('capUsePaidBtn').onclick = function(){ closeWith('paid'); };
-      $('capRetryBtn').onclick = function(){ closeWith('retry'); };
-      $('capCancelBtn').onclick = function(){ closeWith('cancel'); };
-      $('capCloseX').onclick = function(){ closeWith('cancel'); };
-
-      if(capDlg.showModal) capDlg.showModal(); else capDlg.setAttribute('open','');
-    });
-  }
-
-  async function executeGeminiRequest(model, key, prompt) {
-    var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.25, maxOutputTokens: 8192 }
-      })
-    });
-    var d = await r.json();
-    if (!r.ok) {
-      var errMsg = d.error && d.error.message || ('HTTP ' + r.status);
-      var isHighDemand = (r.status === 503 || r.status === 429 || /demand|overload|exhaust|resource/i.test(errMsg));
-      var err = new Error(errMsg);
-      err.isHighDemand = isHighDemand;
-      throw err;
-    }
-    return d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
-  }
-
-  /* SUMMARIZE CLICK DISPATCHER WITH DUAL-TIER & CAPACITY INTERRUPT */
+  /* AI SUMMARY: Strictly respects dropdown model, then waterfalls on high demand */
   $('sumBtn').addEventListener('click', async function(){
-    var activeTier = getActiveTier();
-    var freeKey = getFreeKey();
-    var paidKey = getPaidKey();
-    var primaryFreeModel = $('freePrimaryModel').value.trim() || 'gemini-3.5-flash';
-    var fallbackFreeModel = $('freeFallbackModel').value.trim() || 'gemini-3.5-flash-lite';
-    var paidModel = $('paidModel').value.trim() || 'gemini-3.8-flash';
-    var busyPolicy = $('freeBusyPolicy').value;
-
-    if (activeTier === 'free' && !freeKey) {
-      $('cfg').open = true;
-      alert('Please enter your Free Gemini API Key under AI settings.');
-      return;
-    }
-    if (activeTier === 'paid' && !paidKey) {
-      $('cfg').open = true;
-      alert('Please enter your Paid Gemini API Key under AI settings.');
-      return;
-    }
-
+    var k = $('key').value.trim();
+    var chosenModel = $('model').value.trim() || 'gemini-3.8-flash';
+    if(!k){ $('cfg').open = true; alert('Add your Gemini API key under AI settings.'); return; }
     var prompt = getFullPromptText();
-    this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
     
-    // PATH 1: RUN ON PAID KEY TIER
-    if (activeTier === 'paid') {
-      out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes via 💎 Paid Tier (' + paidModel + ')...</div>';
+    this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
+    out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes with ' + chosenModel + '...</div>';
+
+    // Waterfall priority: User Selection -> 3.5-flash -> 3.5-flash-lite -> 3.8-flash -> 3.7-flash
+    var fallbackChain = [chosenModel, 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash'];
+    var uniqueChain = fallbackChain.filter(function(v, i, a){ return v && a.indexOf(v) === i; });
+    var success = false, lastError = '';
+
+    for (var i = 0; i < uniqueChain.length; i++) {
+      var curModel = uniqueChain[i];
       try {
-        var rawNotes = await executeGeminiRequest(paidModel, paidKey, prompt);
-        out.innerHTML = mdToHtml(rawNotes);
+        if (i > 0) {
+          out.innerHTML = '<div class="loading"><span class="spin"></span>' + uniqueChain[i-1] + ' reported busy. Failing over to ' + curModel + '...</div>';
+          await new Promise(function(res){ setTimeout(res, 1200); });
+        }
+
+        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(curModel) + ':generateContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.25, maxOutputTokens: 8192 }
+          })
+        });
+        var d = await r.json();
+
+        if (!r.ok) {
+          var errMsg = d.error && d.error.message || ('HTTP ' + r.status);
+          if (r.status === 503 || r.status === 429 || /demand|overload|exhaust|resource/i.test(errMsg)) {
+            lastError = curModel + ': ' + errMsg;
+            continue; // Tries next in the chain
+          } else {
+            throw new Error(errMsg);
+          }
+        }
+
+        var notesText = d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
+        out.innerHTML = mdToHtml(notesText);
         checkNotesState();
-        toast('Notes generated with 💎 Paid Key (' + paidModel + ')!');
+        if (curModel !== chosenModel) toast('Generated via ' + curModel + ' (' + chosenModel + ' was busy)');
+        else toast('Notes generated! Click inside to edit.');
+        success = true;
+        break;
       } catch(e) {
-        out.innerHTML = '<div class="err">Paid Key Error: ' + esc(e.message) + '</div>';
-      } finally {
-        $('sumBtn').disabled = false;
+        lastError = e.message;
+        if (/API_KEY_INVALID/i.test(e.message)) break;
       }
-      return;
     }
 
-    // PATH 2: RUN ON FREE KEY TIER
-    var targetModel = primaryFreeModel;
-
-    if (sessionCapacityAction === 'fallback') {
-      targetModel = fallbackFreeModel;
-    } else if (sessionCapacityAction === 'paid' && paidKey) {
-      out.innerHTML = '<div class="loading"><span class="spin"></span>Generating via 💎 Paid Tier (' + paidModel + ') [Session Override]...</div>';
-      try {
-        var rawPaid = await executeGeminiRequest(paidModel, paidKey, prompt);
-        out.innerHTML = mdToHtml(rawPaid);
-        checkNotesState();
-        toast('Notes generated via 💎 Paid Key (' + paidModel + ')!');
-      } catch(e2) {
-        out.innerHTML = '<div class="err">Paid Key Error: ' + esc(e2.message) + '</div>';
-      } finally {
-        $('sumBtn').disabled = false;
-      }
-      return;
+    if (!success) {
+      out.innerHTML = '<div class="err">High demand reported across models. Please retry in 20 seconds.<br><small style="color:#666">' + esc(lastError) + '</small></div>';
     }
-
-    out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes via 🟢 Free Tier (' + targetModel + ')...</div>';
-
-    try {
-      var notesText = await executeGeminiRequest(targetModel, freeKey, prompt);
-      out.innerHTML = mdToHtml(notesText);
-      checkNotesState();
-      toast('Notes generated with ' + targetModel + '!');
-    } catch(err) {
-      if (err.isHighDemand) {
-        out.innerHTML = '<div class="err">🟢 Free model ' + targetModel + ' is currently congested on Google servers.</div>';
-
-        var decision = { action: busyPolicy, remember: false };
-        if (busyPolicy === 'ask') {
-          decision = await promptCapacityResolution(targetModel, fallbackFreeModel, paidModel, !!paidKey);
-        }
-
-        if (decision.remember) sessionCapacityAction = decision.action;
-
-        if (decision.action === 'fallback') {
-          out.innerHTML = '<div class="loading"><span class="spin"></span>Failing over to Free: ' + fallbackFreeModel + '...</div>';
-          try {
-            var fbNotes = await executeGeminiRequest(fallbackFreeModel, freeKey, prompt);
-            out.innerHTML = mdToHtml(fbNotes);
-            checkNotesState();
-            toast('Notes generated via Free Fallback (' + fallbackFreeModel + ')');
-          } catch(fbErr) {
-            out.innerHTML = '<div class="err">Fallback model (' + fallbackFreeModel + ') also busy: ' + esc(fbErr.message) + '</div>';
-          }
-        } else if (decision.action === 'paid' && paidKey) {
-          out.innerHTML = '<div class="loading"><span class="spin"></span>Switching to 💎 Paid Key (' + paidModel + ')...</div>';
-          try {
-            var pNotes = await executeGeminiRequest(paidModel, paidKey, prompt);
-            out.innerHTML = mdToHtml(pNotes);
-            checkNotesState();
-            toast('Bypassed queue! Notes generated via Paid Key (' + paidModel + ')');
-          } catch(pErr) {
-            out.innerHTML = '<div class="err">Paid key error: ' + esc(pErr.message) + '</div>';
-          }
-        } else if (decision.action === 'retry') {
-          out.innerHTML = '<div class="loading"><span class="spin"></span>Retrying in 10 seconds...</div>';
-          await new Promise(function(res){ setTimeout(res, 10000); });
-          try {
-            var retryNotes = await executeGeminiRequest(targetModel, freeKey, prompt);
-            out.innerHTML = mdToHtml(retryNotes);
-            checkNotesState();
-            toast('Retry succeeded on ' + targetModel + '!');
-          } catch(rErr) {
-            out.innerHTML = '<div class="err">Retry failed: ' + esc(rErr.message) + '</div>';
-          }
-        } else {
-          out.innerHTML = '<div class="err">Summarization cancelled.</div>';
-        }
-
-      } else {
-        out.innerHTML = '<div class="err">Gemini API Error: ' + esc(err.message) + '</div>';
-      }
-    } finally {
-      $('sumBtn').disabled = false;
-    }
+    $('sumBtn').disabled = false;
   });
 
   $('copyNotes').addEventListener('click',function(){copy(out.innerText.trim()).then(function(){toast('Notes copied (with edits)')})});
@@ -1884,6 +1484,7 @@ var SITE_PATH = "/sites/Bible_App";
     var fullNotesHtml = out.innerHTML;
     var rawNotesText = out.innerText;
     
+    // Topic ID input and mode selector
     var existingTopicId = $('sermonTopicId').value.trim() || qParams.get('topicId') || qParams.get('itemId') || '';
     var saveMode = $('sermonSaveMode').value || 'APPEND';
 
@@ -1905,14 +1506,9 @@ var SITE_PATH = "/sites/Bible_App";
     logSync('Syncing to Devotional_Topics...');
     logSync('Title: ' + titleVal + ' | Theme: ' + themeName);
 
-    // Compute CanonKeys if Scripture found
-    var firstRef = findRefs(page.value)[0] || '';
-    var canon = computeCanonKeys(firstRef);
-    if (canon) {
-      logSync('✓ Computed Sermon CanonKeys: ' + canon.cleanRef + ' -> StartKey: ' + canon.startKey + ' | EndKey: ' + canon.endKey);
-    }
-
-    // CASE 1: CREATE NEW TOPIC RECORD
+    // =========================================================
+    // CASE 1: CREATE NEW TOPIC RECORD (NO ID ENTERED)
+    // =========================================================
     if (!existingTopicId) {
       logSync('Creating NEW Topic record (POST)...');
       var newPayload = {
@@ -1937,6 +1533,7 @@ var SITE_PATH = "/sites/Bible_App";
       var postData = await postRes.json();
       if (!postRes.ok) throw new Error(postData.error && postData.error.message || ('Topic creation failed: ' + postRes.status));
 
+      // Auto-fill newly created ID on screen
       $('sermonTopicId').value = postData.id;
       logSync('🎉 SUCCESS! Created Topic #' + postData.id + '. ID saved on screen for future appends.');
       toast('Saved as new Topic #' + postData.id + '!');
@@ -1944,7 +1541,9 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
 
+    // =========================================================
     // CASE 2: UPDATE / APPEND TO EXISTING TOPIC RECORD
+    // =========================================================
     logSync('Targeting Topic #' + existingTopicId + ' in ' + saveMode + ' mode...');
     
     var finalNotesHtml = fullNotesHtml;
@@ -1969,6 +1568,7 @@ var SITE_PATH = "/sites/Bible_App";
       finalNotesHtml = oldNotes ? (oldNotes + appendDivider + fullNotesHtml) : fullNotesHtml;
       finalHighlightsHtml = oldHighlights ? (oldHighlights + appendDivider + keyHighlightsHtml) : keyHighlightsHtml;
       
+      // Combine Scripture references without duplicates
       if (oldRefs && scriptures) {
         var set = new Set(oldRefs.split(/,\s*/).concat(scriptures.split(/,\s*/)));
         finalScriptures = Array.from(set).filter(Boolean).join(', ');
@@ -1980,7 +1580,7 @@ var SITE_PATH = "/sites/Bible_App";
     logSync('Patching Topic #' + existingTopicId + ' (Title synced to: "' + titleVal + '")...');
 
     var patchPayload = {
-      Title: titleVal,
+      Title: titleVal, // Always updates title to match input!
       Theme_Name: themeName,
       Study_Date: new Date().toISOString(),
       StudyNotes_HTML: finalNotesHtml,
@@ -2032,7 +1632,7 @@ var SITE_PATH = "/sites/Bible_App";
     return formattedHtml;
   }
 
-  /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS (WITH CANONKEYS & CROSSREFS) */
+  /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS */
   async function saveDevotionalPipeline(token, siteId){
     var rawText=out.innerText;
     var rawHtml=out.innerHTML;
@@ -2062,7 +1662,6 @@ var SITE_PATH = "/sites/Bible_App";
       return found.id;
     }
 
-    // 1. Separate Top Commentary from Family Micro-Cards
     var familySplitIdx=rawText.search(/Family Micro-Cards/i);
     var topCommentary=rawHtml;
     var familyRaw="";
@@ -2075,70 +1674,20 @@ var SITE_PATH = "/sites/Bible_App";
       }
     }
 
-    // Extract Detected Passages and Compute CanonKeys
-    var detectedPassages = findRefs(rawText).concat(findRefs(page.value));
-    var uniquePassages = Array.from(new Set(detectedPassages));
-    var primaryPassage = uniquePassages[0] || '';
-    var canon = computeCanonKeys(primaryPassage);
-
-    // Extract Related Prayer
-    var prayerStart = rawText.toLowerCase().indexOf('supplemental prayer');
-    var extractedPrayer = "";
-    if (prayerStart > -1) {
-      var amenEnd = rawText.toLowerCase().indexOf('amen', prayerStart);
-      if (amenEnd > -1) {
-        extractedPrayer = rawText.slice(prayerStart + 19, amenEnd + 4).trim();
-      }
-    }
-
-    // 2. PATCH Resources list (WITH CANONKEYS & CROSSREFS)
-    logSync('Patching Resources item #' + targetRowId + '...');
+    logSync('Patching Resources item #'+targetRowId+'...');
     try{
       var resListId=await getListId('Resources');
       var patchUrl='https://graph.microsoft.com/v1.0/sites/'+siteId+'/lists/'+resListId+'/items/'+targetRowId+'/fields';
-      
-      var resPayload = {
-        AdditionalCommentary: topCommentary
-      };
-
-      if (extractedPrayer) {
-        resPayload.Related_Prayer = extractedPrayer;
-      }
-
-      if (canon) {
-        resPayload.StartKey = canon.startKey;
-        resPayload.EndKey = canon.endKey;
-        resPayload.BookNum = canon.bookNum;
-        resPayload.Chapter = canon.chapter;
-        resPayload.ScriptureRef = canon.cleanRef;
-        logSync('✓ Computed CanonKeys: ' + canon.cleanRef + ' -> StartKey: ' + canon.startKey + ' | EndKey: ' + canon.endKey);
-      }
-
-      var crossRefs = uniquePassages.slice(1);
-      if (crossRefs.length > 0) {
-        resPayload.BibleCrossRef = crossRefs.join('; ');
-        var crKeys = computeCrossRefKeys(crossRefs);
-        if (crKeys) {
-          resPayload.BibleCrossRefKeys = crKeys;
-          logSync('✓ Computed CrossRefKeys: ' + crKeys);
-        }
-      }
-
       var rRes=await fetch(patchUrl,{
         method:'PATCH',
         headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-        body:JSON.stringify(resPayload)
+        body:JSON.stringify({AdditionalCommentary:topCommentary})
       });
-      if(rRes.ok) logSync('✓ Resources #' + targetRowId + ' updated with CanonKeys & Commentary.');
-      else {
-        var errD = await rRes.json();
-        logSync('⚠️ Resources patch warning: ' + (errD.error && errD.error.message || rRes.status));
-      }
+      if(rRes.ok)logSync('✓ Resources #'+targetRowId+' updated.');
     }catch(e){
       logSync('⚠️ Resources error: '+e.message);
     }
 
-    // 3. Parse & Post Companion Voices
     var compStart=rawText.toLowerCase().indexOf('companion voices');
     if(compStart>-1){
       try{
@@ -2172,7 +1721,6 @@ var SITE_PATH = "/sites/Bible_App";
                   Voice:compContent.slice(0,255),
                   Voice_Extended:topCommentary,
                   InsightDate:isoDateAtNoon,
-                  VersesReference: (canon ? canon.cleanRef : primaryPassage),
                   ResourceType:($('devoSource').value.trim()||'FCB')
                 }
               })
@@ -2185,7 +1733,6 @@ var SITE_PATH = "/sites/Bible_App";
       }
     }
 
-    // 4. Parse & Post Family Insights with Rich HTML Formatting
     logSync('Parsing & formatting Family Micro-Cards and Prayer...');
     try{
       var famListId=await getListId('Family_Insights');
