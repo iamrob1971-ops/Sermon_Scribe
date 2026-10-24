@@ -1891,30 +1891,67 @@ var SITE_PATH = "/sites/Bible_App";
   }
 
   /* HTML CARD FORMATTER */
+  /* HTML CARD FORMATTER (WITH REFRAIN & HYMN LINE STYLING) */
   function formatCardHtml(rawCardText, person) {
     if(!rawCardText) return '';
-    var lines=rawCardText.split('\n').map(function(l){return l.trim()}).filter(Boolean);
+    var lines = rawCardText.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
     if(!lines.length) return '';
     
-    var formattedHtml='';
+    var formattedHtml = '';
+    var inRefrain = false;
+    var inHymn = false;
+
     lines.forEach(function(line, idx){
-      if(idx===0){
-        var cleanTitle=line.replace(/^[#*\s]+/,'').replace(/[*#]+$/,'').trim();
-        formattedHtml+='<p style="font-size:15px;font-weight:bold;color:#092162;margin-bottom:10px;">'+esc(cleanTitle)+'</p>';
+      var cleanLine = line.replace(/^[#*\s]+/, '').replace(/[*#]+$/, '').trim();
+
+      // First line is Title
+      if(idx === 0){
+        formattedHtml += '<p style="font-size:15px;font-weight:bold;color:#092162;margin-bottom:10px;">' + esc(cleanLine) + '</p>';
         return;
       }
 
-      var labelMatch=line.match(/^([*#\s]*)(Verse|Hook|Reflect|Pray|Companion voice[^\:]*|Reference|For Wesley|For Mac|For Jonathan|For Kim and Rob|Refrain|Hymn Line)\s*[:—–]\s*(.*)/i);
+      // Check for standalone "Refrain" heading
+      if(/^Refrain(?:\s*\(Family Theme Line\))?$/i.test(cleanLine)){
+        formattedHtml += '<p style="margin-top:16px;margin-bottom:4px;font-weight:bold;color:#166534;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🎶 Refrain (Family Theme Line):</p>';
+        inRefrain = true;
+        inHymn = false;
+        return;
+      }
+
+      // Check for standalone "Hymn Line" heading
+      if(/^Hymn(?:\s*Line)?$/i.test(cleanLine)){
+        formattedHtml += '<p style="margin-top:14px;margin-bottom:4px;font-weight:bold;color:#092162;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🎵 Hymn Line:</p>';
+        inHymn = true;
+        inRefrain = false;
+        return;
+      }
+
+      // Format line following "Refrain"
+      if(inRefrain){
+        formattedHtml += '<p style="margin-bottom:12px;font-style:italic;font-weight:600;color:#14532d;background:#f0fdf4;padding:8px 12px;border-left:3px solid #16a34a;border-radius:4px;">“' + esc(cleanLine.replace(/^["“”]|["“”]$/g, '')) + '”</p>';
+        inRefrain = false;
+        return;
+      }
+
+      // Format line following "Hymn Line"
+      if(inHymn){
+        formattedHtml += '<p style="margin-bottom:12px;font-style:italic;color:#334155;background:#f8fafc;padding:8px 12px;border-left:3px solid #64748b;border-radius:4px;">“' + esc(cleanLine.replace(/^["“”]|["“”]$/g, '')) + '”</p>';
+        inHymn = false;
+        return;
+      }
+
+      // Standard Labels: Verse:, Hook:, Reflect:, Pray:, For Wesley:, For Kim and Rob:, etc.
+      var labelMatch = line.match(/^([*#\s]*)(Verse|Hook|Reflect|Pray|Companion voice[^\:]*|Reference|For Wesley|For Mac|For Jonathan|For Kim and Rob)\s*[:—–]\s*(.*)/i);
       
       if(labelMatch){
-        var label=labelMatch[2].trim();
-        var displayLabel=label.charAt(0).toUpperCase()+label.slice(1);
-        var content=labelMatch[3].replace(/^[*#\s]+/, '').replace(/[*#]+$/, '').trim();
-        formattedHtml+='<p style="margin-bottom:8px;line-height:1.5;"><strong>'+esc(displayLabel)+':</strong> '+esc(content)+'</p>';
+        var label = labelMatch[2].trim();
+        var displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
+        var content = labelMatch[3].replace(/^[*#\s]+/, '').replace(/[*#]+$/, '').trim();
+        formattedHtml += '<p style="margin-bottom:8px;line-height:1.5;"><strong>' + esc(displayLabel) + ':</strong> ' + esc(content) + '</p>';
       }else if(/^(Take a step with God today\.|Be strong the right way\.)/i.test(line)){
-        formattedHtml+='<p style="margin-top:12px;font-style:italic;font-weight:500;color:#092162;">'+esc(line)+'</p>';
+        formattedHtml += '<p style="margin-top:12px;font-style:italic;font-weight:500;color:#092162;">' + esc(line) + '</p>';
       }else{
-        formattedHtml+='<p style="margin-bottom:8px;line-height:1.5;">'+esc(line)+'</p>';
+        formattedHtml += '<p style="margin-bottom:8px;line-height:1.5;">' + esc(line) + '</p>';
       }
     });
 
@@ -2086,9 +2123,13 @@ var SITE_PATH = "/sites/Bible_App";
       var macText     = getSlice(/(?:^|\n)\s*\*?\*?Mac\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i);
       var jonText     = getSlice(/(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i,     /(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i);
       var kimText     = getSlice(/(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i);
-      var robText     = getSlice(/(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i,          /(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i);
-      var famPrayText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i,   /(?:^|\n)\s*#*\s*\*?\*?Refrain/i);
-      var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*#*\s*\*?\*?Hymn Line/i);
+    var robText     = getSlice(/(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i,          /(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i);
+      
+      // Captures Family Prayer AND Refrain AND Hymn Line (stops before TSV promise block)
+      var famPrayText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i,   /(?:^|\n)\s*```/i);
+      
+      // Captures Refrain AND Hymn Line for the standalone Family Theme Line card
+      var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*```/i);
 
       var familyPayloads = [
         { person: 'Wesley',        title: 'Insight • Wesley • ' + monthDayStr,       raw: wesleyText },
