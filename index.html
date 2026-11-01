@@ -176,13 +176,42 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 .dlg-b textarea{width:100%;min-height:50vh;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5}
 .dlg-f{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
 
-/* Capacity Dialog specific styling */
+/* Capacity Dialog */
 #capacityDlg{width:min(580px,94vw)}
 .cap-actions{display:grid;gap:10px;margin:12px 0}
 .cap-btn{padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:3px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:#fff;transition:.15s}
 .cap-btn:hover{background:var(--paper);border-color:#94A3B8}
 .cap-btn b{font-size:14px}
 .cap-btn small{font-size:12px;color:var(--muted)}
+
+/* HELP & CHAT WORKSTATION DIALOG (JOB-AID STYLE) */
+dialog.help{border:1px solid var(--line);border-radius:14px;padding:0;width:min(760px,96vw);color:var(--ink)}
+dialog.help::backdrop{background:rgba(29,25,48,.48)}
+.help .tabs{display:flex;gap:4px;padding:8px 20px 0;border-bottom:1px solid var(--line);background:var(--paper)}
+.help .tabs button{border:0;background:none;padding:9px 16px;font:inherit;font-size:13.5px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-1px;transition:.15s}
+.help .tabs button[aria-selected="true"]{color:var(--violet);border-bottom-color:var(--violet)}
+.help .tabs button:hover{color:var(--violet)}
+
+.ask-panel{display:flex;flex-direction:column;padding:14px 20px 16px;gap:10px;background:#FBFAFD}
+.chat{display:flex;flex-direction:column;gap:12px;min-height:260px;max-height:min(52vh,480px);overflow-y:auto;padding:4px}
+.chat-empty{color:var(--muted);font-size:13px;padding:12px 4px;display:grid;gap:10px}
+.chat-empty .ex{justify-self:start;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font:inherit;font-size:12.5px;color:var(--violet);cursor:pointer;transition:.15s}
+.chat-empty .ex:hover{background:var(--violet-t);border-color:var(--violet)}
+
+.q-pill{align-self:flex-end;max-width:85%;background:var(--violet);color:#fff;border-radius:16px 16px 4px 16px;padding:9px 15px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.a-bubble{align-self:flex-start;max-width:94%;background:#fff;border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:11px 16px;font-size:13.5px;line-height:1.55;overflow-wrap:anywhere;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.a-bubble p{margin:4px 0}
+.a-bubble p:first-child{margin-top:0}
+.a-bubble p:last-child{margin-bottom:0}
+.a-bubble ul,.a-bubble ol{margin:4px 0;padding-left:20px}
+.a-bubble.thinking{color:var(--muted);font-style:italic}
+.a-bubble.err{background:#FDECEF;border-color:var(--live);color:#8E2236}
+
+.chat-input{display:flex;gap:8px;align-items:flex-end;margin-top:4px}
+.chat-input textarea{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px;resize:vertical;min-height:46px;max-height:140px;background:#fff;outline:none}
+.chat-input textarea:focus{border-color:var(--violet)}
+.chat-foot{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.chat-foot .hint{font-size:11.5px;color:var(--muted);line-height:1.35}
 
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:9999}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -210,6 +239,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
       <span class="user-badge" id="userBadge" style="display:none">● <span id="userAccountName"></span></span>
       <button class="btn sm" id="authBtn">Sign in with Microsoft</button>
       <button class="btn sm" id="topExportHtmlBtn" title="Download updated index.html with all presets baked in for GitHub">📥 Export for GitHub</button>
+      <button class="btn sm" id="helpBtn" title="Chat with AI about your notes or open the app guide">💬 Chat &amp; Guide</button>
       <span class="pill" id="status"><span class="dot"></span><span id="statusText">Ready</span></span>
     </div>
   </header>
@@ -312,8 +342,8 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
   <aside class="card notes" id="notesCard" aria-label="Notes">
     <div class="notes-head">
       <h2 id="notesTitle">Study Notes</h2>
-      <div style="display:flex;gap:8px;align-items:center">
-        <!-- 1-TAP ACTIVE TIER TOGGLE -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn sm" id="askNotesBtn" title="Ask a question about the study notes">💬 Ask Notes</button>
         <button class="btn sm" id="tierToggleBtn" title="Click to toggle between Free and Paid Key">🟢 Free</button>
         <button class="btn sm" id="expandBtn" title="Expand notes full screen">⛶ Expand</button>
         <button class="btn primary" id="sumBtn" disabled>Summarize with AI</button>
@@ -487,6 +517,53 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
   <div class="dlg-f">
     <span class="spacer"></span>
     <button class="btn" id="capCancelBtn">Cancel</button>
+  </div>
+</dialog>
+
+<!-- HELP & CHAT WORKSTATION DIALOG (JOB-AID STYLE) -->
+<dialog id="helpDlg" class="help" aria-labelledby="helpT">
+  <div class="dlg-h">
+    <h2 id="helpT" style="margin:0;font-family:var(--serif);font-size:20px;font-weight:500;color:var(--ink)">
+      Study Assistant &amp; Guide <span style="font-size:11px;font-weight:400;color:var(--muted)">v2.5</span>
+    </h2>
+    <button class="btn sm" id="helpClose" type="button" aria-label="Close">Close</button>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Help and Chat">
+    <button type="button" role="tab" id="tabAsk" aria-selected="true" aria-controls="panelAsk">💬 Ask Notes</button>
+    <button type="button" role="tab" id="tabHow" aria-selected="false" aria-controls="panelHow">📖 App Guide</button>
+  </div>
+  
+  <!-- HOW TO / GUIDE TAB -->
+  <div id="panelHow" role="tabpanel" aria-labelledby="tabHow" hidden>
+    <div style="padding:16px 22px;max-height:60vh;overflow-y:auto;line-height:1.6;font-size:13.5px;color:var(--ink)">
+      <h3 style="margin:0 0 6px;color:var(--violet)">Working Modes</h3>
+      <p style="margin:0 0 10px"><b>Sermon Mode:</b> Built for expository preaching and personal sermon notes. Saves into the <code>Devotional_Topics</code> SharePoint list. Leave Topic ID blank for new topics, or enter a number to append/replace notes on an existing topic with live Title synchronization.</p>
+      <p style="margin:0 0 14px"><b>Devotional Mode:</b> Built for Spurgeon's <i>Faith's Checkbook</i>. Saves the main commentary directly into <code>Resources</code> (AdditionalCommentary), individual companion theologians into <code>Companion_Voices</code>, and 7 personalized cards (Wesley, Mac, Jonathan, Kim, Rob, Family Prayer, Refrain) into <code>Family_Insights</code>.</p>
+      
+      <h3 style="margin:14px 0 6px;color:var(--violet)">Recording &amp; Audio Slicing</h3>
+      <p style="margin:0 0 10px"><b>Live Mic:</b> Streams speech to text in real time with room-echo deduplication and a clean pause guard. Audio is not recorded to disk during live streaming.</p>
+      <p style="margin:0 0 14px"><b>📁 Attach Audio:</b> Select any pre-recorded audio file (MP3, M4A, WAV). Scribe's in-browser audio engine downsamples to 16kHz mono, slices the file into 5-minute segments in memory, and feeds them sequentially through Gemini so long recordings never exceed upload limits.</p>
+
+      <h3 style="margin:14px 0 6px;color:var(--violet)">Dual-Tier Gemini API Engine</h3>
+      <p style="margin:0 0 10px"><b>🟢 Free Tier:</b> Uses your free Google AI Studio key. Choose your Primary Free Model (e.g. <code>gemini-3.5-flash</code>) and a Fallback Model (e.g. <code>gemini-3.5-flash-lite</code>). If Google reports a temporary traffic spike, Scribe alerts you or fails over without crashing.</p>
+      <p style="margin:0 0 14px"><b>💎 Paid Tier:</b> Enter a billing-enabled key for priority processing (typically <code>gemini-3.8-flash</code>) to bypass free-tier queues completely during critical study sessions (~$0.001 per run).</p>
+
+      <h3 style="margin:14px 0 6px;color:var(--violet)">SharePoint Graph Direct Sync</h3>
+      <p style="margin:0 0 14px">Authenticates directly with Microsoft Entra ID (PKCE) over client-side HTTPS. Does not require Power Automate flows, premium connectors, or server backends.</p>
+    </div>
+  </div>
+
+  <!-- CHAT / ASK NOTES TAB -->
+  <div class="ask-panel" id="panelAsk" role="tabpanel" aria-labelledby="tabAsk">
+    <div class="chat" id="askThread" role="log" aria-live="polite" aria-label="Study conversation"></div>
+    <div class="chat-input">
+      <textarea id="askQ" rows="2" maxlength="800" placeholder="Ask a question about the study notes or passage. Enter sends, Shift+Enter adds a line." aria-label="Your question"></textarea>
+      <button class="btn primary" id="askBtn" type="button">Ask</button>
+    </div>
+    <div class="chat-foot">
+      <span class="hint">Answers are grounded in your current Study Notes/Summary and theology. Keeps up to 10 previous turns for follow-up context.</span>
+      <button type="button" class="btn sm" id="askNew" style="margin-left:auto">New Chat</button>
+    </div>
   </div>
 </dialog>
 
@@ -1628,9 +1705,7 @@ var SITE_PATH = "/sites/Bible_App";
     var prompt = getFullPromptText();
     this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
     
-    // =========================================================
     // PATH 1: RUN ON PAID KEY TIER (DIRECT / NO QUEUE)
-    // =========================================================
     if (activeTier === 'paid') {
       out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes via 💎 Paid Tier (' + paidModel + ')...</div>';
       try {
@@ -1646,9 +1721,7 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
 
-    // =========================================================
     // PATH 2: RUN ON FREE KEY TIER (WITH SMART FAILOVER & PROMPT)
-    // =========================================================
     var targetModel = primaryFreeModel;
 
     if (sessionCapacityAction === 'fallback') {
@@ -1915,7 +1988,6 @@ var SITE_PATH = "/sites/Bible_App";
     toast('Topic #' + existingTopicId + ' updated successfully!');
   }
 
-  /* HTML CARD FORMATTER */
   /* HTML CARD FORMATTER (WITH REFRAIN & HYMN LINE STYLING) */
   function formatCardHtml(rawCardText, person) {
     if(!rawCardText) return '';
@@ -1935,7 +2007,7 @@ var SITE_PATH = "/sites/Bible_App";
         return;
       }
 
-      // Check for standalone "Refrain" heading
+      // Standalone "Refrain" heading
       if(/^Refrain(?:\s*\(Family Theme Line\))?$/i.test(cleanLine)){
         formattedHtml += '<p style="margin-top:16px;margin-bottom:4px;font-weight:bold;color:#166534;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🎶 Refrain (Family Theme Line):</p>';
         inRefrain = true;
@@ -1943,7 +2015,7 @@ var SITE_PATH = "/sites/Bible_App";
         return;
       }
 
-      // Check for standalone "Hymn Line" heading
+      // Standalone "Hymn Line" heading
       if(/^Hymn(?:\s*Line)?$/i.test(cleanLine)){
         formattedHtml += '<p style="margin-top:14px;margin-bottom:4px;font-weight:bold;color:#092162;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🎵 Hymn Line:</p>';
         inHymn = true;
@@ -1951,21 +2023,20 @@ var SITE_PATH = "/sites/Bible_App";
         return;
       }
 
-      // Format line following "Refrain"
+      // Formatted line following Refrain
       if(inRefrain){
         formattedHtml += '<p style="margin-bottom:12px;font-style:italic;font-weight:600;color:#14532d;background:#f0fdf4;padding:8px 12px;border-left:3px solid #16a34a;border-radius:4px;">“' + esc(cleanLine.replace(/^["“”]|["“”]$/g, '')) + '”</p>';
         inRefrain = false;
         return;
       }
 
-      // Format line following "Hymn Line"
+      // Formatted line following Hymn Line
       if(inHymn){
         formattedHtml += '<p style="margin-bottom:12px;font-style:italic;color:#334155;background:#f8fafc;padding:8px 12px;border-left:3px solid #64748b;border-radius:4px;">“' + esc(cleanLine.replace(/^["“”]|["“”]$/g, '')) + '”</p>';
         inHymn = false;
         return;
       }
 
-      // Standard Labels: Verse:, Hook:, Reflect:, Pray:, For Wesley:, For Kim and Rob:, etc.
       var labelMatch = line.match(/^([*#\s]*)(Verse|Hook|Reflect|Pray|Companion voice[^\:]*|Reference|For Wesley|For Mac|For Jonathan|For Kim and Rob)\s*[:—–]\s*(.*)/i);
       
       if(labelMatch){
@@ -2048,7 +2119,6 @@ var SITE_PATH = "/sites/Bible_App";
     try {
       var resListId = await getListId('Resources');
 
-      // Fetch row first to verify it exists and detect exact internal column name
       var getUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + resListId + '/items/' + targetRowId + '?expand=fields';
       var getRes = await fetch(getUrl, { headers: { 'Authorization': 'Bearer ' + token } });
       var getData = await getRes.json();
@@ -2166,12 +2236,12 @@ var SITE_PATH = "/sites/Bible_App";
       var macText     = getSlice(/(?:^|\n)\s*\*?\*?Mac\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i);
       var jonText     = getSlice(/(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i,     /(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i);
       var kimText     = getSlice(/(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i);
-    var robText     = getSlice(/(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i,          /(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i);
+      var robText     = getSlice(/(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i,          /(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i);
       
       // Captures Family Prayer AND Refrain AND Hymn Line (stops before TSV promise block)
       var famPrayText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i,   /(?:^|\n)\s*```/i);
       
-      // Captures Refrain AND Hymn Line for the standalone Family Theme Line card
+      // Captures Refrain AND Hymn Line for standalone Family Theme Line card
       var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*```/i);
 
       var familyPayloads = [
@@ -2323,6 +2393,253 @@ var SITE_PATH = "/sites/Bible_App";
     }
     saveReady=true;
   })();
+
+  /* =====================================================================
+     SECTION 8 - CONVERSATIONAL CHAT & HELP ENGINE (GROUNDED IN SUMMARY)
+     ===================================================================== */
+  var ASK_KEY = 'sermonScribe_askhist_v1';
+  var askHist = [];
+  var askPending = null;
+  var helpDlg = $('helpDlg');
+
+  function askLoad(){
+    try {
+      var raw = load(ASK_KEY);
+      if(raw) {
+        var a = JSON.parse(raw);
+        if(Array.isArray(a)) askHist = a.slice(-10);
+      }
+    } catch(e){ askHist = []; }
+  }
+  function askSave(){
+    try {
+      if(askHist.length) store(ASK_KEY, JSON.stringify(askHist.slice(-10)));
+      else localStorage.removeItem(ASK_KEY);
+    } catch(e){}
+  }
+
+  function getChatContext(){
+    var notesText = (out.innerText || '').trim();
+    var title = ($('title').value || '').trim();
+    var devoDate = $('devoDate').value || '';
+    var refs = findRefs(page.value).join(', ');
+    
+    var ctx = 'DOCUMENT METADATA:\n';
+    ctx += 'Active Mode: ' + (mode === 'devotional' ? 'Devotional (Spurgeon Faith\'s Checkbook & Family Focus)' : 'Sermon (Expository Preaching)') + '\n';
+    if(title) ctx += 'Title: ' + title + '\n';
+    if(devoDate && mode === 'devotional') ctx += 'Date: ' + devoDate + '\n';
+    if(refs) ctx += 'Scripture References Cited: ' + refs + '\n';
+    
+    // >>> ADD THESE 3 LINES HERE <<<
+    var activeInst = getInstr();
+    if(activeInst) {
+      ctx += '\nORIGINAL GUIDING INSTRUCTIONS & THEOLOGICAL FRAMEWORK:\n' + activeInst + '\n';
+    }
+
+    if(notesText && !notesText.includes('Notes appear here after clicking Summarize')) {
+      ctx += '\nCURRENT STUDY NOTES / SUMMARY (PRIMARY TRUTH SOURCE):\n' + notesText + '\n';
+    } else {
+      ctx += '\n(Note: No generated study notes are on screen yet. Answer based on historic Protestant theology unless user provides context.)\n';
+    }
+    return ctx;
+  }
+
+  function askRender(){
+    var th = $('askThread');
+    th.innerHTML = '';
+
+    var add = function(cls, text, isHtml){
+      var d = document.createElement('div');
+      d.className = cls;
+      if(isHtml) d.innerHTML = text;
+      else d.textContent = text;
+      th.appendChild(d);
+      return d;
+    };
+
+    if(!askHist.length && !askPending){
+      var em = document.createElement('div');
+      em.className = 'chat-empty';
+      em.innerHTML = '<span>Ask questions, explore theological implications, or request family discussion starters based on the current study notes.</span>';
+      
+      var suggestions = mode === 'devotional' ? [
+        'Summarize the core gospel truth here in 2 punchy sentences',
+        'What is a thoughtful reflection question for our family dinner table?',
+        'Explain the distinction between justification and sanctification in this passage'
+      ] : [
+        'What are 3 practical action steps for this week based on the sermon?',
+        'Summarize the main doctrinal argument and supporting verses',
+        'Draft a short closing prayer based on these sermon takeaways'
+      ];
+
+      suggestions.forEach(function(q){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ex';
+        b.textContent = q;
+        b.addEventListener('click', function(){
+          $('askQ').value = q;
+          $('askQ').focus();
+        });
+        em.appendChild(b);
+      });
+      th.appendChild(em);
+      return;
+    }
+
+    askHist.forEach(function(x){
+      add('q-pill', x.q, false);
+      add('a-bubble', mdToHtml(x.a), true);
+    });
+
+    if(askPending){
+      add('q-pill', askPending.q, false);
+      add('a-bubble ' + askPending.kind, askPending.text, false);
+    }
+    th.scrollTop = th.scrollHeight;
+  }
+
+  function showHelpTab(which){
+    var isAsk = which === 'ask';
+    $('tabAsk').setAttribute('aria-selected', String(isAsk));
+    $('tabHow').setAttribute('aria-selected', String(!isAsk));
+    $('panelAsk').hidden = !isAsk;
+    $('panelHow').hidden = isAsk;
+    if(isAsk){
+      askRender();
+      setTimeout(function(){ $('askQ').focus(); }, 40);
+    }
+  }
+
+  $('tabAsk').addEventListener('click', function(){ showHelpTab('ask'); });
+  $('tabHow').addEventListener('click', function(){ showHelpTab('how'); });
+
+  $('helpBtn').addEventListener('click', function(){
+    if(helpDlg.showModal) helpDlg.showModal(); else helpDlg.setAttribute('open', '');
+    showHelpTab('ask');
+  });
+
+  $('askNotesBtn').addEventListener('click', function(){
+    if(helpDlg.showModal) helpDlg.showModal(); else helpDlg.setAttribute('open', '');
+    showHelpTab('ask');
+  });
+
+  $('helpClose').addEventListener('click', function(){ helpDlg.close(); });
+
+  $('askNew').addEventListener('click', function(){
+    if(askHist.length && !confirm('Start a new chat? This clears session memory.')) return;
+    askHist = [];
+    askPending = null;
+    askSave();
+    askRender();
+    $('askQ').focus();
+  });
+
+  async function executeGeminiChat(contentsList){
+    var activeTier = getActiveTier();
+    var freeKey = getFreeKey();
+    var paidKey = getPaidKey();
+    var primaryFreeModel = $('freePrimaryModel').value.trim() || 'gemini-3.5-flash';
+    var fallbackFreeModel = $('freeFallbackModel').value.trim() || 'gemini-3.5-flash-lite';
+    var paidModel = $('paidModel').value.trim() || 'gemini-3.8-flash';
+    
+    var key = (activeTier === 'paid') ? paidKey : freeKey;
+    if(!key) throw new Error('Please enter your Gemini API Key in AI Settings first.');
+    var model = (activeTier === 'paid') ? paidModel : primaryFreeModel;
+
+    try {
+      var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({
+          contents: contentsList,
+          generationConfig: { temperature: 0.25, maxOutputTokens: 2048 }
+        })
+      });
+      var d = await r.json();
+      if(!r.ok){
+        var errMsg = d.error && d.error.message || ('HTTP ' + r.status);
+        var isHighDemand = (r.status === 503 || r.status === 429 || /demand|overload|exhaust|resource/i.test(errMsg));
+        if(isHighDemand && activeTier === 'free'){
+          // Automatic failover to free fallback model for chat queries
+          var r2 = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(fallbackFreeModel) + ':generateContent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+            body: JSON.stringify({
+              contents: contentsList,
+              generationConfig: { temperature: 0.25, maxOutputTokens: 2048 }
+            })
+          });
+          var d2 = await r2.json();
+          if(r2.ok) return d2.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
+        }
+        throw new Error(errMsg);
+      }
+      return d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
+    } catch(err) {
+      throw err;
+    }
+  }
+
+  async function submitChatQuestion(){
+    var q = $('askQ').value.trim();
+    if(!q || $('askBtn').disabled) return;
+
+    var sysPrompt = "You are a helpful, orthodox theological research and study assistant inside Sermon & Devotional Scribe. " +
+      "You assist the user in discussing, analyzing, and applying the sermon notes or devotional content on screen. " +
+      "Interpret within historic Protestant and Reformed orthodoxy (Spurgeon, Calvin, Luther, Westminster Standards, Augustine, Sproul). " +
+      "Answer warmly, clearly, concisely, and pastoral-mindedly. Use short bullet points where appropriate. " +
+      "Ground your answers primarily in the CURRENT STUDY NOTES / SUMMARY provided below.";
+
+    askPending = { q: q, kind: 'thinking', text: 'Thinking...' };
+    $('askQ').value = '';
+    $('askBtn').disabled = true;
+    askRender();
+
+    try {
+      // Build multi-turn contents array with conversation history
+      var contents = [];
+      var recentHistory = askHist.slice(-6);
+
+      recentHistory.forEach(function(item, idx){
+        var qPayload = item.q;
+        if(idx === 0){
+          qPayload = sysPrompt + '\n\n' + getChatContext() + '\n\nQUESTION: ' + qPayload;
+        }
+        contents.push({ role: 'user', parts: [{ text: qPayload }] });
+        contents.push({ role: 'model', parts: [{ text: item.a }] });
+      });
+
+      var currentPayload = q;
+      if(contents.length === 0){
+        currentPayload = sysPrompt + '\n\n' + getChatContext() + '\n\nQUESTION: ' + currentPayload;
+      }
+      contents.push({ role: 'user', parts: [{ text: currentPayload }] });
+
+      var reply = await executeGeminiChat(contents);
+      askHist.push({ q: q, a: reply.trim() });
+      askHist = askHist.slice(-10);
+      askSave();
+      askPending = null;
+    } catch(e){
+      askPending = { q: q, kind: 'err', text: 'Chat error: ' + esc(e.message) };
+      $('askQ').value = q;
+    } finally {
+      $('askBtn').disabled = false;
+      askRender();
+      $('askQ').focus();
+    }
+  }
+
+  $('askBtn').addEventListener('click', submitChatQuestion);
+  $('askQ').addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      submitChatQuestion();
+    }
+  });
+
+  askLoad();
 
   var cachedAccs=msalApp.getAllAccounts();
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
