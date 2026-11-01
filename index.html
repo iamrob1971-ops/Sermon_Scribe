@@ -2716,23 +2716,52 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* COPY BUTTONS IN CHAT */
+  /* COPY BUTTONS IN CHAT (WITH IN-PLACE BUTTON FEEDBACK) */
+  function flashBtn(btn, tempText){
+    var origHtml = btn.innerHTML;
+    btn.innerHTML = '✓ ' + tempText;
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    btn.style.fontWeight = 'bold';
+    setTimeout(function(){
+      btn.innerHTML = origHtml;
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.style.fontWeight = '';
+    }, 1600);
+  }
+
   $('copyLastChatBtn').addEventListener('click', function(){
+    var btn = this;
     var active = getActiveSession();
-    if(!active || !active.messages.length){ toast('No responses to copy yet'); return; }
+    if(!active || !active.messages.length){ 
+      flashBtn(btn, 'Nothing to copy'); 
+      return; 
+    }
     var lastAns = active.messages[active.messages.length - 1].a;
-    copy(lastAns).then(function(){ toast('Last answer copied (with formatting)!'); });
+    copy(lastAns).then(function(){ 
+      flashBtn(btn, 'Copied Answer!'); 
+    }).catch(function(){
+      flashBtn(btn, 'Copy Failed');
+    });
   });
 
   $('copyFullChatBtn').addEventListener('click', function(){
+    var btn = this;
     var active = getActiveSession();
-    if(!active || !active.messages.length){ toast('No chat history to copy'); return; }
+    if(!active || !active.messages.length){ 
+      flashBtn(btn, 'Nothing to copy'); 
+      return; 
+    }
     var formattedTranscript = active.messages.map(function(m){
       return 'User: ' + m.q + '\n\nAssistant:\n' + m.a;
     }).join('\n\n---\n\n');
-    copy(formattedTranscript).then(function(){ toast('Full chat transcript copied!'); });
+    copy(formattedTranscript).then(function(){ 
+      flashBtn(btn, 'Copied Thread!'); 
+    }).catch(function(){
+      flashBtn(btn, 'Copy Failed');
+    });
   });
-
   /* -------------------------------------------------------------
      SAVE CHAT TO SHAREPOINT (AINotes in Resources OR StudyNotes_HTML)
      ------------------------------------------------------------- */
