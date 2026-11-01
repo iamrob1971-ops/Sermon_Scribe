@@ -1903,6 +1903,20 @@ var SITE_PATH = "/sites/Bible_App";
   /* -------------------------------------------------------------
      BI-DIRECTIONAL GRAPH PULL (RETRIEVAL FROM SHAREPOINT)
      ------------------------------------------------------------- */
+ /* Helper to strip SharePoint ExternalClass wrappers and decode HTML entities into clean plain text */
+  function htmlToPlainText(html) {
+    if (!html) return '';
+    var tmp = document.createElement('div');
+    // Preserve paragraph and line breaks before stripping tags
+    var formatted = html
+      .replace(/<br\s*[\/]?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '• ')
+      .replace(/<\/li>/gi, '\n');
+    tmp.innerHTML = formatted;
+    return (tmp.textContent || tmp.innerText || '').trim();
+  }
   // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
   $('pullDevoBtn').addEventListener('click', async function(){
     var rowId = $('targetResourceId').value.trim();
@@ -1923,9 +1937,9 @@ var SITE_PATH = "/sites/Bible_App";
       var fields = d.fields || {};
       if (fields.Title) $('title').value = fields.Title;
       
-      // Load Spurgeon's Body text into the left-hand text area
+      // Load Spurgeon's Body text into the left-hand text area (as clean plain text)
       if (fields.Body) {
-        page.value = fields.Body;
+        page.value = htmlToPlainText(fields.Body);
         updateUI();
       }
 
