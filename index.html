@@ -2016,10 +2016,17 @@ var SITE_PATH = "/sites/Bible_App";
         }
       }
 
-      // Load Study Notes
-      var studyNotes = fields.StudyNotes_HTML || '';
-      if (studyNotes) {
-        out.innerHTML = studyNotes;
+      // 1. Load Raw Transcript into Left-Hand Box (StudyNotes_HTML)
+      var rawTranscript = fields.StudyNotes_HTML || '';
+      if (rawTranscript) {
+        page.value = htmlToPlainText(rawTranscript);
+        updateUI();
+      }
+
+      // 2. Load AI Summary into Right-Hand Box (KeyHighlights_HTML)
+      var aiSummary = fields.KeyHighlights_HTML || '';
+      if (aiSummary) {
+        out.innerHTML = aiSummary;
         checkNotesState();
       }
 
@@ -2055,34 +2062,22 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* A. SERMON MODE -> DEVOTIONAL_TOPICS (APPEND / REPLACE & TITLE SYNC) */
+ /* A. SERMON MODE -> DEVOTIONAL_TOPICS (RAW TRANSCRIPT & AI SUMMARY SEPARATION) */
   async function saveSermonToTopics(token, siteId){
     var titleVal = $('title').value.trim() || ('Study Entry — ' + new Date().toLocaleDateString());
     var themeName = getActiveTheme();
     var scriptures = findRefs(page.value).join(', ');
-    var fullNotesHtml = out.innerHTML;
-    var rawNotesText = out.innerText;
+    
+    var aiSummaryHtml = out.innerHTML;                            // Right side goes to KeyHighlights_HTML
+    var rawTranscriptHtml = page.value.trim().replace(/\n/g, '<br>'); // Left side goes to StudyNotes_HTML
     
     var existingTopicId = $('sermonTopicId').value.trim() || qParams.get('topicId') || qParams.get('itemId') || '';
     var saveMode = $('sermonSaveMode').value || 'APPEND';
 
-    var keyHighlightsHtml = '';
-    var takeawaysMatch = rawNotesText.match(/(?:^|\n)\s*##\s*(?:Main Idea|Key Takeaways)[\s\S]*?(?=(?:\n\s*##\s*(?:Scripture Focus|Theological|Application)|$))/gi);
-    
-    if (takeawaysMatch && takeawaysMatch.length > 0) {
-      keyHighlightsHtml = mdToHtml(takeawaysMatch.join('\n\n').trim());
-    } else {
-      var tempDiv = document.createElement('div');
-      tempDiv.innerHTML = fullNotesHtml;
-      var ps = tempDiv.querySelectorAll('p, ul, h3');
-      var sliceHtml = '';
-      for (var p = 0; p < Math.min(ps.length, 4); p++) { sliceHtml += ps[p].outerHTML; }
-      keyHighlightsHtml = sliceHtml || ('<p><strong>' + esc(titleVal) + '</strong></p>');
-    }
-
     logSync('Syncing to Devotional_Topics...');
     logSync('Title: ' + titleVal + ' | Theme: ' + themeName);
 
+    // CASE 1: CREATE NEW TOPIC RECORD (NO ID ENTERED)
     if (!existingTopicId) {
       logSync('Creating NEW Topic record (POST)...');
       var newPayload = {
@@ -2090,8 +2085,8 @@ var SITE_PATH = "/sites/Bible_App";
           Title: titleVal,
           Theme_Name: themeName,
           Study_Date: new Date().toISOString(),
-          StudyNotes_HTML: fullNotesHtml,
-          KeyHighlights_HTML: keyHighlightsHtml,
+          StudyNotes_HTML: rawTranscriptHtml,
+          KeyHighlights_HTML: aiSummaryHtml,
           Scripture_Reference: scriptures,
           Status: 'Active',
           IsDeleted: false,
@@ -2114,9 +2109,11 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
 
+    // CASE 2: UPDATE / APPEND TO EXISTING TOPIC RECORD
     logSync('Targeting Topic #' + existingTopicId + ' in ' + saveMode + ' mode...');
-    var finalNotesHtml = fullNotesHtml;
-    var finalHighlightsHtml = keyHighlightsHtml;
+    
+    var finalTranscriptHtml = rawTranscriptHtml;
+    var finalSummaryHtml = aiSummaryHtml;
     var finalScriptures = scriptures;
 
     if (saveMode === 'APPEND') {
@@ -2128,14 +2125,14 @@ var SITE_PATH = "/sites/Bible_App";
       if (!getRes.ok) throw new Error(getData.error && getData.error.message || ('Could not read Topic #' + existingTopicId));
 
       var ef = getData.fields || {};
-      var oldNotes = ef.StudyNotes_HTML || '';
-      var oldHighlights = ef.KeyHighlights_HTML || '';
+      var oldTranscript = ef.StudyNotes_HTML || '';
+      var oldSummary = ef.KeyHighlights_HTML || '';
       var oldRefs = ef.Scripture_Reference || '';
 
-      var appendDivider = '<hr style="margin:24px 0; border:0; border-top:2px dashed #93C5FD"><p style="font-size:12px; color:#1E40AF; font-weight:bold; text-transform:uppercase">--- Additional Summary · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ---</p>';
+      var appendDivider = '<hr style="margin:24px 0; border:0; border-top:2px dashed #93C5FD"><p style="font-size:12px; color:#1E40AF; font-weight:bold; text-transform:uppercase">--- Additional Content · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ---</p>';
 
-      finalNotesHtml = oldNotes ? (oldNotes + appendDivider + fullNotesHtml) : fullNotesHtml;
-      finalHighlightsHtml = oldHighlights ? (oldHighlights + appendDivider + keyHighlightsHtml) : keyHighlightsHtml;
+      finalTranscriptHtml = oldTranscript ? (oldTranscript + appendDivider + rawTranscriptHtml) : rawTranscriptHtml;
+      finalSummaryHtml = oldSummary ? (oldSummary + appendDivider + aiSummaryHtml) : aiSummaryHtml;
       
       if (oldRefs && scriptures) {
         var set = new Set(oldRefs.split(/,\s*/).concat(scriptures.split(/,\s*/)));
@@ -2151,8 +2148,8 @@ var SITE_PATH = "/sites/Bible_App";
       Title: titleVal,
       Theme_Name: themeName,
       Study_Date: new Date().toISOString(),
-      StudyNotes_HTML: finalNotesHtml,
-      KeyHighlights_HTML: finalHighlightsHtml,
+      StudyNotes_HTML: finalTranscriptHtml,
+      KeyHighlights_HTML: finalSummaryHtml,
       Scripture_Reference: finalScriptures
     };
 
