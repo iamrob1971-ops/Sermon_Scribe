@@ -549,8 +549,9 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <p style="margin:0 0 14px"><b>💎 Paid Tier:</b> Enter a billing-enabled key for priority processing (typically <code>gemini-3.8-flash</code>) to bypass free-tier queues completely during critical study sessions (~$0.001 per run).</p>
 
       <h3 style="margin:14px 0 6px;color:var(--violet)">SharePoint Graph Direct Sync</h3>
-      <p style="margin:0 0 14px">Authenticates directly with Microsoft Entra ID (PKCE) over client-side HTTPS. Does not require Power Automate flows, premium connectors, or server backends.</p>
-    </div>
+     <p style="margin:0 0 14px">
+  Authenticates directly with Microsoft Entra ID (PKCE) over client-side HTTPS. If you are someone besides me (Rob Robinson), this tool is configured for my personal tenant; to sync to your own SharePoint, you will need to update the Client ID, Tenant ID, and SharePoint site path in the code to point to your own Azure App Registration. Does not require Power Automate flows, premium connectors, or server backends.
+</p>
   </div>
 
   <!-- CHAT / ASK NOTES TAB -->
