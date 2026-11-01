@@ -100,6 +100,7 @@ textarea.page::placeholder{color:#A9A5BD;font-family:var(--sans);font-size:15px;
 .btn.primary{background:var(--violet);border-color:var(--violet);color:#fff}
 .btn.primary:hover{background:var(--violet-d)}
 .btn.success{background:var(--green);border-color:var(--green);color:#fff}
+.btn.accent{background:#1E40AF;border-color:#1E40AF;color:#fff}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn svg{width:15px;height:15px}
 .btn.sm{padding:5px 9px;font-size:12px}
@@ -122,7 +123,7 @@ details.cfg summary{cursor:pointer;padding:10px 0;font-size:13px;color:var(--mut
 .cfg label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
 .cfg input[type=text],.cfg input[type=password],.cfg select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;color:var(--ink)}
 
-/* TIER PROFILE SWITCHER STYLES */
+/* TIER PROFILE SWITCHER */
 .tier-switcher{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#F8FAFD;border:1px solid var(--line);border-radius:8px}
 .tier-pill-label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;font-size:13px;color:var(--ink)}
 .tier-section{padding:10px;border-radius:8px;background:#FBFAFD;border:1px solid var(--line);display:grid;gap:8px}
@@ -184,25 +185,26 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 .cap-btn b{font-size:14px}
 .cap-btn small{font-size:12px;color:var(--muted)}
 
-/* HELP & CHAT WORKSTATION DIALOG (JOB-AID STYLE) */
-dialog.help{border:1px solid var(--line);border-radius:14px;padding:0;width:min(880px,96vw);color:var(--ink)}
+/* HELP & CHAT WORKSTATION DIALOG (WITH MULTI-SESSION SIDEBAR) */
+dialog.help{border:1px solid var(--line);border-radius:14px;padding:0;width:min(940px,96vw);color:var(--ink)}
 dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .help .tabs{display:flex;gap:4px;padding:8px 20px 0;border-bottom:1px solid var(--line);background:var(--paper)}
 .help .tabs button{border:0;background:none;padding:9px 16px;font:inherit;font-size:13.5px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-1px;transition:.15s}
 .help .tabs button[aria-selected="true"]{color:var(--violet);border-bottom-color:var(--violet)}
 .help .tabs button:hover{color:var(--violet)}
 
-.ask-panel{display:flex;flex-direction:column;padding:14px 20px 16px;gap:10px;background:#FBFAFD}
+.ask-container{display:grid;grid-template-columns:220px 1fr;min-height:480px;max-height:min(70vh, 720px);background:#FBFAFD}
+.chat-sidebar{border-right:1px solid var(--line);background:#F8FAFD;display:flex;flex-direction:column;padding:10px;gap:8px;overflow-y:auto}
+.sidebar-hdr{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;padding:4px 6px}
+.session-item{text-align:left;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:12px;line-height:1.35;transition:.15s;display:grid;gap:3px}
+.session-item:hover{border-color:var(--violet);background:var(--violet-t)}
+.session-item.active{border-color:var(--violet);background:var(--violet-t);font-weight:600}
+.session-item small{color:var(--muted);font-size:10.5px}
+
+.ask-panel{display:flex;flex-direction:column;padding:14px 18px 16px;gap:10px;overflow:hidden}
 .chat{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  min-height:280px;
-  max-height:min(65vh,680px);
-  overflow-y:auto;
-  padding:8px 14px 8px 4px;
-  scrollbar-width:thin;
-  scrollbar-color:var(--violet) #f1f1f1;
+  display:flex;flex-direction:column;gap:12px;flex:1;min-height:280px;
+  overflow-y:auto;padding:8px 14px 8px 4px;scrollbar-width:thin;scrollbar-color:var(--violet) #f1f1f1;
 }
 .chat::-webkit-scrollbar{width:6px}
 .chat::-webkit-scrollbar-thumb{background:var(--violet);border-radius:4px}
@@ -220,10 +222,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .a-bubble.err{background:#FDECEF;border-color:var(--live);color:#8E2236}
 
 .chat-input{display:flex;gap:8px;align-items:flex-end;margin-top:4px}
-.chat-input textarea{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px;resize:vertical;min-height:46px;max-height:140px;background:#fff;outline:none}
+.chat-input textarea{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px;resize:vertical;min-height:46px;max-height:120px;background:#fff;outline:none}
 .chat-input textarea:focus{border-color:var(--violet)}
-.chat-foot{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.chat-foot .hint{font-size:11.5px;color:var(--muted);line-height:1.35}
+.chat-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px solid #E2E8F0}
+.chat-toolbar .left-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:9999}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -235,6 +237,8 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
   textarea.page{max-height:45vh;padding:16px}
   .out{max-height:none}
   .grid-2{grid-template-columns:1fr}
+  .ask-container{grid-template-columns:1fr}
+  .chat-sidebar{display:none}
 }
 </style>
 </head>
@@ -281,7 +285,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <button class="btn sm" id="discardBtn">Discard</button>
     </div>
 
-    <!-- Context Bar (Theme & Topic ID for Sermon / Target Row for Devotional) -->
+    <!-- Context Bar with On-Demand SharePoint Pull Controls -->
     <div class="ctx-bar" id="ctxBar">
       <div id="sermonCtx" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <b>Theme:</b>
@@ -291,10 +295,14 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           <option value="Other Sermons">Other Sermons</option>
           <option value="_custom">+ Create New Theme...</option>
         </select>
-        <input type="text" id="customThemeInput" placeholder="New Theme Title..." style="display:none;width:180px">
+        <input type="text" id="customThemeInput" placeholder="New Theme Title..." style="display:none;width:170px">
         
-        <!-- TOPIC ID & APPEND / REPLACE SELECTOR -->
-        <span><b>Topic ID:</b> <input type="number" id="sermonTopicId" placeholder="New" style="width:75px" title="Leave blank to create a new topic, or enter an ID to update/append to an existing row"></span>
+        <!-- SERMON TOPIC ID & PULL / APPEND -->
+        <span>
+          <b>Topic ID:</b> 
+          <input type="number" id="sermonTopicId" placeholder="New" style="width:70px" title="Enter ID to append or pull">
+          <button class="btn sm" id="pullSermonBtn" title="Pull Title, Theme & Notes from SharePoint for this Topic ID">📥 Pull</button>
+        </span>
         <span>
           <b>Mode:</b>
           <select id="sermonSaveMode" style="font-weight:600;color:var(--violet)">
@@ -304,8 +312,12 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
         </span>
       </div>
 
-      <div id="devotionalCtx" style="display:none;gap:12px;align-items:center;flex-wrap:wrap">
-        <span><b>Target Resource Row ID:</b> <input type="number" id="targetResourceId" value="17" style="width:75px" title="SharePoint Resources item ID"></span>
+      <div id="devotionalCtx" style="display:none;gap:10px;align-items:center;flex-wrap:wrap">
+        <span>
+          <b>Target Row ID:</b> 
+          <input type="number" id="targetResourceId" value="17" style="width:70px" title="SharePoint Resources item ID">
+          <button class="btn sm" id="pullDevoBtn" title="Pull Title, Body & AINotes from SharePoint for this Row ID">📥 Pull</button>
+        </span>
         <span><b>Source:</b> <input type="text" id="devoSource" value="FCB" style="width:65px"></span>
         <span><b>Date:</b> <input type="date" id="devoDate"></span>
       </div>
@@ -313,7 +325,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 
     <div class="ribbon" id="ribbon"></div>
 
-    <!-- Sequential Audio File Processing Banner -->
+    <!-- Audio Progress Banner -->
     <div class="audio-queue-status" id="audioQueueBar">
       <span class="spin" style="width:14px;height:14px;border-top-color:#1E40AF"></span>
       <span id="audioQueueText">Processing audio file...</span>
@@ -325,7 +337,6 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
     </div>
 
     <div class="actions">
-      <!-- Hidden file input for audio files -->
       <input type="file" id="audioFileInput" multiple accept="audio/*,.wav,.mp3,.m4a,.aac,.webm,.ogg,.mp4" style="display:none">
       
       <button class="btn" id="attachAudioBtn" title="Upload audio recordings (MP3, M4A, WAV, WebM). Slices in 5-minute chunks automatically!">
@@ -355,8 +366,8 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
     <div class="notes-head">
       <h2 id="notesTitle">Study Notes</h2>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn sm" id="askNotesBtn" title="Ask a question about the study notes">💬 Ask Notes</button>
-        <button class="btn sm" id="tierToggleBtn" title="Click to toggle between Free and Paid Key">🟢 Free</button>
+        <button class="btn sm" id="askNotesBtn" title="Ask a question about these study notes">💬 Ask Notes</button>
+        <button class="btn sm" id="tierToggleBtn" title="Toggle between Free and Paid Key">🟢 Free</button>
         <button class="btn sm" id="expandBtn" title="Expand notes full screen">⛶ Expand</button>
         <button class="btn primary" id="sumBtn" disabled>Summarize with AI</button>
       </div>
@@ -367,12 +378,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <button class="btn sm" id="editInst">Edit instructions</button>
     </div>
 
-    <!-- DUAL TIER AI SETTINGS (FREE & PAID PROFILES) -->
+    <!-- DUAL TIER AI SETTINGS -->
     <details class="cfg" id="cfg">
       <summary>AI settings (Dual-Tier Free &amp; Paid Key Profiles)</summary>
       <div class="cfg-body">
-        
-        <!-- Active Tier Switcher -->
         <div class="tier-switcher">
           <span style="font-weight:600;font-size:13px">Active Key Tier:</span>
           <label class="tier-pill-label">
@@ -383,7 +392,6 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           </label>
         </div>
 
-        <!-- Free Tier Profile -->
         <div class="tier-section" id="freeTierSection">
           <div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.04em">🟢 Free Tier Profile</div>
           <label>Free API Key (Google AI Studio)
@@ -409,7 +417,6 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           </div>
         </div>
 
-        <!-- Paid Tier Profile -->
         <div class="tier-section" id="paidTierSection">
           <div style="font-size:12px;font-weight:700;color:#1E40AF;text-transform:uppercase;letter-spacing:0.04em">💎 Paid Tier Profile (Pay-As-You-Go)</div>
           <label>Paid API Key (Google AI Studio Billing Enabled)
@@ -463,7 +470,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
   </aside>
 </div>
 
-<!-- INSTRUCTIONS MODAL (WITH NAMED PRESET MANAGEMENT & GITHUB EXPORT) -->
+<!-- INSTRUCTIONS MODAL (WITH PRESET MANAGEMENT & GITHUB EXPORT) -->
 <dialog id="instDlg" aria-labelledby="dlgT">
   <div class="dlg-h">
     <h2 id="dlgT">AI Instructions &amp; Presets</h2>
@@ -532,11 +539,11 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
   </div>
 </dialog>
 
-<!-- HELP & CHAT WORKSTATION DIALOG (JOB-AID STYLE) -->
+<!-- HELP & CHAT WORKSTATION DIALOG (WITH THREAD HISTORY SIDEBAR & SHAREPOINT PUSH) -->
 <dialog id="helpDlg" class="help" aria-labelledby="helpT">
   <div class="dlg-h">
     <h2 id="helpT" style="margin:0;font-family:var(--serif);font-size:20px;font-weight:500;color:var(--ink)">
-      Study Assistant &amp; Guide <span style="font-size:11px;font-weight:400;color:var(--muted)">v2.5</span>
+      Study Assistant &amp; Guide <span style="font-size:11px;font-weight:400;color:var(--muted)">v2.6</span>
     </h2>
     <button class="btn sm" id="helpClose" type="button" aria-label="Close">Close</button>
   </div>
@@ -545,39 +552,58 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
     <button type="button" role="tab" id="tabHow" aria-selected="false" aria-controls="panelHow">📖 App Guide</button>
   </div>
   
- <!-- HOW TO / GUIDE TAB -->
+  <!-- HOW TO / GUIDE TAB -->
   <div id="panelHow" role="tabpanel" aria-labelledby="tabHow" hidden>
     <div style="padding:16px 22px;max-height:60vh;overflow-y:auto;line-height:1.6;font-size:13.5px;color:var(--ink)">
-      <h3 style="margin:0 0 6px;color:var(--violet)">Working Modes</h3>
-      <p style="margin:0 0 10px"><b>Sermon Mode:</b> Built for expository preaching and personal sermon notes. Saves into the <code>Devotional_Topics</code> SharePoint list. Leave Topic ID blank for new topics, or enter a number to append/replace notes on an existing topic with live Title synchronization.</p>
-      <p style="margin:0 0 14px"><b>Devotional Mode:</b> Built for Spurgeon's <i>Faith's Checkbook</i>. Saves the main commentary directly into <code>Resources</code> (AdditionalCommentary), individual companion theologians into <code>Companion_Voices</code>, and 7 personalized cards (Wesley, Mac, Jonathan, Kim, Rob, Family Prayer, Refrain) into <code>Family_Insights</code>.</p>
+      <h3 style="margin:0 0 6px;color:var(--violet)">Working Modes &amp; SharePoint Sync</h3>
+      <p style="margin:0 0 10px"><b>Sermon Mode:</b> Built for expository preaching and personal sermon notes. Saves into the <code>Devotional_Topics</code> list. Entering a Topic ID and clicking <b>📥 Pull</b> loads existing sermon records into your view. Saving appends or replaces into <code>StudyNotes_HTML</code>.</p>
+      <p style="margin:0 0 14px"><b>Devotional Mode:</b> Built for Spurgeon's <i>Faith's Checkbook</i>. Entering a Target Row ID and clicking <b>📥 Pull</b> loads Spurgeon's text into the transcript area. Saving posts to <code>Resources</code> (AdditionalCommentary), <code>Companion_Voices</code>, and <code>Family_Insights</code>.</p>
       
       <h3 style="margin:14px 0 6px;color:var(--violet)">Recording &amp; Audio Slicing</h3>
-      <p style="margin:0 0 10px"><b>Live Mic:</b> Streams speech to text in real time with room-echo deduplication and a clean pause guard. Audio is not recorded to disk during live streaming.</p>
-      <p style="margin:0 0 14px"><b>📁 Attach Audio:</b> Select any pre-recorded audio file (MP3, M4A, WAV). Scribe's in-browser audio engine downsamples to 16kHz mono, slices the file into 5-minute segments in memory, and feeds them sequentially through Gemini so long recordings never exceed upload limits.</p>
+      <p style="margin:0 0 10px"><b>Live Mic:</b> Real-time browser speech recognition with room-echo deduplication and a clean pause guard.</p>
+      <p style="margin:0 0 14px"><b>📁 Attach Audio:</b> Slices any MP3, M4A, or WAV into 5-minute chunks in browser memory and transcribes sequentially via Gemini.</p>
 
       <h3 style="margin:14px 0 6px;color:var(--violet)">Dual-Tier Gemini API Engine</h3>
-      <p style="margin:0 0 10px"><b>🟢 Free Tier:</b> Uses your free Google AI Studio key. Choose your Primary Free Model (e.g. <code>gemini-3.5-flash</code>) and a Fallback Model (e.g. <code>gemini-3.5-flash-lite</code>). If Google reports a temporary traffic spike, Scribe alerts you or fails over without crashing.</p>
-      <p style="margin:0 0 14px"><b>💎 Paid Tier:</b> Enter a billing-enabled key for priority processing (typically <code>gemini-3.8-flash</code>) to bypass free-tier queues completely during critical study sessions (~$0.001 per run).</p>
+      <p style="margin:0 0 10px"><b>🟢 Free Tier:</b> Primary model with automatic fallback to uncrowded models (e.g. <code>gemini-3.5-flash-lite</code>) if Google reports capacity spikes.</p>
+      <p style="margin:0 0 14px"><b>💎 Paid Tier:</b> One-click toggle to route directly through your billing-enabled key for zero queue wait times.</p>
 
       <h3 style="margin:14px 0 6px;color:var(--violet)">SharePoint Graph Direct Sync</h3>
-      <p style="margin:0 0 14px">
-        Authenticates directly with Microsoft Entra ID (PKCE) over client-side HTTPS. If you are someone besides me (Rob Robinson), this tool is configured for my personal tenant; to sync to your own SharePoint, you will need to update the Client ID, Tenant ID, and SharePoint site path in the code to point to your own Azure App Registration. Does not require Power Automate flows, premium connectors, or server backends. You can see from the code..Keys Stay Private: The Gemini API key is saved strictly in your own browser localStorage. So they stay private on your pc.  There is a paid vs free key option due to Gemini's annoying prioritization process on asks with free keys, so you can pivot between your free and paid keys.
-      </p>
+      <p style="margin:0 0 14px">Authenticates directly with Microsoft Entra ID (PKCE) over client-side HTTPS. If you are someone besides me (Rob Robinson), this tool is configured for my personal tenant; update the Client ID, Tenant ID, and SharePoint site path in the code to point to your own Azure App Registration. Does not require Power Automate flows, premium connectors, or server backends.</p>
     </div>
   </div>
 
-  <!-- CHAT / ASK NOTES TAB -->
-  <div class="ask-panel" id="panelAsk" role="tabpanel" aria-labelledby="tabAsk">
-    <div class="chat" id="askThread" role="log" aria-live="polite" aria-label="Study conversation"></div>
-    <div class="chat-input">
-      <textarea id="askQ" rows="2" maxlength="800" placeholder="Ask a question about the study notes or passage. Enter sends, Shift+Enter adds a line." aria-label="Your question"></textarea>
-      <button class="btn primary" id="askBtn" type="button">Ask</button>
+  <!-- CHAT / ASK NOTES TAB WITH SLIM THREAD SIDEBAR -->
+  <div class="ask-container" id="panelAsk" role="tabpanel" aria-labelledby="tabAsk">
+    
+    <!-- Slim Chat Sessions Sidebar -->
+    <div class="chat-sidebar">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="sidebar-hdr">Saved Chats</span>
+        <button class="btn sm" id="sidebarNewChatBtn" title="Start a new chat session" style="padding:2px 8px;font-size:11px">➕ New</button>
+      </div>
+      <div id="sessionList" style="display:grid;gap:6px"></div>
     </div>
-    <div class="chat-foot">
-      <span class="hint">Answers are grounded in your current Study Notes/Summary and theology. Keeps up to 10 previous turns for follow-up context.</span>
-      <button type="button" class="btn sm" id="askNew" style="margin-left:auto">New Chat</button>
+
+    <!-- Main Chat Workspace -->
+    <div class="ask-panel">
+      <div class="chat" id="askThread" role="log" aria-live="polite" aria-label="Study conversation"></div>
+      
+      <div class="chat-input">
+        <textarea id="askQ" rows="2" maxlength="1200" placeholder="Ask a question about the study notes or passage. Enter sends, Shift+Enter adds a line." aria-label="Your question"></textarea>
+        <button class="btn primary" id="askBtn" type="button">Ask</button>
+      </div>
+
+      <!-- Action Toolbar with Copy & SharePoint Push -->
+      <div class="chat-toolbar">
+        <div class="left-btns">
+          <button class="btn sm" id="copyLastChatBtn" title="Copy only the latest assistant response with formatting">📋 Copy Last Answer</button>
+          <button class="btn sm" id="copyFullChatBtn" title="Copy entire chat thread as a readable transcript">📜 Copy Full Thread</button>
+          <button class="btn sm success" id="saveChatSpBtn" title="Append this chat discussion directly to SharePoint">💾 Save Chat to SharePoint</button>
+        </div>
+        <button type="button" class="btn sm" id="askNew">Clear Session</button>
+      </div>
     </div>
+
   </div>
 </dialog>
 
@@ -762,7 +788,7 @@ var BAKED_CUSTOM_PRESETS = {
     "id": "custom_mvw9qmth",
     "mode": "devotional",
     "label": "Research Question",
-    "text": "Research the following question from a Biblical perspective.   Biblical truch is supreme.  Evaluate using Spurgeon, Augustine, R.C. Sproul, PCA - Presbyterian Church in America, Reformed doctrine perspective and theology."
+    "text": "Research the following question from a Biblical perspective.   Biblical truth is supreme.  Evaluate using Spurgeon, Augustine, R.C. Sproul, PCA - Presbyterian Church in America, Reformed doctrine perspective and theology."
   }
 };
 /* BAKE_PRESETS_END */
@@ -818,7 +844,6 @@ var SITE_PATH = "/sites/Bible_App";
   var msalApp=new msal.PublicClientApplication(MSAL_CONFIG);
   var cachedSiteId=null;
 
-  // Runtime session override for capacity failures
   var sessionCapacityAction = null; 
 
   function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('show')},2800)}
@@ -1525,12 +1550,10 @@ var SITE_PATH = "/sites/Bible_App";
   }
 
   function initProfiles(){
-    // 1. Fill Dropdowns
     fillModelDropdown($('freePrimaryModel'), load('ss_free_primary_model') || 'gemini-3.5-flash');
     fillModelDropdown($('freeFallbackModel'), load('ss_free_fallback_model') || 'gemini-3.5-flash-lite');
     fillModelDropdown($('paidModel'), load('ss_paid_model') || 'gemini-3.8-flash');
 
-    // 2. Load Keys & Preferences
     $('freeKey').value = load('ss_free_key') || load('ss_gemini_key') || '';
     $('paidKey').value = load('ss_paid_key') || '';
 
@@ -1542,7 +1565,6 @@ var SITE_PATH = "/sites/Bible_App";
   }
   initProfiles();
 
-  // Save Settings Handlers
   function saveProfileSettings(){
     if (!$('remember').checked) return;
     store('ss_free_key', getFreeKey());
@@ -1561,7 +1583,6 @@ var SITE_PATH = "/sites/Bible_App";
     });
   });
 
-  // Verify Key Utilities
   async function verifyAnyKey(key, targetSelectEl){
     if(!key) throw new Error('Paste an API key first!');
     var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
@@ -1617,7 +1638,6 @@ var SITE_PATH = "/sites/Bible_App";
     return html;
   }
 
-  /* Notes State Watcher & Smart Paste */
   function checkNotesState(){
     var has=out.innerText.trim().length>0;
     $('copyNotes').disabled=!has;
@@ -1641,9 +1661,7 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* -------------------------------------------------------------
-     INTERACTIVE CAPACITY INTERRUPT DIALOG LOGIC
-     ------------------------------------------------------------- */
+  /* Interactive Capacity Interruption Dialog */
   var capDlg = $('capacityDlg');
 
   function promptCapacityResolution(primaryModel, fallbackModel, paidModel, hasPaidKey) {
@@ -1695,7 +1713,7 @@ var SITE_PATH = "/sites/Bible_App";
     return d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
   }
 
-  /* SUMMARIZE CLICK DISPATCHER WITH DUAL-TIER & CAPACITY INTERRUPT */
+  /* Summarize Click Dispatcher */
   $('sumBtn').addEventListener('click', async function(){
     var activeTier = getActiveTier();
     var freeKey = getFreeKey();
@@ -1719,7 +1737,7 @@ var SITE_PATH = "/sites/Bible_App";
     var prompt = getFullPromptText();
     this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
     
-    // PATH 1: RUN ON PAID KEY TIER (DIRECT / NO QUEUE)
+    // PATH 1: RUN ON PAID KEY TIER
     if (activeTier === 'paid') {
       out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes via 💎 Paid Tier (' + paidModel + ')...</div>';
       try {
@@ -1735,7 +1753,7 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
 
-    // PATH 2: RUN ON FREE KEY TIER (WITH SMART FAILOVER & PROMPT)
+    // PATH 2: RUN ON FREE KEY TIER
     var targetModel = primaryFreeModel;
 
     if (sessionCapacityAction === 'fallback') {
@@ -1821,7 +1839,7 @@ var SITE_PATH = "/sites/Bible_App";
   $('copyNotes').addEventListener('click',function(){copy(out.innerText.trim()).then(function(){toast('Notes copied (with edits)')})});
 
   /* =====================================================================
-     SECTION 6 - MICROSOFT GRAPH & SHAREPOINT SAVE PIPELINE
+     SECTION 6 - MICROSOFT GRAPH & SHAREPOINT SAVE / PULL PIPELINE
      ===================================================================== */
   async function getMsalToken(){
     var accounts=msalApp.getAllAccounts();
@@ -1865,6 +1883,117 @@ var SITE_PATH = "/sites/Bible_App";
     logSync('Site ID resolved: '+cachedSiteId);
     return cachedSiteId;
   }
+
+  async function getListId(token, siteId, targetName){
+    var r = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error('Could not list SharePoint lists: ' + (d.error && d.error.message || r.status));
+    var clean = targetName.toLowerCase().replace(/[_\s]/g, '');
+    var found = d.value.find(function(l){
+      var lName = (l.name || '').toLowerCase().replace(/[_\s]/g, '');
+      var lTitle = (l.displayName || '').toLowerCase().replace(/[_\s]/g, '');
+      return lName === clean || lTitle === clean;
+    });
+    if (!found) throw new Error("Could not find list matching '" + targetName + "'");
+    return found.id;
+  }
+
+  /* -------------------------------------------------------------
+     BI-DIRECTIONAL GRAPH PULL (RETRIEVAL FROM SHAREPOINT)
+     ------------------------------------------------------------- */
+  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
+  $('pullDevoBtn').addEventListener('click', async function(){
+    var rowId = $('targetResourceId').value.trim();
+    if(!rowId){ alert('Please enter a Target Resource Row ID to pull.'); return; }
+    
+    var btn = this; btn.disabled = true;
+    try {
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      var listId = await getListId(token, siteId, 'Resources');
+
+      logSync('Pulling Resource item #' + rowId + ' from SharePoint...');
+      var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '?expand=fields';
+      var r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      var d = await r.json();
+      if(!r.ok) throw new Error(d.error && d.error.message || ('Item #' + rowId + ' not found'));
+
+      var fields = d.fields || {};
+      if (fields.Title) $('title').value = fields.Title;
+      
+      // Load Spurgeon's Body text into the left-hand text area
+      if (fields.Body) {
+        page.value = fields.Body;
+        updateUI();
+      }
+
+      // Load existing AdditionalCommentary into Study Notes if present
+      var commentary = fields.AdditionalCommentary || '';
+      if (commentary) {
+        out.innerHTML = commentary;
+        checkNotesState();
+      }
+
+      logSync('✓ Pulled Resource #' + rowId + ': "' + (fields.Title || '') + '"');
+      toast('Pulled Resource #' + rowId + ' successfully!');
+    } catch(e) {
+      logSync('❌ Pull error: ' + e.message);
+      alert('Could not pull Resource #' + rowId + ': ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // PULL SERMON TOPIC FROM DEVOTIONAL_TOPICS LIST
+  $('pullSermonBtn').addEventListener('click', async function(){
+    var topicId = $('sermonTopicId').value.trim();
+    if(!topicId){ alert('Please enter a Topic ID to pull.'); return; }
+
+    var btn = this; btn.disabled = true;
+    try {
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      var listId = await getListId(token, siteId, 'Devotional_Topics');
+
+      logSync('Pulling Topic #' + topicId + ' from SharePoint...');
+      var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + topicId + '?expand=fields';
+      var r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      var d = await r.json();
+      if(!r.ok) throw new Error(d.error && d.error.message || ('Topic #' + topicId + ' not found'));
+
+      var fields = d.fields || {};
+      if (fields.Title) $('title').value = fields.Title;
+      
+      if (fields.Theme_Name) {
+        var opts = Array.from($('themeSelect').options).map(function(o){ return o.value; });
+        if (opts.includes(fields.Theme_Name)) {
+          $('themeSelect').value = fields.Theme_Name;
+          $('customThemeInput').style.display = 'none';
+        } else {
+          $('themeSelect').value = '_custom';
+          $('customThemeInput').style.display = 'inline-block';
+          $('customThemeInput').value = fields.Theme_Name;
+        }
+      }
+
+      // Load Study Notes
+      var studyNotes = fields.StudyNotes_HTML || '';
+      if (studyNotes) {
+        out.innerHTML = studyNotes;
+        checkNotesState();
+      }
+
+      logSync('✓ Pulled Topic #' + topicId + ': "' + (fields.Title || '') + '"');
+      toast('Pulled Topic #' + topicId + ' successfully!');
+    } catch(e) {
+      logSync('❌ Pull error: ' + e.message);
+      alert('Could not pull Topic #' + topicId + ': ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   /* Dispatcher */
   $('saveSharePointBtn').addEventListener('click',async function(){
@@ -2015,13 +2144,11 @@ var SITE_PATH = "/sites/Bible_App";
     lines.forEach(function(line, idx){
       var cleanLine = line.replace(/^[#*\s]+/, '').replace(/[*#]+$/, '').trim();
 
-      // First line is Title
       if(idx === 0){
         formattedHtml += '<p style="font-size:15px;font-weight:bold;color:#092162;margin-bottom:10px;">' + esc(cleanLine) + '</p>';
         return;
       }
 
-      // Standalone "Refrain" heading
       if(/^Refrain(?:\s*\(Family Theme Line\))?$/i.test(cleanLine)){
         formattedHtml += '<p style="margin-top:16px;margin-bottom:4px;font-weight:bold;color:#166534;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🎶 Refrain (Family Theme Line):</p>';
         inRefrain = true;
@@ -2029,7 +2156,6 @@ var SITE_PATH = "/sites/Bible_App";
         return;
       }
 
-      // Standalone "Hymn Line" heading
       if(/^Hymn(?:\s*Line)?$/i.test(cleanLine)){
         formattedHtml += '<p style="margin-top:14px;margin-bottom:4px;font-weight:bold;color:#092162;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🎵 Hymn Line:</p>';
         inHymn = true;
@@ -2037,14 +2163,12 @@ var SITE_PATH = "/sites/Bible_App";
         return;
       }
 
-      // Formatted line following Refrain
       if(inRefrain){
         formattedHtml += '<p style="margin-bottom:12px;font-style:italic;font-weight:600;color:#14532d;background:#f0fdf4;padding:8px 12px;border-left:3px solid #16a34a;border-radius:4px;">“' + esc(cleanLine.replace(/^["“”]|["“”]$/g, '')) + '”</p>';
         inRefrain = false;
         return;
       }
 
-      // Formatted line following Hymn Line
       if(inHymn){
         formattedHtml += '<p style="margin-bottom:12px;font-style:italic;color:#334155;background:#f8fafc;padding:8px 12px;border-left:3px solid #64748b;border-radius:4px;">“' + esc(cleanLine.replace(/^["“”]|["“”]$/g, '')) + '”</p>';
         inHymn = false;
@@ -2081,22 +2205,6 @@ var SITE_PATH = "/sites/Bible_App";
 
     logSync('Starting sync for ' + devoDate + ' (' + monthDayStr + ')...');
 
-    async function getListId(targetName){
-      var r = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      var d = await r.json();
-      if (!r.ok) throw new Error('Could not list SharePoint lists: ' + (d.error && d.error.message || r.status));
-      var clean = targetName.toLowerCase().replace(/[_\s]/g, '');
-      var found = d.value.find(function(l){
-        var lName = (l.name || '').toLowerCase().replace(/[_\s]/g, '');
-        var lTitle = (l.displayName || '').toLowerCase().replace(/[_\s]/g, '');
-        return lName === clean || lTitle === clean;
-      });
-      if (!found) throw new Error("Could not find list matching '" + targetName + "'");
-      return found.id;
-    }
-
     // 1. CLEAN DOM EXTRACTION: Cleanly extracts everything above Family Micro-Cards with 100% valid HTML tags
     var familySplitIdx = rawText.search(/Family Micro-Cards/i);
     var familyRaw = (familySplitIdx > -1) ? rawText.slice(familySplitIdx) : "";
@@ -2113,7 +2221,6 @@ var SITE_PATH = "/sites/Bible_App";
       }
     }
 
-    // Remove the Family Micro-Cards block and all following siblings
     if (targetNode) {
       var block = targetNode;
       while (block.parentNode && block.parentNode !== tempDiv) {
@@ -2128,10 +2235,10 @@ var SITE_PATH = "/sites/Bible_App";
 
     var topCommentary = tempDiv.innerHTML.trim();
 
-    // 2. PATCH Resources list (With Dynamic Column Inspection & Explicit Error Catching)
+    // 2. PATCH Resources list
     logSync('Verifying Resources item #' + targetRowId + '...');
     try {
-      var resListId = await getListId('Resources');
+      var resListId = await getListId(token, siteId, 'Resources');
 
       var getUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + resListId + '/items/' + targetRowId + '?expand=fields';
       var getRes = await fetch(getUrl, { headers: { 'Authorization': 'Bearer ' + token } });
@@ -2172,9 +2279,8 @@ var SITE_PATH = "/sites/Bible_App";
     var compStart = rawText.toLowerCase().indexOf('companion voices');
     if (compStart > -1) {
       try {
-        var compListId = await getListId('Companion_Voices');
+        var compListId = await getListId(token, siteId, 'Companion_Voices');
 
-        // BOUNDARY RULE: Stop immediately after the "Scripture Voice" paragraph ends
         var compEnd = -1;
         var svIdx = rawText.toLowerCase().indexOf('scripture voice', compStart);
         if (svIdx > -1) {
@@ -2182,7 +2288,6 @@ var SITE_PATH = "/sites/Bible_App";
           compEnd = (afterSvNl > -1) ? afterSvNl : (rawText.indexOf('\n', svIdx + 16));
         }
 
-        // Fallback boundary if Scripture Voice was omitted: stop before Expanded Commentary, Family Cards, or ##
         if (compEnd === -1 || compEnd <= compStart) {
           var afterComp = rawText.slice(compStart + 16);
           var nextStop = afterComp.search(/\n\s*(?:Family Micro-Cards|Expanded Commentary|##\s)/i);
@@ -2204,7 +2309,6 @@ var SITE_PATH = "/sites/Bible_App";
           var compName = line.slice(0, sepIdx).replace(/^[-*•#\s]+/, '').trim();
           var compContent = line.slice(sepIdx + 1).trim();
 
-          // Reject non-voice lines and Bible verse citations (e.g. "Jeremiah 15", "Ephesians 6:10")
           var skipWords = ['verse', 'hook', 'reflect', 'pray', 'reference', 'hymn', 'refrain', 'expanded commentary'];
           if (skipWords.includes(compName.toLowerCase())) continue;
           if (/^(?:[1-3]\s*)?[A-Za-z]+\s+\d+$/i.test(compName) || /^\d+:\d+/.test(compContent)) continue;
@@ -2235,7 +2339,7 @@ var SITE_PATH = "/sites/Bible_App";
     // 4. Parse & Post Family Insights with Rich HTML Formatting
     logSync('Parsing & formatting Family Micro-Cards and Prayer...');
     try {
-      var famListId = await getListId('Family_Insights');
+      var famListId = await getListId(token, siteId, 'Family_Insights');
 
       function getSlice(startRegex, endRegex) {
         var matchStart = familyRaw.search(startRegex);
@@ -2251,11 +2355,7 @@ var SITE_PATH = "/sites/Bible_App";
       var jonText     = getSlice(/(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i,     /(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i);
       var kimText     = getSlice(/(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i);
       var robText     = getSlice(/(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i,          /(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i);
-      
-      // Captures Family Prayer AND Refrain AND Hymn Line (stops before TSV promise block)
       var famPrayText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i,   /(?:^|\n)\s*```/i);
-      
-      // Captures Refrain AND Hymn Line for standalone Family Theme Line card
       var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*```/i);
 
       var familyPayloads = [
@@ -2409,27 +2509,68 @@ var SITE_PATH = "/sites/Bible_App";
   })();
 
   /* =====================================================================
-     SECTION 8 - CONVERSATIONAL CHAT & HELP ENGINE (GROUNDED IN SUMMARY)
+     SECTION 8 - MULTI-SESSION CHAT WORKSTATION & SHAREPOINT CHAT PUSH
      ===================================================================== */
-  var ASK_KEY = 'sermonScribe_askhist_v1';
-  var askHist = [];
+  var CHAT_SESSIONS_KEY = 'sermonScribe_chat_sessions_v1';
+  var chatSessions = [];
+  var currentSessionId = null;
   var askPending = null;
   var helpDlg = $('helpDlg');
 
-  function askLoad(){
+  function sessionsLoad(){
     try {
-      var raw = load(ASK_KEY);
-      if(raw) {
-        var a = JSON.parse(raw);
-        if(Array.isArray(a)) askHist = a.slice(-10);
-      }
-    } catch(e){ askHist = []; }
+      var raw = load(CHAT_SESSIONS_KEY);
+      if(raw) chatSessions = JSON.parse(raw);
+    } catch(e){ chatSessions = []; }
+    if(!Array.isArray(chatSessions)) chatSessions = [];
+    if(!chatSessions.length){
+      createNewSession('Initial Chat');
+    } else {
+      currentSessionId = chatSessions[0].id;
+    }
   }
-  function askSave(){
-    try {
-      if(askHist.length) store(ASK_KEY, JSON.stringify(askHist.slice(-10)));
-      else localStorage.removeItem(ASK_KEY);
-    } catch(e){}
+
+  function sessionsSave(){
+    try { store(CHAT_SESSIONS_KEY, JSON.stringify(chatSessions.slice(0, 15))); } catch(e){}
+  }
+
+  function getActiveSession(){
+    var found = chatSessions.find(function(s){ return s.id === currentSessionId; });
+    if(!found && chatSessions.length) {
+      found = chatSessions[0];
+      currentSessionId = found.id;
+    }
+    return found;
+  }
+
+  function createNewSession(customTitle){
+    var newId = 'chat_' + Date.now().toString(36);
+    var newSession = {
+      id: newId,
+      title: customTitle || ('Chat ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})),
+      createdAt: Date.now(),
+      messages: []
+    };
+    chatSessions.unshift(newSession);
+    currentSessionId = newId;
+    sessionsSave();
+    return newSession;
+  }
+
+  function renderSidebarSessions(){
+    var container = $('sessionList');
+    container.innerHTML = '';
+    chatSessions.forEach(function(s){
+      var div = document.createElement('div');
+      div.className = 'session-item' + (s.id === currentSessionId ? ' active' : '');
+      div.innerHTML = '<b>' + esc(s.title) + '</b><small>' + (new Date(s.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})) + ' · ' + (s.messages.length) + ' msgs</small>';
+      div.addEventListener('click', function(){
+        currentSessionId = s.id;
+        renderSidebarSessions();
+        askRender();
+      });
+      container.appendChild(div);
+    });
   }
 
   function getChatContext(){
@@ -2443,17 +2584,16 @@ var SITE_PATH = "/sites/Bible_App";
     if(title) ctx += 'Title: ' + title + '\n';
     if(devoDate && mode === 'devotional') ctx += 'Date: ' + devoDate + '\n';
     if(refs) ctx += 'Scripture References Cited: ' + refs + '\n';
-    
-    // >>> ADD THESE 3 LINES HERE <<<
+
     var activeInst = getInstr();
     if(activeInst) {
       ctx += '\nORIGINAL GUIDING INSTRUCTIONS & THEOLOGICAL FRAMEWORK:\n' + activeInst + '\n';
     }
-
+    
     if(notesText && !notesText.includes('Notes appear here after clicking Summarize')) {
       ctx += '\nCURRENT STUDY NOTES / SUMMARY (PRIMARY TRUTH SOURCE):\n' + notesText + '\n';
     } else {
-      ctx += '\n(Note: No generated study notes are on screen yet. Answer based on historic Protestant theology unless user provides context.)\n';
+      ctx += '\n(Note: No generated study notes are on screen yet. Answer based on historic Protestant theology.)\n';
     }
     return ctx;
   }
@@ -2461,6 +2601,9 @@ var SITE_PATH = "/sites/Bible_App";
   function askRender(){
     var th = $('askThread');
     th.innerHTML = '';
+
+    var activeSession = getActiveSession();
+    var msgs = activeSession ? activeSession.messages : [];
 
     var add = function(cls, text, isHtml){
       var d = document.createElement('div');
@@ -2471,7 +2614,7 @@ var SITE_PATH = "/sites/Bible_App";
       return d;
     };
 
-    if(!askHist.length && !askPending){
+    if(!msgs.length && !askPending){
       var em = document.createElement('div');
       em.className = 'chat-empty';
       em.innerHTML = '<span>Ask questions, explore theological implications, or request family discussion starters based on the current study notes.</span>';
@@ -2501,7 +2644,7 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
 
-    askHist.forEach(function(x){
+    msgs.forEach(function(x){
       add('q-pill', x.q, false);
       add('a-bubble', mdToHtml(x.a), true);
     });
@@ -2520,6 +2663,7 @@ var SITE_PATH = "/sites/Bible_App";
     $('panelAsk').hidden = !isAsk;
     $('panelHow').hidden = isAsk;
     if(isAsk){
+      renderSidebarSessions();
       askRender();
       setTimeout(function(){ $('askQ').focus(); }, 40);
     }
@@ -2540,16 +2684,149 @@ var SITE_PATH = "/sites/Bible_App";
 
   $('helpClose').addEventListener('click', function(){ helpDlg.close(); });
 
-  $('askNew').addEventListener('click', function(){
-    if(askHist.length && !confirm('Start a new chat? This clears session memory.')) return;
-    askHist = [];
-    askPending = null;
-    askSave();
+  $('sidebarNewChatBtn').addEventListener('click', function(){
+    createNewSession('New Chat');
+    renderSidebarSessions();
     askRender();
     $('askQ').focus();
   });
 
- async function executeGeminiChat(contentsList){
+  $('askNew').addEventListener('click', function(){
+    if(!confirm('Clear messages in this current chat session?')) return;
+    var activeSession = getActiveSession();
+    if(activeSession) {
+      activeSession.messages = [];
+      sessionsSave();
+      renderSidebarSessions();
+      askRender();
+    }
+  });
+
+  /* COPY BUTTONS IN CHAT */
+  $('copyLastChatBtn').addEventListener('click', function(){
+    var active = getActiveSession();
+    if(!active || !active.messages.length){ toast('No responses to copy yet'); return; }
+    var lastAns = active.messages[active.messages.length - 1].a;
+    copy(lastAns).then(function(){ toast('Last answer copied (with formatting)!'); });
+  });
+
+  $('copyFullChatBtn').addEventListener('click', function(){
+    var active = getActiveSession();
+    if(!active || !active.messages.length){ toast('No chat history to copy'); return; }
+    var formattedTranscript = active.messages.map(function(m){
+      return 'User: ' + m.q + '\n\nAssistant:\n' + m.a;
+    }).join('\n\n---\n\n');
+    copy(formattedTranscript).then(function(){ toast('Full chat transcript copied!'); });
+  });
+
+  /* -------------------------------------------------------------
+     SAVE CHAT TO SHAREPOINT (AINotes in Resources OR StudyNotes_HTML)
+     ------------------------------------------------------------- */
+  $('saveChatSpBtn').addEventListener('click', async function(){
+    var active = getActiveSession();
+    if(!active || !active.messages.length){ alert('Please have a chat conversation first before saving.'); return; }
+    
+    var btn = this; btn.disabled = true;
+    try {
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      var timeStamp = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+      // Formatted chat exchange
+      var lastEx = active.messages[active.messages.length - 1];
+      
+      // =========================================================
+      // DEVOTIONAL MODE -> Resources (AINotes Column)
+      // =========================================================
+      if(mode === 'devotional') {
+        var rowId = $('targetResourceId').value.trim();
+        if(!rowId){ alert('Please enter a Target Resource Row ID to save this chat to.'); return; }
+        
+        var listId = await getListId(token, siteId, 'Resources');
+        logSync('Reading existing AINotes from Resources #' + rowId + '...');
+
+        var getUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '?expand=fields';
+        var getRes = await fetch(getUrl, { headers: { 'Authorization': 'Bearer ' + token } });
+        var getData = await getRes.json();
+        if(!getRes.ok) throw new Error(getData.error && getData.error.message || ('Row #' + rowId + ' not found'));
+
+        var fields = getData.fields || {};
+        var targetFieldKey = Object.keys(fields).find(function(k){
+          return k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'ainotes';
+        }) || 'AINotes';
+
+        var oldAiNotes = fields[targetFieldKey] || '';
+        var chatPayload = '\n\n--- AI Study Chat (' + timeStamp + ') ---\nQ: ' + lastEx.q + '\n\nA:\n' + lastEx.a;
+        var finalAiNotes = oldAiNotes ? (oldAiNotes + chatPayload) : chatPayload.trim();
+
+        var patchBody = {};
+        patchBody[targetFieldKey] = finalAiNotes;
+
+        var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '/fields';
+        var pRes = await fetch(patchUrl, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(patchBody)
+        });
+
+        if(!pRes.ok) {
+          var pData = await pRes.json();
+          throw new Error(pData.error && pData.error.message || ('Failed to update AINotes. Ensure column "AINotes" exists in Resources list.'));
+        }
+
+        logSync('✓ Saved Chat to Resources #' + rowId + ' (' + targetFieldKey + ')');
+        toast('Chat appended to Resources #' + rowId + ' (AINotes)!');
+      } 
+      // =========================================================
+      // SERMON MODE -> Devotional_Topics (StudyNotes_HTML Column)
+      // =========================================================
+      else {
+        var topicId = $('sermonTopicId').value.trim();
+        if(!topicId){ alert('Please enter an existing Topic ID first to append this chat to.'); return; }
+
+        var listId = await getListId(token, siteId, 'Devotional_Topics');
+        logSync('Reading StudyNotes_HTML from Topic #' + topicId + '...');
+
+        var getUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + topicId + '?expand=fields';
+        var getRes = await fetch(getUrl, { headers: { 'Authorization': 'Bearer ' + token } });
+        var getData = await getRes.json();
+        if(!getRes.ok) throw new Error(getData.error && getData.error.message || ('Topic #' + topicId + ' not found'));
+
+        var fields = getData.fields || {};
+        var oldNotes = fields.StudyNotes_HTML || '';
+
+        var chatHtmlBlock = '<div style="margin-top:20px; border-top:2px dashed #93C5FD; padding-top:12px;">' +
+          '<p style="font-size:12px; font-weight:bold; color:#1E40AF; text-transform:uppercase">💬 AI Discussion (Q&amp;A) · ' + timeStamp + '</p>' +
+          '<p style="margin-bottom:6px"><strong>Question:</strong> ' + esc(lastEx.q) + '</p>' +
+          '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px;">' + mdToHtml(lastEx.a) + '</div>' +
+          '</div>';
+
+        var finalNotes = oldNotes ? (oldNotes + chatHtmlBlock) : chatHtmlBlock;
+
+        var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + topicId + '/fields';
+        var pRes = await fetch(patchUrl, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ StudyNotes_HTML: finalNotes })
+        });
+
+        if(!pRes.ok) {
+          var pData = await pRes.json();
+          throw new Error(pData.error && pData.error.message || 'Topic update failed');
+        }
+
+        logSync('✓ Appended Chat Q&A to Topic #' + topicId + ' (StudyNotes_HTML)');
+        toast('Chat appended to Topic #' + topicId + ' successfully!');
+      }
+    } catch(e) {
+      logSync('❌ Chat save error: ' + e.message);
+      alert('Save to SharePoint failed: ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  async function executeGeminiChat(contentsList){
     var activeTier = getActiveTier();
     var freeKey = getFreeKey();
     var paidKey = getPaidKey();
@@ -2575,7 +2852,6 @@ var SITE_PATH = "/sites/Bible_App";
         var errMsg = d.error && d.error.message || ('HTTP ' + r.status);
         var isHighDemand = (r.status === 503 || r.status === 429 || /demand|overload|exhaust|resource/i.test(errMsg));
         if(isHighDemand && activeTier === 'free'){
-          // Automatic failover to free fallback model for chat queries
           var r2 = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(fallbackFreeModel) + ':generateContent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
@@ -2599,9 +2875,9 @@ var SITE_PATH = "/sites/Bible_App";
     var q = $('askQ').value.trim();
     if(!q || $('askBtn').disabled) return;
 
-   var sysPrompt = "You are a helpful, orthodox theological research and study assistant inside Sermon & Devotional Scribe. " +
+    var sysPrompt = "You are a helpful, orthodox theological research and study assistant inside Sermon & Devotional Scribe. " +
       "You assist the user in discussing, analyzing, quoting Scripture, and applying theological content. " +
-      "Biblical text and truth is supreme.  Interpret within historic Protestant and Reformed orthodoxy (Spurgeon, Calvin, Luther, Westminster Standards, Augustine, R.C. Sproul). " +
+      "Interpret within historic Protestant and Reformed orthodoxy (Spurgeon, Calvin, Luther, Westminster Standards, Augustine, Sproul). " +
       "Follow any structural or formatting guidelines provided in the ACTIVE INSTRUCTIONS below. " +
       "Ground your answers in the CURRENT STUDY NOTES / SUMMARY and the user's specific request.";
 
@@ -2611,9 +2887,10 @@ var SITE_PATH = "/sites/Bible_App";
     askRender();
 
     try {
-      // Build multi-turn contents array with conversation history
       var contents = [];
-      var recentHistory = askHist.slice(-6);
+      var activeSession = getActiveSession();
+      var msgs = activeSession ? activeSession.messages : [];
+      var recentHistory = msgs.slice(-6);
 
       recentHistory.forEach(function(item, idx){
         var qPayload = item.q;
@@ -2631,9 +2908,18 @@ var SITE_PATH = "/sites/Bible_App";
       contents.push({ role: 'user', parts: [{ text: currentPayload }] });
 
       var reply = await executeGeminiChat(contents);
-      askHist.push({ q: q, a: reply.trim() });
-      askHist = askHist.slice(-10);
-      askSave();
+
+      if(!activeSession){
+        activeSession = createNewSession(q.slice(0, 32) + '...');
+      }
+      if(activeSession.messages.length === 0){
+        activeSession.title = q.length > 28 ? (q.slice(0, 26) + '…') : q;
+      }
+
+      activeSession.messages.push({ q: q, a: reply.trim() });
+      activeSession.messages = activeSession.messages.slice(-10);
+      sessionsSave();
+      renderSidebarSessions();
       askPending = null;
     } catch(e){
       askPending = { q: q, kind: 'err', text: 'Chat error: ' + esc(e.message) };
@@ -2653,7 +2939,7 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  askLoad();
+  sessionsLoad();
 
   var cachedAccs=msalApp.getAllAccounts();
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
