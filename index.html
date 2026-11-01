@@ -2123,35 +2123,32 @@ var SITE_PATH = "/sites/Bible_App";
 
       // CASE 1: CREATE NEW TOPIC RECORD
       if (!existingTopicId) {
-        logSync('Creating NEW Topic record (POST)...');
-        var newPayload = {
-          fields: {
-            Title: titleVal,
-            Theme_Name: themeName,
-            Study_Date: new Date().toISOString(),
-            StudyNotes_HTML: fullNotesHtml,
-            KeyHighlights_HTML: keyHighlightsHtml,
-            Scripture_Reference: scriptures,
-            Status: 'Active',
-            IsDeleted: false,
-            OrganizerEmail: ($('userAccountName').textContent || '')
-          }
-        };
+      logSync('Creating NEW Topic record (POST)...');
+      var newPayload = {
+        fields: {
+          Title: titleVal,
+          Theme_Name: themeName,
+          Study_Date: new Date().toISOString(),
+          StudyNotes_HTML: fullNotesHtml,
+          KeyHighlights_HTML: keyHighlightsHtml,
+          OrganizerEmail: ($('userAccountName').textContent || '')
+        }
+      };
 
-        var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + topicsListId + '/items', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify(newPayload)
-        });
-        var postData = await postRes.json();
-        if (!postRes.ok) throw new Error(postData.error && postData.error.message || ('Topic creation failed: ' + postRes.status));
+      var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + topicsListId + '/items', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPayload)
+      });
+      var postData = await postRes.json();
+      if (!postRes.ok) throw new Error(postData.error && postData.error.message || ('Topic creation failed: ' + postRes.status));
 
-        $('sermonTopicId').value = postData.id;
-        logSync('🎉 SUCCESS! Created Topic #' + postData.id + '. ID saved on screen for future appends.');
-        toast('Saved as new Topic #' + postData.id + '!');
-        scheduleSave();
-        return;
-      }
+      $('sermonTopicId').value = postData.id;
+      logSync('🎉 SUCCESS! Created Topic #' + postData.id + '. ID saved on screen for future appends.');
+      toast('Saved as new Topic #' + postData.id + '!');
+      scheduleSave();
+      return;
+    }
 
       // CASE 2: UPDATE / APPEND TO EXISTING TOPIC RECORD
       logSync('Targeting Topic #' + existingTopicId + ' in ' + saveMode + ' mode...');
