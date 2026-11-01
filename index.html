@@ -1935,13 +1935,17 @@ var SITE_PATH = "/sites/Bible_App";
       if(!r.ok) throw new Error(d.error && d.error.message || ('Item #' + rowId + ' not found'));
 
       var fields = d.fields || {};
-      if (fields.Title) $('title').value = fields.Title;
+      var pulledTitle = (fields.Title || '').trim();
+      if (pulledTitle) $('title').value = pulledTitle;
       
-      // 1. Load Spurgeon's Body text as clean plain text into left editor
-      if (fields.Body) {
-        page.value = htmlToPlainText(fields.Body);
-        updateUI();
+      // 1. Load Title as a clean header line right above the Body text
+      var cleanBody = fields.Body ? htmlToPlainText(fields.Body) : '';
+      if (pulledTitle && cleanBody) {
+        page.value = pulledTitle + '\n\n' + cleanBody;
+      } else {
+        page.value = pulledTitle || cleanBody;
       }
+      updateUI();
 
       // 2. Load existing AdditionalCommentary into Study Notes if present
       var commentary = fields.AdditionalCommentary || '';
