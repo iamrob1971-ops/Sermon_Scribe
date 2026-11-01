@@ -185,7 +185,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 .cap-btn small{font-size:12px;color:var(--muted)}
 
 /* HELP & CHAT WORKSTATION DIALOG (JOB-AID STYLE) */
-dialog.help{border:1px solid var(--line);border-radius:14px;padding:0;width:min(760px,96vw);color:var(--ink)}
+dialog.help{border:1px solid var(--line);border-radius:14px;padding:0;width:min(880px,96vw);color:var(--ink)}
 dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .help .tabs{display:flex;gap:4px;padding:8px 20px 0;border-bottom:1px solid var(--line);background:var(--paper)}
 .help .tabs button{border:0;background:none;padding:9px 16px;font:inherit;font-size:13.5px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-1px;transition:.15s}
@@ -193,7 +193,19 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .help .tabs button:hover{color:var(--violet)}
 
 .ask-panel{display:flex;flex-direction:column;padding:14px 20px 16px;gap:10px;background:#FBFAFD}
-.chat{display:flex;flex-direction:column;gap:12px;min-height:260px;max-height:min(52vh,480px);overflow-y:auto;padding:4px}
+.chat{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  min-height:280px;
+  max-height:min(65vh,680px);
+  overflow-y:auto;
+  padding:8px 14px 8px 4px;
+  scrollbar-width:thin;
+  scrollbar-color:var(--violet) #f1f1f1;
+}
+.chat::-webkit-scrollbar{width:6px}
+.chat::-webkit-scrollbar-thumb{background:var(--violet);border-radius:4px}
 .chat-empty{color:var(--muted);font-size:13px;padding:12px 4px;display:grid;gap:10px}
 .chat-empty .ex{justify-self:start;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font:inherit;font-size:12.5px;color:var(--violet);cursor:pointer;transition:.15s}
 .chat-empty .ex:hover{background:var(--violet-t);border-color:var(--violet)}
@@ -2537,7 +2549,7 @@ var SITE_PATH = "/sites/Bible_App";
     $('askQ').focus();
   });
 
-  async function executeGeminiChat(contentsList){
+ async function executeGeminiChat(contentsList){
     var activeTier = getActiveTier();
     var freeKey = getFreeKey();
     var paidKey = getPaidKey();
@@ -2555,7 +2567,7 @@ var SITE_PATH = "/sites/Bible_App";
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({
           contents: contentsList,
-          generationConfig: { temperature: 0.25, maxOutputTokens: 2048 }
+          generationConfig: { temperature: 0.25, maxOutputTokens: 8192 }
         })
       });
       var d = await r.json();
@@ -2569,7 +2581,7 @@ var SITE_PATH = "/sites/Bible_App";
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
             body: JSON.stringify({
               contents: contentsList,
-              generationConfig: { temperature: 0.25, maxOutputTokens: 2048 }
+              generationConfig: { temperature: 0.25, maxOutputTokens: 8192 }
             })
           });
           var d2 = await r2.json();
@@ -2587,11 +2599,11 @@ var SITE_PATH = "/sites/Bible_App";
     var q = $('askQ').value.trim();
     if(!q || $('askBtn').disabled) return;
 
-    var sysPrompt = "You are a helpful, orthodox theological research and study assistant inside Sermon & Devotional Scribe. " +
-      "You assist the user in discussing, analyzing, and applying the sermon notes or devotional content on screen. " +
-      "Interpret within historic Protestant and Reformed orthodoxy (Spurgeon, Calvin, Luther, Westminster Standards, Augustine, Sproul). " +
-      "Answer warmly, clearly, concisely, and pastoral-mindedly. Use short bullet points where appropriate. " +
-      "Ground your answers primarily in the CURRENT STUDY NOTES / SUMMARY provided below.";
+   var sysPrompt = "You are a helpful, orthodox theological research and study assistant inside Sermon & Devotional Scribe. " +
+      "You assist the user in discussing, analyzing, quoting Scripture, and applying theological content. " +
+      "Biblical text and truth is supreme.  Interpret within historic Protestant and Reformed orthodoxy (Spurgeon, Calvin, Luther, Westminster Standards, Augustine, R.C. Sproul). " +
+      "Follow any structural or formatting guidelines provided in the ACTIVE INSTRUCTIONS below. " +
+      "Ground your answers in the CURRENT STUDY NOTES / SUMMARY and the user's specific request.";
 
     askPending = { q: q, kind: 'thinking', text: 'Thinking...' };
     $('askQ').value = '';
