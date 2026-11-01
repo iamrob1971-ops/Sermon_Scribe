@@ -1917,7 +1917,7 @@ var SITE_PATH = "/sites/Bible_App";
     tmp.innerHTML = formatted;
     return (tmp.textContent || tmp.innerText || '').trim();
   }
-  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
+  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST (WITH PLAIN TEXT & AUTO-DATE)
   $('pullDevoBtn').addEventListener('click', async function(){
     var rowId = $('targetResourceId').value.trim();
     if(!rowId){ alert('Please enter a Target Resource Row ID to pull.'); return; }
@@ -1937,17 +1937,37 @@ var SITE_PATH = "/sites/Bible_App";
       var fields = d.fields || {};
       if (fields.Title) $('title').value = fields.Title;
       
-      // Load Spurgeon's Body text into the left-hand text area (as clean plain text)
+      // 1. Load Spurgeon's Body text as clean plain text into left editor
       if (fields.Body) {
         page.value = htmlToPlainText(fields.Body);
         updateUI();
       }
 
-      // Load existing AdditionalCommentary into Study Notes if present
+      // 2. Load existing AdditionalCommentary into Study Notes if present
       var commentary = fields.AdditionalCommentary || '';
       if (commentary) {
         out.innerHTML = commentary;
         checkNotesState();
+      }
+
+      // 3. Assemble Date from MonthNum (or Month) & Day, assuming current year
+      var currentYear = new Date().getFullYear();
+      var mNum = parseInt(fields.MonthNum, 10);
+      var dNum = parseInt(fields.Day, 10);
+
+      // Fallback: If MonthNum is missing, parse from text Month name (e.g. "November")
+      if ((!mNum || isNaN(mNum)) && fields.Month) {
+        var monthNames = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+        var idx = monthNames.indexOf(fields.Month.toLowerCase().trim());
+        if (idx > -1) mNum = idx + 1;
+      }
+
+      if (mNum && dNum && !isNaN(mNum) && !isNaN(dNum)) {
+        var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+        var isoDateStr = currentYear + '-' + pad(mNum) + '-' + pad(dNum);
+        $('devoDate').value = isoDateStr;
+        scheduleSave();
+        logSync('  📅 Date set to: ' + isoDateStr + ' (' + (fields.Month || ('Month ' + mNum)) + ' ' + dNum + ')');
       }
 
       logSync('✓ Pulled Resource #' + rowId + ': "' + (fields.Title || '') + '"');
