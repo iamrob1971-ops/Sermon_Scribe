@@ -2062,31 +2062,19 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
- /* A. SERMON MODE -> DEVOTIONAL_TOPICS & DEVOTIONAL_THEMES */
+/* A. SERMON MODE -> DEVOTIONAL_TOPICS & DEVOTIONAL_THEMES */
   async function saveSermonToTopics(token, siteId){
     var titleVal = $('title').value.trim() || ('Study Entry — ' + new Date().toLocaleDateString());
     var isCustomTheme = ($('themeSelect').value === '_custom');
     var themeName = getActiveTheme();
     var scriptures = findRefs(page.value).join(', ');
-    var fullNotesHtml = out.innerHTML;
-    var rawNotesText = out.innerText;
+    
+    // FULL, UNCHOPPED PASS-THROUGH (NO SLICING)
+    var fullSummaryHtml = out.innerHTML;                               // Right box -> KeyHighlights_HTML
+    var rawTranscriptHtml = page.value.trim().replace(/\n/g, '<br>');  // Left box -> StudyNotes_HTML
     
     var existingTopicId = $('sermonTopicId').value.trim() || qParams.get('topicId') || qParams.get('itemId') || '';
     var saveMode = $('sermonSaveMode').value || 'APPEND';
-
-    var keyHighlightsHtml = '';
-    var takeawaysMatch = rawNotesText.match(/(?:^|\n)\s*##\s*(?:Main Idea|Key Takeaways)[\s\S]*?(?=(?:\n\s*##\s*(?:Scripture Focus|Theological|Application)|$))/gi);
-    
-    if (takeawaysMatch && takeawaysMatch.length > 0) {
-      keyHighlightsHtml = mdToHtml(takeawaysMatch.join('\n\n').trim());
-    } else {
-      var tempDiv = document.createElement('div');
-      tempDiv.innerHTML = fullNotesHtml;
-      var ps = tempDiv.querySelectorAll('p, ul, h3');
-      var sliceHtml = '';
-      for (var p = 0; p < Math.min(ps.length, 4); p++) { sliceHtml += ps[p].outerHTML; }
-      keyHighlightsHtml = sliceHtml || ('<p><strong>' + esc(titleVal) + '</strong></p>');
-    }
 
     logSync('Syncing to Sermon Lists...');
     logSync('Title: ' + titleVal + ' | Theme: ' + themeName);
@@ -2118,42 +2106,43 @@ var SITE_PATH = "/sites/Bible_App";
         }
       }
 
-      // 2. FETCH TOPICS LIST ID (Fixes "Invalid Request")
+      // 2. FETCH TOPICS LIST ID
       var topicsListId = await getListId(token, siteId, 'Devotional_Topics');
 
-      // CASE 1: CREATE NEW TOPIC RECORD
+      // CASE 1: CREATE NEW TOPIC RECORD (NO SLICING)
       if (!existingTopicId) {
-      logSync('Creating NEW Topic record (POST)...');
-      var newPayload = {
-        fields: {
-          Title: titleVal,
-          Theme_Name: themeName,
-          Study_Date: new Date().toISOString(),
-          StudyNotes_HTML: fullNotesHtml,
-          KeyHighlights_HTML: keyHighlightsHtml,
-          OrganizerEmail: ($('userAccountName').textContent || '')
-        }
-      };
+        logSync('Creating NEW Topic record (POST)...');
+        var newPayload = {
+          fields: {
+            Title: titleVal,
+            Theme_Name: themeName,
+            Study_Date: new Date().toISOString(),
+            StudyNotes_HTML: rawTranscriptHtml,     // Left-hand raw transcript
+            KeyHighlights_HTML: fullSummaryHtml,    // 100% full right-hand summary
+            Scripture_Reference: scriptures,
+            OrganizerEmail: ($('userAccountName').textContent || '')
+          }
+        };
 
-      var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + topicsListId + '/items', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPayload)
-      });
-      var postData = await postRes.json();
-      if (!postRes.ok) throw new Error(postData.error && postData.error.message || ('Topic creation failed: ' + postRes.status));
+        var postRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + topicsListId + '/items', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(newPayload)
+        });
+        var postData = await postRes.json();
+        if (!postRes.ok) throw new Error(postData.error && postData.error.message || ('Topic creation failed: ' + postRes.status));
 
-      $('sermonTopicId').value = postData.id;
-      logSync('🎉 SUCCESS! Created Topic #' + postData.id + '. ID saved on screen for future appends.');
-      toast('Saved as new Topic #' + postData.id + '!');
-      scheduleSave();
-      return;
-    }
+        $('sermonTopicId').value = postData.id;
+        logSync('🎉 SUCCESS! Created Topic #' + postData.id + '. ID saved on screen for future appends.');
+        toast('Saved as new Topic #' + postData.id + '!');
+        scheduleSave();
+        return;
+      }
 
-      // CASE 2: UPDATE / APPEND TO EXISTING TOPIC RECORD
+      // CASE 2: UPDATE / APPEND TO EXISTING TOPIC RECORD (NO SLICING)
       logSync('Targeting Topic #' + existingTopicId + ' in ' + saveMode + ' mode...');
-      var finalNotesHtml = fullNotesHtml;
-      var finalHighlightsHtml = keyHighlightsHtml;
+      var finalTranscriptHtml = rawTranscriptHtml;
+      var finalSummaryHtml = fullSummaryHtml;
       var finalScriptures = scriptures;
 
       if (saveMode === 'APPEND') {
@@ -2165,14 +2154,14 @@ var SITE_PATH = "/sites/Bible_App";
         if (!getRes.ok) throw new Error(getData.error && getData.error.message || ('Could not read Topic #' + existingTopicId));
 
         var ef = getData.fields || {};
-        var oldNotes = ef.StudyNotes_HTML || '';
-        var oldHighlights = ef.KeyHighlights_HTML || '';
+        var oldTranscript = ef.StudyNotes_HTML || '';
+        var oldSummary = ef.KeyHighlights_HTML || '';
         var oldRefs = ef.Scripture_Reference || '';
 
         var appendDivider = '<hr style="margin:24px 0; border:0; border-top:2px dashed #93C5FD"><p style="font-size:12px; color:#1E40AF; font-weight:bold; text-transform:uppercase">--- Additional Summary · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ---</p>';
 
-        finalNotesHtml = oldNotes ? (oldNotes + appendDivider + fullNotesHtml) : fullNotesHtml;
-        finalHighlightsHtml = oldHighlights ? (oldHighlights + appendDivider + keyHighlightsHtml) : keyHighlightsHtml;
+        finalTranscriptHtml = oldTranscript ? (oldTranscript + appendDivider + rawTranscriptHtml) : rawTranscriptHtml;
+        finalSummaryHtml = oldSummary ? (oldSummary + appendDivider + fullSummaryHtml) : fullSummaryHtml;
         
         if (oldRefs && scriptures) {
           var set = new Set(oldRefs.split(/,\s*/).concat(scriptures.split(/,\s*/)));
@@ -2188,8 +2177,8 @@ var SITE_PATH = "/sites/Bible_App";
         Title: titleVal,
         Theme_Name: themeName,
         Study_Date: new Date().toISOString(),
-        StudyNotes_HTML: finalNotesHtml,
-        KeyHighlights_HTML: finalHighlightsHtml,
+        StudyNotes_HTML: finalTranscriptHtml,
+        KeyHighlights_HTML: finalSummaryHtml,
         Scripture_Reference: finalScriptures
       };
 
@@ -2206,7 +2195,6 @@ var SITE_PATH = "/sites/Bible_App";
       toast('Topic #' + existingTopicId + ' updated successfully!');
 
     } catch(err) {
-      // Bubble the error up so the central catch block displays it safely
       throw err;
     }
   }
