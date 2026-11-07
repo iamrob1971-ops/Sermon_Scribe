@@ -185,25 +185,35 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 .cap-btn b{font-size:14px}
 .cap-btn small{font-size:12px;color:var(--muted)}
 
-/* HELP & CHAT WORKSTATION DIALOG (WITH MULTI-SESSION SIDEBAR) */
-dialog.help{border:1px solid var(--line);border-radius:14px;padding:0;width:min(940px,96vw);color:var(--ink)}
+/* HELP & CHAT WORKSTATION DIALOG (WITH THREAD SIDEBAR & METADATA BINDING) */
+dialog.help{border:1px solid var(--line);border-radius:14px;padding:0;width:min(960px,96vw);color:var(--ink)}
 dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .help .tabs{display:flex;gap:4px;padding:8px 20px 0;border-bottom:1px solid var(--line);background:var(--paper)}
 .help .tabs button{border:0;background:none;padding:9px 16px;font:inherit;font-size:13.5px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-1px;transition:.15s}
 .help .tabs button[aria-selected="true"]{color:var(--violet);border-bottom-color:var(--violet)}
 .help .tabs button:hover{color:var(--violet)}
 
-.ask-container{display:grid;grid-template-columns:220px 1fr;min-height:480px;max-height:min(70vh, 720px);background:#FBFAFD}
-.chat-sidebar{border-right:1px solid var(--line);background:#F8FAFD;display:flex;flex-direction:column;padding:10px;gap:8px;overflow-y:auto}
-.sidebar-hdr{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;padding:4px 6px}
-.session-item{text-align:left;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:12px;line-height:1.35;transition:.15s;display:grid;gap:3px}
+.ask-container{display:grid;grid-template-columns:230px 1fr;min-height:500px;max-height:min(72vh, 740px);background:#FBFAFD}
+.chat-sidebar{border-right:1px solid var(--line);background:#F8FAFD;display:flex;flex-direction:column;padding:12px 10px;gap:8px;overflow-y:auto}
+.sidebar-hdr{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;padding:2px 4px}
+.session-item{text-align:left;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:12px;line-height:1.35;transition:.15s;display:flex;align-items:center;justify-content:space-between;gap:6px}
 .session-item:hover{border-color:var(--violet);background:var(--violet-t)}
 .session-item.active{border-color:var(--violet);background:var(--violet-t);font-weight:600}
-.session-item small{color:var(--muted);font-size:10.5px}
+.session-info{display:grid;gap:2px;overflow:hidden;flex:1}
+.session-info b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.session-info small{color:var(--muted);font-size:10.5px}
+.session-del{border:0;background:none;color:#94A3B8;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;line-height:1}
+.session-del:hover{color:#DC2626;background:#FEE2E2}
 
-.ask-panel{display:flex;flex-direction:column;padding:14px 18px 16px;gap:10px;overflow:hidden}
+.ask-panel{display:flex;flex-direction:column;padding:12px 18px 14px;gap:8px;overflow:hidden}
+.chat-session-meta{display:flex;gap:10px;align-items:center;padding:6px 10px;background:#fff;border:1px solid var(--line);border-radius:8px}
+.chat-title-input{flex:1;border:0;background:transparent;font-weight:600;font-size:13.5px;color:var(--ink);outline:none}
+.chat-title-input:focus{background:#F8FAFD}
+.chat-row-bind{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border-left:1px solid var(--line);padding-left:10px}
+.chat-row-bind input{border:1px solid var(--line);border-radius:4px;padding:2px 6px;font-size:12px;width:75px;background:#fff}
+
 .chat{
-  display:flex;flex-direction:column;gap:12px;flex:1;min-height:280px;
+  display:flex;flex-direction:column;gap:12px;flex:1;min-height:260px;
   overflow-y:auto;padding:8px 14px 8px 4px;scrollbar-width:thin;scrollbar-color:var(--violet) #f1f1f1;
 }
 .chat::-webkit-scrollbar{width:6px}
@@ -221,11 +231,16 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .a-bubble.thinking{color:var(--muted);font-style:italic}
 .a-bubble.err{background:#FDECEF;border-color:var(--live);color:#8E2236}
 
-.chat-input{display:flex;gap:8px;align-items:flex-end;margin-top:4px}
-.chat-input textarea{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px;resize:vertical;min-height:46px;max-height:120px;background:#fff;outline:none}
+.chat-input{display:flex;gap:8px;align-items:flex-end;margin-top:2px}
+.chat-input textarea{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px;resize:vertical;min-height:44px;max-height:110px;background:#fff;outline:none}
 .chat-input textarea:focus{border-color:var(--violet)}
-.chat-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px solid #E2E8F0}
+.chat-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid #E2E8F0}
 .chat-toolbar .left-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+@media (max-width:900px){
+  .ask-container{grid-template-columns:1fr}
+  .chat-sidebar{display:none}
+}
 
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:9999}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -539,7 +554,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
   </div>
 </dialog>
 
-<!-- HELP & CHAT WORKSTATION DIALOG (WITH THREAD HISTORY SIDEBAR & SHAREPOINT PUSH) -->
+<!-- HELP & CHAT WORKSTATION DIALOG (WITH THREAD HISTORY SIDEBAR & METADATA BINDING) -->
 <dialog id="helpDlg" class="help" aria-labelledby="helpT">
   <div class="dlg-h">
     <h2 id="helpT" style="margin:0;font-family:var(--serif);font-size:20px;font-weight:500;color:var(--ink)">
@@ -572,7 +587,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
     </div>
   </div>
 
-  <!-- CHAT / ASK NOTES TAB WITH SLIM THREAD SIDEBAR -->
+  <!-- CHAT / ASK NOTES TAB WITH SLIM THREAD SIDEBAR & IN-MODAL ROW BINDING -->
   <div class="ask-container" id="panelAsk" role="tabpanel" aria-labelledby="tabAsk">
     
     <!-- Slim Chat Sessions Sidebar -->
@@ -586,6 +601,15 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 
     <!-- Main Chat Workspace -->
     <div class="ask-panel">
+      <!-- Session Header with Editable Title and Row ID -->
+      <div class="chat-session-meta">
+        <input type="text" class="chat-title-input" id="chatSessionTitle" placeholder="Chat Topic Title..." title="Click to rename this chat session">
+        <span class="chat-row-bind">
+          <b id="chatRowLabel">Target Row ID:</b>
+          <input type="number" id="chatTargetRowId" placeholder="Row #" title="SharePoint Row or Topic ID bound to this chat thread">
+        </span>
+      </div>
+
       <div class="chat" id="askThread" role="log" aria-live="polite" aria-label="Study conversation"></div>
       
       <div class="chat-input">
@@ -593,14 +617,15 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
         <button class="btn primary" id="askBtn" type="button">Ask</button>
       </div>
 
-      <!-- Action Toolbar with Copy & SharePoint Push -->
+      <!-- Action Toolbar with Rich Copy & Dual SharePoint Save -->
       <div class="chat-toolbar">
         <div class="left-btns">
-          <button class="btn sm" id="copyLastChatBtn" title="Copy only the latest assistant response with formatting">📋 Copy Last Answer</button>
-          <button class="btn sm" id="copyFullChatBtn" title="Copy entire chat thread as a readable transcript">📜 Copy Full Thread</button>
-          <button class="btn sm success" id="saveChatSpBtn" title="Append this chat discussion directly to SharePoint">💾 Save Chat to SharePoint</button>
+          <button class="btn sm" id="copyLastChatBtn" title="Copy last answer as rich formatted text (Word / Outlook ready)">📋 Copy Last Answer</button>
+          <button class="btn sm" id="copyFullChatBtn" title="Copy full thread as rich formatted text (Word / Outlook ready)">📜 Copy Full Thread</button>
+          <button class="btn sm success" id="saveLastChatSpBtn" title="Append only the latest Q&A to SharePoint">💾 Save Last Q&amp;A</button>
+          <button class="btn sm accent" id="saveFullChatSpBtn" title="Append the entire chat conversation to SharePoint">📚 Save Full Thread</button>
         </div>
-        <button type="button" class="btn sm" id="askNew">Clear Session</button>
+        <button type="button" class="btn sm" id="askNew" title="Clear messages in the active thread">Clear Thread</button>
       </div>
     </div>
 
@@ -2577,13 +2602,30 @@ var SITE_PATH = "/sites/Bible_App";
   })();
 
   /* =====================================================================
-     SECTION 8 - MULTI-SESSION CHAT WORKSTATION & SHAREPOINT CHAT PUSH
-     ===================================================================== */
+   SECTION 8 - MULTI-SESSION CHAT WORKSTATION (RICH COPY & GRAPH SYNC)
+   ===================================================================== */
   var CHAT_SESSIONS_KEY = 'sermonScribe_chat_sessions_v1';
   var chatSessions = [];
   var currentSessionId = null;
   var askPending = null;
   var helpDlg = $('helpDlg');
+
+  /* RICH CLIPBOARD COPY HELPER (HTML + PLAIN TEXT FALLBACK) */
+  async function copyRich(htmlContent, plainFallbackText) {
+    if (navigator.clipboard && window.ClipboardItem) {
+      try {
+        var styledHtml = '<div style="font-family:Segoe UI, Arial, sans-serif; font-size:15px; line-height:1.6; color:#1D1930;">' + htmlContent + '</div>';
+        var blobHtml = new Blob([styledHtml], { type: 'text/html' });
+        var blobText = new Blob([plainFallbackText], { type: 'text/plain' });
+        var item = new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText });
+        await navigator.clipboard.write([item]);
+        return true;
+      } catch(e) {
+        // Fallback to standard copy if browser restricts ClipboardItem
+      }
+    }
+    return copy(plainFallbackText || htmlContent);
+  }
 
   function sessionsLoad(){
     try {
@@ -2611,11 +2653,17 @@ var SITE_PATH = "/sites/Bible_App";
     return found;
   }
 
+  function getActiveRowIdFromScreen(){
+    return (mode === 'sermon' ? ($('sermonTopicId').value.trim()) : ($('targetResourceId').value.trim())) || '';
+  }
+
   function createNewSession(customTitle){
     var newId = 'chat_' + Date.now().toString(36);
     var newSession = {
       id: newId,
       title: customTitle || ('Chat ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})),
+      mode: mode,
+      targetRowId: getActiveRowIdFromScreen(),
       createdAt: Date.now(),
       messages: []
     };
@@ -2631,15 +2679,69 @@ var SITE_PATH = "/sites/Bible_App";
     chatSessions.forEach(function(s){
       var div = document.createElement('div');
       div.className = 'session-item' + (s.id === currentSessionId ? ' active' : '');
-      div.innerHTML = '<b>' + esc(s.title) + '</b><small>' + (new Date(s.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})) + ' · ' + (s.messages.length) + ' msgs</small>';
-      div.addEventListener('click', function(){
+      
+      var info = document.createElement('div');
+      info.className = 'session-info';
+      info.innerHTML = '<b>' + esc(s.title) + '</b><small>' + (new Date(s.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})) + ' · ' + (s.messages.length) + ' msgs' + (s.targetRowId ? (' · Row #' + s.targetRowId) : '') + '</small>';
+      
+      info.addEventListener('click', function(){
         currentSessionId = s.id;
+        syncActiveSessionHeader();
         renderSidebarSessions();
         askRender();
       });
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'session-del';
+      delBtn.type = 'button';
+      delBtn.title = 'Delete this chat session';
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        if(!confirm('Delete chat session "' + s.title + '"?')) return;
+        chatSessions = chatSessions.filter(function(x){ return x.id !== s.id; });
+        if(currentSessionId === s.id) {
+          currentSessionId = chatSessions.length ? chatSessions[0].id : null;
+        }
+        if(!chatSessions.length) createNewSession('New Chat');
+        sessionsSave();
+        syncActiveSessionHeader();
+        renderSidebarSessions();
+        askRender();
+        toast('Chat session deleted');
+      });
+
+      div.appendChild(info);
+      div.appendChild(delBtn);
       container.appendChild(div);
     });
   }
+
+  function syncActiveSessionHeader(){
+    var s = getActiveSession();
+    if(!s) return;
+    $('chatSessionTitle').value = s.title || '';
+    $('chatTargetRowId').value = s.targetRowId || getActiveRowIdFromScreen();
+    $('chatRowLabel').textContent = (s.mode === 'sermon' ? 'Topic ID:' : 'Target Row ID:');
+  }
+
+  $('chatSessionTitle').addEventListener('input', function(){
+    var s = getActiveSession();
+    if(s){
+      s.title = this.value.trim() || 'Untitled Chat';
+      sessionsSave();
+      renderSidebarSessions();
+    }
+  });
+
+  $('chatTargetRowId').addEventListener('input', function(){
+    var s = getActiveSession();
+    if(s){
+      s.targetRowId = this.value.trim();
+      sessionsSave();
+      renderSidebarSessions();
+    }
+  });
 
   function getChatContext(){
     var notesText = (out.innerText || '').trim();
@@ -2731,6 +2833,7 @@ var SITE_PATH = "/sites/Bible_App";
     $('panelAsk').hidden = !isAsk;
     $('panelHow').hidden = isAsk;
     if(isAsk){
+      syncActiveSessionHeader();
       renderSidebarSessions();
       askRender();
       setTimeout(function(){ $('askQ').focus(); }, 40);
@@ -2754,13 +2857,14 @@ var SITE_PATH = "/sites/Bible_App";
 
   $('sidebarNewChatBtn').addEventListener('click', function(){
     createNewSession('New Chat');
+    syncActiveSessionHeader();
     renderSidebarSessions();
     askRender();
     $('askQ').focus();
   });
 
   $('askNew').addEventListener('click', function(){
-    if(!confirm('Clear messages in this current chat session?')) return;
+    if(!confirm('Clear all messages in this current chat session?')) return;
     var activeSession = getActiveSession();
     if(activeSession) {
       activeSession.messages = [];
@@ -2770,7 +2874,7 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* COPY BUTTONS IN CHAT (WITH IN-PLACE BUTTON FEEDBACK) */
+  /* RICH COPY BUTTONS WITH IN-PLACE VISUAL FEEDBACK */
   function flashBtn(btn, tempText){
     var origHtml = btn.innerHTML;
     btn.innerHTML = '✓ ' + tempText;
@@ -2785,60 +2889,59 @@ var SITE_PATH = "/sites/Bible_App";
     }, 1600);
   }
 
-  $('copyLastChatBtn').addEventListener('click', function(){
+  $('copyLastChatBtn').addEventListener('click', async function(){
     var btn = this;
     var active = getActiveSession();
-    if(!active || !active.messages.length){ 
-      flashBtn(btn, 'Nothing to copy'); 
-      return; 
-    }
+    if(!active || !active.messages.length){ flashBtn(btn, 'Nothing to copy'); return; }
     var lastAns = active.messages[active.messages.length - 1].a;
-    copy(lastAns).then(function(){ 
-      flashBtn(btn, 'Copied Answer!'); 
-    }).catch(function(){
-      flashBtn(btn, 'Copy Failed');
-    });
+    var formattedHtml = mdToHtml(lastAns);
+    await copyRich(formattedHtml, lastAns);
+    flashBtn(btn, 'Copied Rich Text!');
   });
 
-  $('copyFullChatBtn').addEventListener('click', function(){
+  $('copyFullChatBtn').addEventListener('click', async function(){
     var btn = this;
     var active = getActiveSession();
-    if(!active || !active.messages.length){ 
-      flashBtn(btn, 'Nothing to copy'); 
-      return; 
-    }
-    var formattedTranscript = active.messages.map(function(m){
-      return 'User: ' + m.q + '\n\nAssistant:\n' + m.a;
-    }).join('\n\n---\n\n');
-    copy(formattedTranscript).then(function(){ 
-      flashBtn(btn, 'Copied Thread!'); 
-    }).catch(function(){
-      flashBtn(btn, 'Copy Failed');
+    if(!active || !active.messages.length){ flashBtn(btn, 'Nothing to copy'); return; }
+    
+    var fullHtml = '';
+    var fullPlain = '';
+
+    active.messages.forEach(function(m){
+      fullPlain += 'User: ' + m.q + '\n\nAssistant:\n' + m.a + '\n\n---\n\n';
+      fullHtml += '<div style="margin-bottom:14px;"><p style="font-weight:bold; color:#5B3F98; margin-bottom:4px;">Q: ' + esc(m.q) + '</p>' +
+                  '<div style="padding-left:8px; border-left:3px solid #D9D5E6;">' + mdToHtml(m.a) + '</div></div><hr style="border:0; border-top:1px dashed #CBD5E1; margin:16px 0;">';
     });
+
+    await copyRich(fullHtml, fullPlain);
+    flashBtn(btn, 'Copied Full Thread!');
   });
-  /* -------------------------------------------------------------
-     SAVE CHAT TO SHAREPOINT (AINotes in Resources OR StudyNotes_HTML)
-     ------------------------------------------------------------- */
-  $('saveChatSpBtn').addEventListener('click', async function(){
+
+  /* DUAL GRAPH SAVE TO SHAREPOINT: SAVE LAST VS SAVE FULL THREAD */
+  async function pushChatToSharePoint(isFullThread, triggerBtn){
     var active = getActiveSession();
     if(!active || !active.messages.length){ alert('Please have a chat conversation first before saving.'); return; }
     
-    var btn = this; btn.disabled = true;
+    // Read Row ID from the in-chat metadata bar (falls back to main screen)
+    var rowId = $('chatTargetRowId').value.trim() || active.targetRowId || getActiveRowIdFromScreen();
+    var sMode = active.mode || mode;
+
+    if(!rowId){
+      alert('Please enter a ' + (sMode === 'sermon' ? 'Topic ID' : 'Target Row ID') + ' in the header bar above before saving.');
+      $('chatTargetRowId').focus();
+      return;
+    }
+
+    triggerBtn.disabled = true;
     try {
       var token = await getMsalToken();
       var siteId = await resolveSiteId(token);
       var timeStamp = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-      // Formatted chat exchange
-      var lastEx = active.messages[active.messages.length - 1];
-      
       // =========================================================
       // DEVOTIONAL MODE -> Resources (AINotes Column)
       // =========================================================
-      if(mode === 'devotional') {
-        var rowId = $('targetResourceId').value.trim();
-        if(!rowId){ alert('Please enter a Target Resource Row ID to save this chat to.'); return; }
-        
+      if(sMode === 'devotional') {
         var listId = await getListId(token, siteId, 'Resources');
         logSync('Reading existing AINotes from Resources #' + rowId + '...');
 
@@ -2853,9 +2956,17 @@ var SITE_PATH = "/sites/Bible_App";
         }) || 'AINotes';
 
         var oldAiNotes = fields[targetFieldKey] || '';
-        var chatPayload = '\n\n--- AI Study Chat (' + timeStamp + ') ---\nQ: ' + lastEx.q + '\n\nA:\n' + lastEx.a;
-        var finalAiNotes = oldAiNotes ? (oldAiNotes + chatPayload) : chatPayload.trim();
+        var chatPayload = '';
 
+        if(isFullThread){
+          chatPayload = '\n\n--- Full AI Study Discussion (' + timeStamp + ') ---\n' +
+            active.messages.map(function(m){ return 'Q: ' + m.q + '\n\nA:\n' + m.a; }).join('\n\n---\n\n');
+        } else {
+          var lastEx = active.messages[active.messages.length - 1];
+          chatPayload = '\n\n--- AI Study Chat (' + timeStamp + ') ---\nQ: ' + lastEx.q + '\n\nA:\n' + lastEx.a;
+        }
+
+        var finalAiNotes = oldAiNotes ? (oldAiNotes + chatPayload) : chatPayload.trim();
         var patchBody = {};
         patchBody[targetFieldKey] = finalAiNotes;
 
@@ -2868,7 +2979,7 @@ var SITE_PATH = "/sites/Bible_App";
 
         if(!pRes.ok) {
           var pData = await pRes.json();
-          throw new Error(pData.error && pData.error.message || ('Failed to update AINotes. Ensure column "AINotes" exists in Resources list.'));
+          throw new Error(pData.error && pData.error.message || 'Failed to update AINotes. Ensure column "AINotes" exists in Resources list.');
         }
 
         logSync('✓ Saved Chat to Resources #' + rowId + ' (' + targetFieldKey + ')');
@@ -2878,29 +2989,37 @@ var SITE_PATH = "/sites/Bible_App";
       // SERMON MODE -> Devotional_Topics (StudyNotes_HTML Column)
       // =========================================================
       else {
-        var topicId = $('sermonTopicId').value.trim();
-        if(!topicId){ alert('Please enter an existing Topic ID first to append this chat to.'); return; }
-
         var listId = await getListId(token, siteId, 'Devotional_Topics');
-        logSync('Reading StudyNotes_HTML from Topic #' + topicId + '...');
+        logSync('Reading StudyNotes_HTML from Topic #' + rowId + '...');
 
-        var getUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + topicId + '?expand=fields';
+        var getUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '?expand=fields';
         var getRes = await fetch(getUrl, { headers: { 'Authorization': 'Bearer ' + token } });
         var getData = await getRes.json();
-        if(!getRes.ok) throw new Error(getData.error && getData.error.message || ('Topic #' + topicId + ' not found'));
+        if(!getRes.ok) throw new Error(getData.error && getData.error.message || ('Topic #' + rowId + ' not found'));
 
         var fields = getData.fields || {};
         var oldNotes = fields.StudyNotes_HTML || '';
+        var chatHtmlBlock = '';
 
-        var chatHtmlBlock = '<div style="margin-top:20px; border-top:2px dashed #93C5FD; padding-top:12px;">' +
-          '<p style="font-size:12px; font-weight:bold; color:#1E40AF; text-transform:uppercase">💬 AI Discussion (Q&amp;A) · ' + timeStamp + '</p>' +
-          '<p style="margin-bottom:6px"><strong>Question:</strong> ' + esc(lastEx.q) + '</p>' +
-          '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px;">' + mdToHtml(lastEx.a) + '</div>' +
-          '</div>';
+        if(isFullThread){
+          chatHtmlBlock = '<div style="margin-top:20px; border-top:2px dashed #93C5FD; padding-top:12px;">' +
+            '<p style="font-size:12px; font-weight:bold; color:#1E40AF; text-transform:uppercase">📚 Full AI Study Conversation (' + active.messages.length + ' Turns) · ' + timeStamp + '</p>';
+          active.messages.forEach(function(m){
+            chatHtmlBlock += '<div style="margin-bottom:12px;"><p style="margin-bottom:4px"><strong>Question:</strong> ' + esc(m.q) + '</p>' +
+              '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px;">' + mdToHtml(m.a) + '</div></div>';
+          });
+          chatHtmlBlock += '</div>';
+        } else {
+          var lastEx = active.messages[active.messages.length - 1];
+          chatHtmlBlock = '<div style="margin-top:20px; border-top:2px dashed #93C5FD; padding-top:12px;">' +
+            '<p style="font-size:12px; font-weight:bold; color:#1E40AF; text-transform:uppercase">💬 AI Discussion (Q&amp;A) · ' + timeStamp + '</p>' +
+            '<p style="margin-bottom:6px"><strong>Question:</strong> ' + esc(lastEx.q) + '</p>' +
+            '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px;">' + mdToHtml(lastEx.a) + '</div>' +
+            '</div>';
+        }
 
         var finalNotes = oldNotes ? (oldNotes + chatHtmlBlock) : chatHtmlBlock;
-
-        var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + topicId + '/fields';
+        var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '/fields';
         var pRes = await fetch(patchUrl, {
           method: 'PATCH',
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
@@ -2912,18 +3031,26 @@ var SITE_PATH = "/sites/Bible_App";
           throw new Error(pData.error && pData.error.message || 'Topic update failed');
         }
 
-        logSync('✓ Appended Chat Q&A to Topic #' + topicId + ' (StudyNotes_HTML)');
-        toast('Chat appended to Topic #' + topicId + ' successfully!');
+        logSync('✓ Appended Chat to Topic #' + rowId + ' (StudyNotes_HTML)');
+        toast('Chat appended to Topic #' + rowId + ' successfully!');
       }
+
+      // Keep metadata saved
+      active.targetRowId = rowId;
+      sessionsSave();
+      renderSidebarSessions();
     } catch(e) {
       logSync('❌ Chat save error: ' + e.message);
       alert('Save to SharePoint failed: ' + e.message);
     } finally {
-      btn.disabled = false;
+      triggerBtn.disabled = false;
     }
-  });
+  }
 
-async function executeGeminiChat(contentsList, model, key) {
+  $('saveLastChatSpBtn').addEventListener('click', function(){ pushChatToSharePoint(false, this); });
+  $('saveFullChatSpBtn').addEventListener('click', function(){ pushChatToSharePoint(true, this); });
+
+  async function executeGeminiChat(contentsList, model, key) {
     var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
@@ -2969,7 +3096,7 @@ async function executeGeminiChat(contentsList, model, key) {
       "1. DIRECT INQUIRY: If the user asks what the notes say, answer directly from the CURRENT STUDY NOTES.\n" +
       "2. EXPLORATORY & ADDITIVE: If the user asks you to expand, explain, or add context to a concept in the notes, use your broad theological/historical knowledge to enrich the study. You are encouraged to bring in outside insights that fit the Reformed perspective.\n" +
       "3. UNRELATED QUESTIONS: If the user asks a completely random or general biblical question, freely use your general knowledge to answer them.\n\n" +
-      "In ALL cases, maintain a pastorally warm, Christ-centered, grace-first perspective through an interpretive lens of Protestant and Reformed theology (Spurgeon, Calvin, R.C Sproul, Luther, Westminster Standards, Augustine,";
+      "In ALL cases, maintain a pastorally warm, Christ-centered, grace-first perspective.";
 
     askPending = { q: q, kind: 'thinking', text: 'Thinking...' };
     $('askQ').value = '';
@@ -2997,7 +3124,6 @@ async function executeGeminiChat(contentsList, model, key) {
       }
       contents.push({ role: 'user', parts: [{ text: currentPayload }] });
 
-      // Determine starting model based on tier and session memory
       var targetModel = (activeTier === 'paid') ? paidModel : primaryFreeModel;
       var activeKey = key;
 
@@ -3014,7 +3140,6 @@ async function executeGeminiChat(contentsList, model, key) {
       try {
         reply = await executeGeminiChat(contents, targetModel, activeKey);
       } catch (err) {
-        // Trigger the interactive Pop-up if Google is congested
         if (err.isHighDemand && activeTier === 'free') {
           var decision = { action: busyPolicy, remember: false };
           if (busyPolicy === 'ask') {
@@ -3051,17 +3176,19 @@ async function executeGeminiChat(contentsList, model, key) {
       activeSession.messages.push({ q: q, a: reply.trim() });
       activeSession.messages = activeSession.messages.slice(-10);
       sessionsSave();
+      syncActiveSessionHeader();
       renderSidebarSessions();
       askPending = null;
     } catch(e){
       askPending = { q: q, kind: 'err', text: 'Chat error: ' + esc(e.message) };
-      $('askQ').value = q; // Put the question back in the box so it isn't lost
+      $('askQ').value = q;
     } finally {
       $('askBtn').disabled = false;
       askRender();
       $('askQ').focus();
     }
   }
+
   $('askBtn').addEventListener('click', submitChatQuestion);
   $('askQ').addEventListener('keydown', function(e){
     if(e.key === 'Enter' && !e.shiftKey){
