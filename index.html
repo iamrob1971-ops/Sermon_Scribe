@@ -193,7 +193,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .help .tabs button[aria-selected="true"]{color:var(--violet);border-bottom-color:var(--violet)}
 .help .tabs button:hover{color:var(--violet)}
 
-.ask-container{display:grid;grid-template-columns:230px 1fr;min-height:500px;max-height:min(72vh, 740px);background:#FBFAFD}
+.ask-container{display:grid;grid-template-columns:240px 1fr;min-height:500px;max-height:min(72vh, 740px);background:#FBFAFD}
 .chat-sidebar{border-right:1px solid var(--line);background:#F8FAFD;display:flex;flex-direction:column;padding:12px 10px;gap:8px;overflow-y:auto}
 .sidebar-hdr{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;padding:2px 4px}
 .session-item{text-align:left;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:12px;line-height:1.35;transition:.15s;display:flex;align-items:center;justify-content:space-between;gap:6px}
@@ -201,7 +201,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .session-item.active{border-color:var(--violet);background:var(--violet-t);font-weight:600}
 .session-info{display:grid;gap:2px;overflow:hidden;flex:1}
 .session-info b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.session-info small{color:var(--muted);font-size:10.5px}
+.session-info small{color:var(--muted);font-size:10.5px;display:flex;align-items:center;gap:4px}
+.mode-badge{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;text-transform:uppercase}
+.mode-badge.sermon{background:#E0E7FF;color:#3730A3}
+.mode-badge.devotional{background:#DCFCE7;color:#166534}
 .session-del{border:0;background:none;color:#94A3B8;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;line-height:1}
 .session-del:hover{color:#DC2626;background:#FEE2E2}
 
@@ -237,10 +240,8 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .chat-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid #E2E8F0}
 .chat-toolbar .left-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 
-@media (max-width:900px){
-  .ask-container{grid-template-columns:1fr}
-  .chat-sidebar{display:none}
-}
+.btn-danger-soft{color:#B91C1C;border-color:#FECACA;background:#FEF2F2}
+.btn-danger-soft:hover{background:#FEE2E2;border-color:#F87171}
 
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:9999}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -571,8 +572,8 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
   <div id="panelHow" role="tabpanel" aria-labelledby="tabHow" hidden>
     <div style="padding:16px 22px;max-height:60vh;overflow-y:auto;line-height:1.6;font-size:13.5px;color:var(--ink)">
       <h3 style="margin:0 0 6px;color:var(--violet)">Working Modes &amp; SharePoint Sync</h3>
-      <p style="margin:0 0 10px"><b>Sermon Mode:</b> Built for expository preaching and personal sermon notes. Saves into the <code>Devotional_Topics</code> list. Entering a Topic ID and clicking <b>📥 Pull</b> loads existing sermon records into your view. Saving appends or replaces into <code>StudyNotes_HTML</code>.</p>
-      <p style="margin:0 0 14px"><b>Devotional Mode:</b> Built for Spurgeon's <i>Faith's Checkbook</i>. Entering a Target Row ID and clicking <b>📥 Pull</b> loads Spurgeon's text into the transcript area. Saving posts to <code>Resources</code> (AdditionalCommentary), <code>Companion_Voices</code>, and <code>Family_Insights</code>.</p>
+      <p style="margin:0 0 10px"><b>Sermon Mode:</b> Built for expository preaching and personal sermon notes. Saves into the <code>Devotional_Topics</code> list. Entering a Topic ID and clicking <b>📥 Pull</b> loads existing sermon records into your view. Saving appends or replaces into <code>KeyHighlights_HTML</code> (Summary) and <code>StudyNotes_HTML</code> (Transcript), while chat discussions append directly to <code>Other_SummariesForStudy</code>.</p>
+      <p style="margin:0 0 14px"><b>Devotional Mode:</b> Built for Spurgeon's <i>Faith's Checkbook</i>. Entering a Target Row ID and clicking <b>📥 Pull</b> loads Spurgeon's text into the transcript area. Saving posts to <code>Resources</code> (AdditionalCommentary), <code>Companion_Voices</code>, and <code>Family_Insights</code>, while chat discussions append directly to <code>AINotes</code>.</p>
       
       <h3 style="margin:14px 0 6px;color:var(--violet)">Recording &amp; Audio Slicing</h3>
       <p style="margin:0 0 10px"><b>Live Mic:</b> Real-time browser speech recognition with room-echo deduplication and a clean pause guard.</p>
@@ -622,10 +623,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
         <div class="left-btns">
           <button class="btn sm" id="copyLastChatBtn" title="Copy last answer as rich formatted text (Word / Outlook ready)">📋 Copy Last Answer</button>
           <button class="btn sm" id="copyFullChatBtn" title="Copy full thread as rich formatted text (Word / Outlook ready)">📜 Copy Full Thread</button>
-          <button class="btn sm success" id="saveLastChatSpBtn" title="Append only the latest Q&A to SharePoint">💾 Save Last Q&amp;A</button>
-          <button class="btn sm accent" id="saveFullChatSpBtn" title="Append the entire chat conversation to SharePoint">📚 Save Full Thread</button>
+          <button class="btn sm success" id="saveLastChatSpBtn" title="Append only the latest Q&A to SharePoint in rich formatted HTML">💾 Save Last Q&amp;A</button>
+          <button class="btn sm accent" id="saveFullChatSpBtn" title="Append the entire chat conversation to SharePoint in rich formatted HTML">📚 Save Full Thread</button>
         </div>
-        <button type="button" class="btn sm" id="askNew" title="Clear messages in the active thread">Clear Thread</button>
+        <button type="button" class="btn sm btn-danger-soft" id="askNew" title="⚠️ WARNING: This will permanently delete all messages in this active chat thread. To start a fresh thread without losing this one, click '+ New' in the left sidebar instead!">🗑️ Clear Active Thread</button>
       </div>
     </div>
 
@@ -1928,11 +1929,9 @@ var SITE_PATH = "/sites/Bible_App";
   /* -------------------------------------------------------------
      BI-DIRECTIONAL GRAPH PULL (RETRIEVAL FROM SHAREPOINT)
      ------------------------------------------------------------- */
- /* Helper to strip SharePoint ExternalClass wrappers and decode HTML entities into clean plain text */
   function htmlToPlainText(html) {
     if (!html) return '';
     var tmp = document.createElement('div');
-    // Preserve paragraph and line breaks before stripping tags
     var formatted = html
       .replace(/<br\s*[\/]?>/gi, '\n')
       .replace(/<\/p>/gi, '\n\n')
@@ -1942,7 +1941,8 @@ var SITE_PATH = "/sites/Bible_App";
     tmp.innerHTML = formatted;
     return (tmp.textContent || tmp.innerText || '').trim();
   }
-  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST (WITH PLAIN TEXT & AUTO-DATE)
+
+  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
   $('pullDevoBtn').addEventListener('click', async function(){
     var rowId = $('targetResourceId').value.trim();
     if(!rowId){ alert('Please enter a Target Resource Row ID to pull.'); return; }
@@ -1984,7 +1984,6 @@ var SITE_PATH = "/sites/Bible_App";
       var mNum = parseInt(fields.MonthNum, 10);
       var dNum = parseInt(fields.Day, 10);
 
-      // Fallback: If MonthNum is missing, parse from text Month name (e.g. "November")
       if ((!mNum || isNaN(mNum)) && fields.Month) {
         var monthNames = ["january","february","march","april","may","june","july","august","september","october","november","december"];
         var idx = monthNames.indexOf(fields.Month.toLowerCase().trim());
@@ -1997,6 +1996,23 @@ var SITE_PATH = "/sites/Bible_App";
         $('devoDate').value = isoDateStr;
         scheduleSave();
         logSync('  📅 Date set to: ' + isoDateStr + ' (' + (fields.Month || ('Month ' + mNum)) + ' ' + dNum + ')');
+      }
+
+      // 4. PULL CHAT HISTORY (From AINotes) INTO SIDEBAR SESSION
+      var aiNotesContent = fields.AINotes || '';
+      if (aiNotesContent && aiNotesContent.trim()) {
+        var sessTitle = 'Devo #' + rowId + ' Chat';
+        var existingSess = chatSessions.find(function(s){ return s.targetRowId === rowId && s.mode === 'devotional'; });
+        if (!existingSess) {
+          existingSess = createNewSession(sessTitle);
+          existingSess.mode = 'devotional';
+          existingSess.targetRowId = rowId;
+        }
+        // Load the chat data as an initial conversation turn
+        existingSess.messages = [{ q: 'Saved Chat from SharePoint', a: aiNotesContent }];
+        sessionsSave();
+        renderSidebarSessions();
+        logSync('  💬 Pulled AINotes into Chat Sidebar for Row #' + rowId);
       }
 
       logSync('✓ Pulled Resource #' + rowId + ': "' + (fields.Title || '') + '"');
@@ -2055,6 +2071,22 @@ var SITE_PATH = "/sites/Bible_App";
         checkNotesState();
       }
 
+      // 3. PULL CHAT HISTORY (From Other_SummariesForStudy) INTO SIDEBAR SESSION
+      var otherSummaries = fields.Other_SummariesForStudy || '';
+      if (otherSummaries && otherSummaries.trim()) {
+        var sessTitle = 'Sermon #' + topicId + ' Chat';
+        var existingSess = chatSessions.find(function(s){ return s.targetRowId === topicId && s.mode === 'sermon'; });
+        if (!existingSess) {
+          existingSess = createNewSession(sessTitle);
+          existingSess.mode = 'sermon';
+          existingSess.targetRowId = topicId;
+        }
+        existingSess.messages = [{ q: 'Saved Chat from SharePoint', a: otherSummaries }];
+        sessionsSave();
+        renderSidebarSessions();
+        logSync('  💬 Pulled Other_SummariesForStudy into Chat Sidebar for Topic #' + topicId);
+      }
+
       logSync('✓ Pulled Topic #' + topicId + ': "' + (fields.Title || '') + '"');
       toast('Pulled Topic #' + topicId + ' successfully!');
     } catch(e) {
@@ -2087,7 +2119,7 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-/* A. SERMON MODE -> DEVOTIONAL_TOPICS & DEVOTIONAL_THEMES */
+  /* A. SERMON MODE -> DEVOTIONAL_TOPICS & DEVOTIONAL_THEMES */
   async function saveSermonToTopics(token, siteId){
     var titleVal = $('title').value.trim() || ('Study Entry — ' + new Date().toLocaleDateString());
     var isCustomTheme = ($('themeSelect').value === '_custom');
@@ -2402,6 +2434,7 @@ var SITE_PATH = "/sites/Bible_App";
           var compName = line.slice(0, sepIdx).replace(/^[-*•#\s]+/, '').trim();
           var compContent = line.slice(sepIdx + 1).trim();
 
+          // Reject non-voice lines and Bible verse citations (e.g. "Jeremiah 15", "Ephesians 6:10")
           var skipWords = ['verse', 'hook', 'reflect', 'pray', 'reference', 'hymn', 'refrain', 'expanded commentary'];
           if (skipWords.includes(compName.toLowerCase())) continue;
           if (/^(?:[1-3]\s*)?[A-Za-z]+\s+\d+$/i.test(compName) || /^\d+:\d+/.test(compContent)) continue;
@@ -2448,6 +2481,7 @@ var SITE_PATH = "/sites/Bible_App";
       var jonText     = getSlice(/(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i,     /(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i);
       var kimText     = getSlice(/(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i);
       var robText     = getSlice(/(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i,          /(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i);
+      
       var famPrayText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i,   /(?:^|\n)\s*```/i);
       var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*```/i);
 
@@ -2602,8 +2636,8 @@ var SITE_PATH = "/sites/Bible_App";
   })();
 
   /* =====================================================================
-   SECTION 8 - MULTI-SESSION CHAT WORKSTATION (RICH COPY & GRAPH SYNC)
-   ===================================================================== */
+     SECTION 8 - MULTI-SESSION CHAT WORKSTATION (RICH COPY & GRAPH SYNC)
+     ===================================================================== */
   var CHAT_SESSIONS_KEY = 'sermonScribe_chat_sessions_v1';
   var chatSessions = [];
   var currentSessionId = null;
@@ -2680,9 +2714,18 @@ var SITE_PATH = "/sites/Bible_App";
       var div = document.createElement('div');
       div.className = 'session-item' + (s.id === currentSessionId ? ' active' : '');
       
+      var isSermon = (s.mode === 'sermon');
+      var badgeClass = isSermon ? 'mode-badge sermon' : 'mode-badge devotional';
+      var badgeText = isSermon ? '🟣 Sermon' : '🟢 Devo';
+      
       var info = document.createElement('div');
       info.className = 'session-info';
-      info.innerHTML = '<b>' + esc(s.title) + '</b><small>' + (new Date(s.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})) + ' · ' + (s.messages.length) + ' msgs' + (s.targetRowId ? (' · Row #' + s.targetRowId) : '') + '</small>';
+      info.innerHTML = '<b>' + esc(s.title) + '</b>' +
+        '<small>' +
+          '<span class="' + badgeClass + '">' + badgeText + '</span> ' +
+          (new Date(s.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})) + ' · ' + (s.messages.length) + ' msgs' +
+          (s.targetRowId ? (' · #' + s.targetRowId) : '') +
+        '</small>';
       
       info.addEventListener('click', function(){
         currentSessionId = s.id;
@@ -2863,8 +2906,9 @@ var SITE_PATH = "/sites/Bible_App";
     $('askQ').focus();
   });
 
+  // Clear button with explicit warning tooltip and confirmation
   $('askNew').addEventListener('click', function(){
-    if(!confirm('Clear all messages in this current chat session?')) return;
+    if(!confirm('⚠️ WARNING: This will permanently ERASE all messages in this active chat thread.\n\nTip: If you want to keep this chat and start a new one, click "➕ New" in the left sidebar instead.\n\nAre you sure you want to clear this thread?')) return;
     var activeSession = getActiveSession();
     if(activeSession) {
       activeSession.messages = [];
@@ -2917,12 +2961,36 @@ var SITE_PATH = "/sites/Bible_App";
     flashBtn(btn, 'Copied Full Thread!');
   });
 
+  /* HELPER TO FORMAT CHAT INTO GORGEOUS, POWER APPS-READY HTML */
+  function buildRichChatHtml(messages, isFullThread, timeStamp, sMode) {
+    var themeColor = (sMode === 'sermon') ? '#1E40AF' : '#15803D';
+    var themeBg = (sMode === 'sermon') ? '#EFF6FF' : '#F0FDF4';
+    var borderColor = (sMode === 'sermon') ? '#93C5FD' : '#86EFAC';
+    var titleLabel = isFullThread ? ('📚 Full AI Study Conversation (' + messages.length + ' Turns) · ' + timeStamp) : ('💬 AI Discussion (Q&amp;A) · ' + timeStamp);
+
+    var html = '<div class="chat-sharepoint-card" style="margin-top:20px; border-top:2px dashed ' + borderColor + '; padding-top:14px; font-family:Segoe UI, sans-serif;">' +
+      '<p style="font-size:12px; font-weight:bold; color:' + themeColor + '; text-transform:uppercase; margin-bottom:10px;">' + titleLabel + '</p>';
+
+    var msgsToRender = isFullThread ? messages : [messages[messages.length - 1]];
+
+    msgsToRender.forEach(function(m){
+      html += '<div style="margin-bottom:14px; background:' + themeBg + '; border:1px solid ' + borderColor + '; border-radius:8px; padding:12px 14px;">' +
+        '<p style="margin:0 0 8px; font-weight:bold; color:' + themeColor + '; font-size:13.5px;">Question: ' + esc(m.q) + '</p>' +
+        '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; color:#1D1930; font-size:14px; line-height:1.55;">' +
+          mdToHtml(m.a) +
+        '</div>' +
+      '</div>';
+    });
+
+    html += '</div>';
+    return html;
+  }
+
   /* DUAL GRAPH SAVE TO SHAREPOINT: SAVE LAST VS SAVE FULL THREAD */
   async function pushChatToSharePoint(isFullThread, triggerBtn){
     var active = getActiveSession();
     if(!active || !active.messages.length){ alert('Please have a chat conversation first before saving.'); return; }
     
-    // Read Row ID from the in-chat metadata bar (falls back to main screen)
     var rowId = $('chatTargetRowId').value.trim() || active.targetRowId || getActiveRowIdFromScreen();
     var sMode = active.mode || mode;
 
@@ -2939,7 +3007,7 @@ var SITE_PATH = "/sites/Bible_App";
       var timeStamp = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
       // =========================================================
-      // DEVOTIONAL MODE -> Resources (AINotes Column)
+      // DEVOTIONAL MODE -> Resources (AINotes Column in Rich HTML)
       // =========================================================
       if(sMode === 'devotional') {
         var listId = await getListId(token, siteId, 'Resources');
@@ -2956,17 +3024,9 @@ var SITE_PATH = "/sites/Bible_App";
         }) || 'AINotes';
 
         var oldAiNotes = fields[targetFieldKey] || '';
-        var chatPayload = '';
+        var richChatHtml = buildRichChatHtml(active.messages, isFullThread, timeStamp, 'devotional');
+        var finalAiNotes = oldAiNotes ? (oldAiNotes + '<br>' + richChatHtml) : richChatHtml;
 
-        if(isFullThread){
-          chatPayload = '\n\n--- Full AI Study Discussion (' + timeStamp + ') ---\n' +
-            active.messages.map(function(m){ return 'Q: ' + m.q + '\n\nA:\n' + m.a; }).join('\n\n---\n\n');
-        } else {
-          var lastEx = active.messages[active.messages.length - 1];
-          chatPayload = '\n\n--- AI Study Chat (' + timeStamp + ') ---\nQ: ' + lastEx.q + '\n\nA:\n' + lastEx.a;
-        }
-
-        var finalAiNotes = oldAiNotes ? (oldAiNotes + chatPayload) : chatPayload.trim();
         var patchBody = {};
         patchBody[targetFieldKey] = finalAiNotes;
 
@@ -2982,15 +3042,15 @@ var SITE_PATH = "/sites/Bible_App";
           throw new Error(pData.error && pData.error.message || 'Failed to update AINotes. Ensure column "AINotes" exists in Resources list.');
         }
 
-        logSync('✓ Saved Chat to Resources #' + rowId + ' (' + targetFieldKey + ')');
+        logSync('✓ Saved Chat to Resources #' + rowId + ' (' + targetFieldKey + ' as Rich HTML)');
         toast('Chat appended to Resources #' + rowId + ' (AINotes)!');
       } 
       // =========================================================
-      // SERMON MODE -> Devotional_Topics (StudyNotes_HTML Column)
+      // SERMON MODE -> Devotional_Topics (Other_SummariesForStudy)
       // =========================================================
       else {
         var listId = await getListId(token, siteId, 'Devotional_Topics');
-        logSync('Reading StudyNotes_HTML from Topic #' + rowId + '...');
+        logSync('Reading Other_SummariesForStudy from Topic #' + rowId + '...');
 
         var getUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '?expand=fields';
         var getRes = await fetch(getUrl, { headers: { 'Authorization': 'Bearer ' + token } });
@@ -2998,44 +3058,35 @@ var SITE_PATH = "/sites/Bible_App";
         if(!getRes.ok) throw new Error(getData.error && getData.error.message || ('Topic #' + rowId + ' not found'));
 
         var fields = getData.fields || {};
-        var oldNotes = fields.StudyNotes_HTML || '';
-        var chatHtmlBlock = '';
+        
+        var targetFieldKey = Object.keys(fields).find(function(k){
+          return k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'othersummariesforstudy';
+        }) || 'Other_SummariesForStudy';
 
-        if(isFullThread){
-          chatHtmlBlock = '<div style="margin-top:20px; border-top:2px dashed #93C5FD; padding-top:12px;">' +
-            '<p style="font-size:12px; font-weight:bold; color:#1E40AF; text-transform:uppercase">📚 Full AI Study Conversation (' + active.messages.length + ' Turns) · ' + timeStamp + '</p>';
-          active.messages.forEach(function(m){
-            chatHtmlBlock += '<div style="margin-bottom:12px;"><p style="margin-bottom:4px"><strong>Question:</strong> ' + esc(m.q) + '</p>' +
-              '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px;">' + mdToHtml(m.a) + '</div></div>';
-          });
-          chatHtmlBlock += '</div>';
-        } else {
-          var lastEx = active.messages[active.messages.length - 1];
-          chatHtmlBlock = '<div style="margin-top:20px; border-top:2px dashed #93C5FD; padding-top:12px;">' +
-            '<p style="font-size:12px; font-weight:bold; color:#1E40AF; text-transform:uppercase">💬 AI Discussion (Q&amp;A) · ' + timeStamp + '</p>' +
-            '<p style="margin-bottom:6px"><strong>Question:</strong> ' + esc(lastEx.q) + '</p>' +
-            '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px;">' + mdToHtml(lastEx.a) + '</div>' +
-            '</div>';
-        }
+        var oldSummaries = fields[targetFieldKey] || '';
+        var richChatHtml = buildRichChatHtml(active.messages, isFullThread, timeStamp, 'sermon');
+        var finalSummaries = oldSummaries ? (oldSummaries + '<br>' + richChatHtml) : richChatHtml;
 
-        var finalNotes = oldNotes ? (oldNotes + chatHtmlBlock) : chatHtmlBlock;
+        var patchBody = {};
+        patchBody[targetFieldKey] = finalSummaries;
+
         var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '/fields';
         var pRes = await fetch(patchUrl, {
           method: 'PATCH',
           headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ StudyNotes_HTML: finalNotes })
+          body: JSON.stringify(patchBody)
         });
 
         if(!pRes.ok) {
           var pData = await pRes.json();
-          throw new Error(pData.error && pData.error.message || 'Topic update failed');
+          throw new Error(pData.error && pData.error.message || ('Failed to update ' + targetFieldKey + '. Verify column exists on Devotional_Topics list.'));
         }
 
-        logSync('✓ Appended Chat to Topic #' + rowId + ' (StudyNotes_HTML)');
-        toast('Chat appended to Topic #' + rowId + ' successfully!');
+        logSync('✓ Appended Chat to Topic #' + rowId + ' (' + targetFieldKey + ' as Rich HTML)');
+        toast('Chat appended to Topic #' + rowId + ' (' + targetFieldKey + ')!');
       }
 
-      // Keep metadata saved
+      // Save bound row ID to session metadata
       active.targetRowId = rowId;
       sessionsSave();
       renderSidebarSessions();
