@@ -80,22 +80,22 @@ header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:spac
 .chip{white-space:nowrap;text-decoration:none;font-family:var(--serif);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid color-mix(in srgb,var(--gold) 35%,white);border-radius:6px;padding:2px 8px}
 a.chip:hover{border-color:var(--gold)}
 
-/* Audio Queue Progress Banner */
+/* Audio Progress Banner */
 .audio-queue-status{
   padding:8px 22px;background:#EFF6FF;border-bottom:1px solid #BFDBFE;
   font-size:13px;color:#1E40AF;display:none;align-items:center;gap:10px;font-weight:500;
 }
 
-/* Image Attachment Strips */
+/* Image Attachment Strips (Main Raw Input) */
 .page-img-bar{
   display:flex;gap:8px;padding:8px 22px;background:#F8FAFD;border-bottom:1px solid var(--line);
-  overflow-x:auto;align-items:center;min-height:46px;
+  overflow-x:auto;align-items:center;min-height:46px;flex-wrap:wrap;
 }
 .img-chip{
   display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);
   border-radius:6px;padding:3px 6px;font-size:11.5px;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,0.04);
 }
-.img-chip img{width:28px;height:28px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+.img-chip img{width:28px;height:28px;object-fit:cover;border-radius:4px;border:1px solid var(--line);cursor:pointer}
 .img-chip-del{border:0;background:none;color:#94A3B8;cursor:pointer;font-size:12px;padding:1px 4px;border-radius:3px}
 .img-chip-del:hover{color:#DC2626;background:#FEE2E2}
 
@@ -198,7 +198,7 @@ dialog::backdrop{background:rgba(29,25,48,.45)}
 .cap-btn b{font-size:14px}
 .cap-btn small{font-size:12px;color:var(--muted)}
 
-/* HELP & CHAT WORKSTATION DIALOG (WITH THREAD SIDEBAR & METADATA BINDING) */
+/* HELP & CHAT WORKSTATION DIALOG (WITH MULTI-SNIP & OCR) */
 dialog.help{border:1px solid var(--line);border-radius:14px;padding:0;width:min(960px,96vw);color:var(--ink)}
 dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .help .tabs{display:flex;gap:4px;padding:8px 20px 0;border-bottom:1px solid var(--line);background:var(--paper)}
@@ -228,11 +228,11 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .chat-row-bind{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border-left:1px solid var(--line);padding-left:10px}
 .chat-row-bind input{border:1px solid var(--line);border-radius:4px;padding:2px 6px;font-size:12px;width:75px;background:#fff}
 
+/* Chat Multi-Image Preview Strip */
 .chat-img-preview{
   display:flex;align-items:center;gap:8px;padding:6px 10px;background:#F1F5F9;
-  border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--ink);
+  border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--ink);flex-wrap:wrap;
 }
-.chat-img-preview img{width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
 
 .chat{
   display:flex;flex-direction:column;gap:12px;flex:1;min-height:260px;
@@ -245,7 +245,8 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .chat-empty .ex:hover{background:var(--violet-t);border-color:var(--violet)}
 
 .q-pill{align-self:flex-end;max-width:85%;background:var(--violet);color:#fff;border-radius:16px 16px 4px 16px;padding:9px 15px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
-.chat-pill-img{max-width:240px;max-height:160px;object-fit:contain;border-radius:6px;margin-bottom:6px;display:block;border:1px solid rgba(255,255,255,0.4);cursor:pointer}
+.chat-pill-imgs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.chat-pill-img{max-width:220px;max-height:140px;object-fit:contain;border-radius:6px;border:1px solid rgba(255,255,255,0.4);cursor:pointer}
 .a-bubble{align-self:flex-start;max-width:94%;background:#fff;border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:11px 16px;font-size:13.5px;line-height:1.55;overflow-wrap:anywhere;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
 .a-bubble p{margin:4px 0}
 .a-bubble p:first-child{margin-top:0}
@@ -367,7 +368,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <span id="audioQueueText">Processing audio file...</span>
     </div>
 
-    <!-- Attached Snips Bar for Main Raw Input -->
+    <!-- Attached Snips Bar for Main Raw Input (With On-Demand OCR Button) -->
     <div class="page-img-bar" id="pageImgBar" style="display:none;"></div>
     
     <div class="transcript-area">
@@ -582,7 +583,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
   </div>
 </dialog>
 
-<!-- HELP & CHAT WORKSTATION DIALOG (WITH THREAD HISTORY SIDEBAR & IMAGE INTAKE) -->
+<!-- HELP & CHAT WORKSTATION DIALOG (WITH MULTI-SNIP & OCR) -->
 <dialog id="helpDlg" class="help" aria-labelledby="helpT">
   <div class="dlg-h">
     <h2 id="helpT" style="margin:0;font-family:var(--serif);font-size:20px;font-weight:500;color:var(--ink)">
@@ -602,9 +603,9 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <p style="margin:0 0 10px"><b>Sermon Mode:</b> Built for expository preaching and sermon notes. Saves into the <code>Devotional_Topics</code> list. Entering a Topic ID and clicking <b>📥 Pull</b> loads existing records. Saving appends/replaces into <code>KeyHighlights_HTML</code> (Summary) and <code>StudyNotes_HTML</code> (Transcript + Images), while chat discussions append directly to <code>Other_SummariesForStudy</code>.</p>
       <p style="margin:0 0 14px"><b>Devotional Mode:</b> Built for Spurgeon's <i>Faith's Checkbook</i>. Entering a Target Row ID and clicking <b>📥 Pull</b> loads Spurgeon's text into the transcript area. Saving posts to <code>Resources</code> (AdditionalCommentary), <code>Companion_Voices</code>, and <code>Family_Insights</code>, while chat discussions append directly to <code>AINotes</code>.</p>
       
-      <h3 style="margin:14px 0 6px;color:var(--violet)">Image Snips &amp; Visual Evaluation</h3>
-      <p style="margin:0 0 10px"><b>Chat Snips:</b> Paste an image (`Ctrl + V`) into the chat box or click 🖼️. Gemini analyzes diagrams, book pages, charts, and Greek/Hebrew text alongside your question.</p>
-      <p style="margin:0 0 14px"><b>Raw Input Snips:</b> Paste images into the main editor or click <code>🖼️ Attach Snip</code>. The AI reads your slides or book pages when summarizing, and embeds the images straight into SharePoint!</p>
+      <h3 style="margin:14px 0 6px;color:var(--violet)">Image Snips, Multi-Images &amp; On-Demand OCR</h3>
+      <p style="margin:0 0 10px"><b>Chat Snips:</b> Paste multiple images (`Ctrl + V`) into the chat box or click 🖼️. Gemini analyzes multiple book pages, charts, or Greek/Hebrew text simultaneously alongside your question.</p>
+      <p style="margin:0 0 14px"><b>Raw Input Snips &amp; OCR:</b> Paste images into the main editor or click <code>🖼️ Attach Snip</code>. You can keep images as visual diagrams, OR click <b>`📝 Extract Text`</b> directly on any chip to convert physical book pages into editable text!</p>
 
       <h3 style="margin:14px 0 6px;color:var(--violet)">Recording &amp; Audio Slicing</h3>
       <p style="margin:0 0 10px"><b>Live Mic:</b> Real-time browser speech recognition with room-echo deduplication and a clean pause guard.</p>
@@ -641,12 +642,12 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 
       <div class="chat" id="askThread" role="log" aria-live="polite" aria-label="Study conversation"></div>
       
-      <!-- Attached Image Preview in Chat -->
+      <!-- Attached Multiple Images Preview Strip in Chat -->
       <div id="chatImgPreview" class="chat-img-preview" style="display:none;"></div>
 
       <div class="chat-input">
-        <input type="file" id="chatImgFileInput" accept="image/*" style="display:none">
-        <button class="btn sm" id="attachChatImgBtn" title="Attach an image or snip to this question (or paste with Ctrl+V)">🖼️</button>
+        <input type="file" id="chatImgFileInput" multiple accept="image/*" style="display:none">
+        <button class="btn sm" id="attachChatImgBtn" title="Attach image snips to this question (or paste with Ctrl+V)">🖼️</button>
         <textarea id="askQ" rows="2" maxlength="1200" placeholder="Ask a question about the study notes or passage (paste images with Ctrl+V). Enter sends, Shift+Enter adds line." aria-label="Your question"></textarea>
         <button class="btn primary" id="askBtn" type="button">Ask</button>
       </div>
@@ -898,8 +899,8 @@ var SITE_PATH = "/sites/Bible_App";
 
   var sessionCapacityAction = null; 
 
-  /* Image State for Place 1 (Chat) and Place 2 (Main Raw Input) */
-  var pendingChatImage = null; // { base64, mimeType, dataUrl, width, height, sizeKb }
+  /* Image State for Place 1 (Chat - Multiple) and Place 2 (Main Raw Input) */
+  var pendingChatImages = []; // Array of { base64, mimeType, dataUrl, width, height, sizeKb }
   var pageAttachedImages = []; // Array of { id, base64, mimeType, dataUrl, sizeKb }
 
   function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('show')},2800)}
@@ -1250,7 +1251,6 @@ var SITE_PATH = "/sites/Bible_App";
           var chunk = r[0].transcript.trim();
           var now = Date.now();
 
-          // DEDUPLICATION SHIELD
           if (chunk) {
             var currentText = page.value.trim();
             var isDuplicate = (chunk === lastChunk && (now - lastChunkTime < 3000)) || 
@@ -1329,7 +1329,7 @@ var SITE_PATH = "/sites/Bible_App";
   });
 
   /* =====================================================================
-     SECTION 4 - CLIENT-SIDE CANVAS IMAGE COMPRESSION & MULTIMODAL INTAKE
+     SECTION 4 - CANVAS IMAGE COMPRESSION, MULTI-SNIP & OCR HELPER
      ===================================================================== */
   function compressImageFile(file, maxDimension, quality) {
     return new Promise(function(resolve, reject) {
@@ -1373,7 +1373,39 @@ var SITE_PATH = "/sites/Bible_App";
     });
   }
 
-  /* PLACE 2: Main Raw Input Image Paste & Attachment Handler */
+  /* ON-DEMAND IMAGE OCR EXTRACTOR (Converts book pages/bulletins into text) */
+  async function ocrExtractImage(idx) {
+    var imgItem = pageAttachedImages[idx];
+    if (!imgItem) return;
+
+    var activeTier = getActiveTier();
+    var key = getActiveKey();
+    var model = getActiveModel();
+    if (!key) { alert('Please enter your Gemini API Key in AI Settings first.'); return; }
+
+    toast('Extracting text from Snip #' + (idx + 1) + ' via Gemini OCR...');
+
+    var ocrPrompt = "Transcribe all text from this image verbatim into clean Markdown. Do not summarize or omit sentences. Maintain exact paragraphs, quotes, and scripture references.";
+
+    try {
+      var extractedText = await executeGeminiRequest(model, key, ocrPrompt, [imgItem]);
+      if (!extractedText) throw new Error('No readable text detected in this image.');
+
+      var timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      var header = "\n\n--- [Transcribed Text from Snip #" + (idx + 1) + " · " + timeStr + "] ---\n";
+      var footer = "\n--- [End of Snip #" + (idx + 1) + "] ---\n\n";
+
+      var current = page.value.trim();
+      page.value = (current ? (current + header) : header.trimStart()) + extractedText + footer;
+      updateUI();
+      page.scrollTop = page.scrollHeight;
+      toast('Text extracted from Snip #' + (idx + 1) + ' and added to editor!');
+    } catch(err) {
+      alert('OCR Extraction Error: ' + err.message);
+    }
+  }
+
+  /* PLACE 2: Main Raw Input Image Attachment Bar (with OCR button) */
   function renderPageImgBar() {
     var bar = $('pageImgBar');
     if (!pageAttachedImages.length) {
@@ -1389,6 +1421,18 @@ var SITE_PATH = "/sites/Bible_App";
       chip.innerHTML = '<img src="' + imgItem.dataUrl + '" alt="Snip" onclick="window.open(this.src)" title="Click to view full image">' +
         '<span>Snip #' + (idx + 1) + ' (' + imgItem.sizeKb + ' KB)</span>';
       
+      var ocrBtn = document.createElement('button');
+      ocrBtn.type = 'button';
+      ocrBtn.className = 'btn sm';
+      ocrBtn.style.padding = '1px 6px';
+      ocrBtn.style.fontSize = '11px';
+      ocrBtn.title = 'Extract text from this image verbatim into the raw notes editor';
+      ocrBtn.textContent = '📝 Extract Text';
+      ocrBtn.onclick = function(ev){
+        ev.stopPropagation();
+        ocrExtractImage(idx);
+      };
+
       var del = document.createElement('button');
       del.className = 'img-chip-del';
       del.textContent = '✕';
@@ -1399,6 +1443,8 @@ var SITE_PATH = "/sites/Bible_App";
         renderPageImgBar();
         updateUI();
       };
+
+      chip.appendChild(ocrBtn);
       chip.appendChild(del);
       bar.appendChild(chip);
     });
@@ -1427,10 +1473,8 @@ var SITE_PATH = "/sites/Bible_App";
   // Intercept Ctrl+V pastes inside the main raw input textarea (#page)
   page.addEventListener('paste', async function(e){
     var items = (e.clipboardData || e.originalEvent.clipboardData).items;
-    var foundImage = false;
     for (var i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
-        foundImage = true;
         var file = items[i].getAsFile();
         toast('Compressing pasted snip...');
         var res = await compressImageFile(file, 1400, 0.85);
@@ -1501,7 +1545,7 @@ var SITE_PATH = "/sites/Bible_App";
       var audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
       var totalDuration = audioBuffer.duration;
       var targetRate = 16000;
-      var chunkDuration = 300; // 5-minute slices
+      var chunkDuration = 300;
       var totalChunks = Math.ceil(totalDuration / chunkDuration);
       var chunkPayloads = [];
 
@@ -2505,7 +2549,7 @@ var SITE_PATH = "/sites/Bible_App";
     return formattedHtml;
   }
 
-  /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS (CLEAN DOM EXTRACTION) */
+  /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS (WITH SNIPS PRESERVATION) */
   async function saveDevotionalPipeline(token, siteId){
     var rawText = out.innerText;
     var targetRowId = $('targetResourceId').value.trim() || '17';
@@ -2547,6 +2591,16 @@ var SITE_PATH = "/sites/Bible_App";
     }
 
     var topCommentary = tempDiv.innerHTML.trim();
+
+    // Preserve any attached raw snips in Devotional Mode by embedding into commentary
+    if (pageAttachedImages.length) {
+      topCommentary += '<div class="devotional-snips" style="margin-top:20px; border-top:1px dashed #CBD5E1; padding-top:12px;">' +
+        '<p style="font-size:12px; font-weight:bold; color:#15803D; text-transform:uppercase;">Attached Study Snips (' + pageAttachedImages.length + '):</p>' +
+        pageAttachedImages.map(function(imgItem){
+          return '<img src="' + imgItem.dataUrl + '" style="max-width:100%; border-radius:8px; margin:8px 0; display:block; border:1px solid #E2E8F0;" />';
+        }).join('') +
+      '</div>';
+    }
 
     // 2. PATCH Resources list
     logSync('Verifying Resources item #' + targetRowId + '...');
@@ -2668,6 +2722,7 @@ var SITE_PATH = "/sites/Bible_App";
       var jonText     = getSlice(/(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i,     /(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i);
       var kimText     = getSlice(/(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i);
       var robText     = getSlice(/(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i,          /(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i);
+      
       var famPrayText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i,   /(?:^|\n)\s*```/i);
       var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*```/i);
 
@@ -2822,7 +2877,7 @@ var SITE_PATH = "/sites/Bible_App";
   })();
 
   /* =====================================================================
-     SECTION 7 - MULTI-SESSION CHAT WORKSTATION (MULTIMODAL + GRAPH SYNC)
+     SECTION 7 - MULTI-SESSION CHAT WORKSTATION (MULTI-SNIP & OCR)
      ===================================================================== */
   var CHAT_SESSIONS_KEY = 'sermonScribe_chat_sessions_v1';
   var chatSessions = [];
@@ -2970,23 +3025,35 @@ var SITE_PATH = "/sites/Bible_App";
     }
   });
 
-  /* PLACE 1: Chat Input Image Paste & Attachment Handlers */
+  /* PLACE 1: Chat Multi-Image Attachment & Paste Handlers */
   function renderChatImgPreview(){
     var p = $('chatImgPreview');
-    if (!pendingChatImage) {
+    if (!pendingChatImages.length) {
       p.style.display = 'none';
       p.innerHTML = '';
       return;
     }
     p.style.display = 'flex';
-    p.innerHTML = '<img src="' + pendingChatImage.dataUrl + '" alt="Snip">' +
-      '<span style="flex:1">Attached Snip (' + pendingChatImage.sizeKb + ' KB)</span>' +
-      '<button class="img-chip-del" type="button" id="removeChatImgBtn" title="Remove image">✕</button>';
-    
-    $('removeChatImgBtn').onclick = function(){
-      pendingChatImage = null;
-      renderChatImgPreview();
-    };
+    p.innerHTML = '';
+    pendingChatImages.forEach(function(imgItem, idx){
+      var chip = document.createElement('div');
+      chip.className = 'img-chip';
+      chip.innerHTML = '<img src="' + imgItem.dataUrl + '" alt="Snip" onclick="window.open(this.src)" title="Click to view full image">' +
+        '<span>#' + (idx + 1) + ' (' + imgItem.sizeKb + ' KB)</span>';
+      
+      var del = document.createElement('button');
+      del.className = 'img-chip-del';
+      del.type = 'button';
+      del.textContent = '✕';
+      del.title = 'Remove this image';
+      del.onclick = function(ev){
+        ev.stopPropagation();
+        pendingChatImages.splice(idx, 1);
+        renderChatImgPreview();
+      };
+      chip.appendChild(del);
+      p.appendChild(chip);
+    });
   }
 
   $('attachChatImgBtn').addEventListener('click', function(){
@@ -2994,25 +3061,30 @@ var SITE_PATH = "/sites/Bible_App";
   });
 
   $('chatImgFileInput').addEventListener('change', async function(e){
-    if (e.target.files && e.target.files[0]) {
-      toast('Compressing snip for chat...');
-      pendingChatImage = await compressImageFile(e.target.files[0], 1400, 0.85);
-      renderChatImgPreview();
-      $('chatImgFileInput').value = '';
-      toast('Image attached! Type your question and click Ask.');
+    var files = Array.from(e.target.files);
+    for (var i = 0; i < files.length; i++) {
+      if (files[i].type.startsWith('image/')) {
+        toast('Compressing snip for chat...');
+        var res = await compressImageFile(files[i], 1400, 0.85);
+        pendingChatImages.push(res);
+      }
     }
+    renderChatImgPreview();
+    $('chatImgFileInput').value = '';
+    toast('Image(s) attached to chat! You can attach more or click Ask.');
   });
 
-  // Intercept Ctrl+V pastes inside the Chat textarea (#askQ)
+  // Intercept Ctrl+V pastes inside the Chat textarea (#askQ) - supports multiple pastes
   $('askQ').addEventListener('paste', async function(e){
     var items = (e.clipboardData || e.originalEvent.clipboardData).items;
     for (var i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
         var file = items[i].getAsFile();
         toast('Compressing pasted snip for chat...');
-        pendingChatImage = await compressImageFile(file, 1400, 0.85);
+        var res = await compressImageFile(file, 1400, 0.85);
+        pendingChatImages.push(res);
         renderChatImgPreview();
-        toast('Screenshot snip attached (' + pendingChatImage.sizeKb + ' KB)!');
+        toast('Screenshot attached (' + res.sizeKb + ' KB)!');
         break;
       }
     }
@@ -3050,15 +3122,20 @@ var SITE_PATH = "/sites/Bible_App";
     var activeSession = getActiveSession();
     var msgs = activeSession ? activeSession.messages : [];
 
-    var add = function(cls, text, isHtml, imgUrl){
+    var add = function(cls, text, isHtml, imgsList){
       var d = document.createElement('div');
       d.className = cls;
-      if (imgUrl) {
-        var im = document.createElement('img');
-        im.src = imgUrl;
-        im.className = 'chat-pill-img';
-        im.onclick = function(){ window.open(imgUrl); };
-        d.appendChild(im);
+      if (imgsList && imgsList.length) {
+        var cont = document.createElement('div');
+        cont.className = 'chat-pill-imgs';
+        imgsList.forEach(function(imgUrl){
+          var im = document.createElement('img');
+          im.src = imgUrl;
+          im.className = 'chat-pill-img';
+          im.onclick = function(){ window.open(imgUrl); };
+          cont.appendChild(im);
+        });
+        d.appendChild(cont);
       }
       var bodySpan = document.createElement('div');
       if(isHtml) bodySpan.innerHTML = text;
@@ -3099,12 +3176,13 @@ var SITE_PATH = "/sites/Bible_App";
     }
 
     msgs.forEach(function(x){
-      add('q-pill', x.q, false, x.img);
+      var mImgs = x.imgs || (x.img ? [x.img] : []);
+      add('q-pill', x.q, false, mImgs);
       add('a-bubble', mdToHtml(x.a), true);
     });
 
     if(askPending){
-      add('q-pill', askPending.q, false, askPending.img);
+      add('q-pill', askPending.q, false, askPending.imgs);
       add('a-bubble ' + askPending.kind, askPending.text, false);
     }
     th.scrollTop = th.scrollHeight;
@@ -3178,8 +3256,14 @@ var SITE_PATH = "/sites/Bible_App";
     var active = getActiveSession();
     if(!active || !active.messages.length){ flashBtn(btn, 'Nothing to copy'); return; }
     var lastEx = active.messages[active.messages.length - 1];
-    var formattedHtml = (lastEx.img ? '<img src="' + lastEx.img + '" style="max-width:100%; border-radius:6px; margin-bottom:10px; display:block;" />' : '') +
-      mdToHtml(lastEx.a);
+    var imgsList = lastEx.imgs || (lastEx.img ? [lastEx.img] : []);
+    
+    var imgHtml = '';
+    imgsList.forEach(function(src){
+      imgHtml += '<img src="' + src + '" style="max-width:100%; border-radius:6px; margin-bottom:10px; display:block;" />';
+    });
+
+    var formattedHtml = imgHtml + mdToHtml(lastEx.a);
     await copyRich(formattedHtml, lastEx.a);
     flashBtn(btn, 'Copied Rich Text!');
   });
@@ -3194,9 +3278,16 @@ var SITE_PATH = "/sites/Bible_App";
 
     active.messages.forEach(function(m){
       fullPlain += 'User: ' + m.q + '\n\nAssistant:\n' + m.a + '\n\n---\n\n';
+      
+      var imgsList = m.imgs || (m.img ? [m.img] : []);
+      var mImgsHtml = '';
+      imgsList.forEach(function(src){
+        mImgsHtml += '<img src="' + src + '" style="max-width:100%; border-radius:6px; margin:6px 0; display:block;" />';
+      });
+
       fullHtml += '<div style="margin-bottom:14px;">' +
         '<p style="font-weight:bold; color:#5B3F98; margin-bottom:4px;">Q: ' + esc(m.q) + '</p>' +
-        (m.img ? '<img src="' + m.img + '" style="max-width:100%; border-radius:6px; margin:6px 0; display:block;" />' : '') +
+        mImgsHtml +
         '<div style="padding-left:8px; border-left:3px solid #D9D5E6;">' + mdToHtml(m.a) + '</div></div><hr style="border:0; border-top:1px dashed #CBD5E1; margin:16px 0;">';
     });
 
@@ -3204,7 +3295,7 @@ var SITE_PATH = "/sites/Bible_App";
     flashBtn(btn, 'Copied Full Thread!');
   });
 
-  /* RICH CARD HTML BUILDER FOR SHAREPOINT (EMBEDS VISIBLE INLINE IMAGES) */
+  /* RICH CARD HTML BUILDER FOR SHAREPOINT */
   function buildRichChatHtml(messages, isFullThread, timeStamp, sMode) {
     var themeColor = (sMode === 'sermon') ? '#1E40AF' : '#15803D';
     var themeBg = (sMode === 'sermon') ? '#EFF6FF' : '#F0FDF4';
@@ -3217,9 +3308,15 @@ var SITE_PATH = "/sites/Bible_App";
     var msgsToRender = isFullThread ? messages : [messages[messages.length - 1]];
 
     msgsToRender.forEach(function(m){
+      var imgsList = m.imgs || (m.img ? [m.img] : []);
+      var mImgsHtml = '';
+      imgsList.forEach(function(src){
+        mImgsHtml += '<img src="' + src + '" style="max-width:100%; border-radius:6px; margin:8px 0; display:block; border:1px solid ' + borderColor + ';" />';
+      });
+
       html += '<div style="margin-bottom:14px; background:' + themeBg + '; border:1px solid ' + borderColor + '; border-radius:8px; padding:12px 14px;">' +
         '<p style="margin:0 0 8px; font-weight:bold; color:' + themeColor + '; font-size:13.5px;">Question: ' + esc(m.q) + '</p>' +
-        (m.img ? '<img src="' + m.img + '" style="max-width:100%; border-radius:6px; margin:8px 0; display:block; border:1px solid ' + borderColor + ';" />' : '') +
+        mImgsHtml +
         '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; color:#1D1930; font-size:14px; line-height:1.55;">' +
           mdToHtml(m.a) +
         '</div>' +
@@ -3359,10 +3456,11 @@ var SITE_PATH = "/sites/Bible_App";
     return d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
   }
 
+  /* SUBMIT CHAT QUESTION (SUPPORTS MULTIPLE STACKED IMAGES) */
   async function submitChatQuestion(){
     var q = $('askQ').value.trim();
-    if((!q && !pendingChatImage) || $('askBtn').disabled) return;
-    if(!q && pendingChatImage) q = "Please evaluate and extract theological insights from this attached image snip.";
+    if((!q && !pendingChatImages.length) || $('askBtn').disabled) return;
+    if(!q && pendingChatImages.length) q = "Please evaluate and extract theological insights from these attached images.";
 
     var activeTier = getActiveTier();
     var freeKey = getFreeKey();
@@ -3383,16 +3481,21 @@ var SITE_PATH = "/sites/Bible_App";
       "Interpret EVERYTHING within historic Protestant and Reformed orthodoxy (Spurgeon, Calvin, Luther, Westminster Standards, Augustine, Sproul). " +
       "Follow any structural or formatting guidelines provided in the ACTIVE INSTRUCTIONS below.\n\n" +
       "HOW TO ANSWER (Choose based on the user's question and any attached image snips):\n" +
-      "1. DIRECT INQUIRY & SNIPS: If an image or snip is provided, carefully examine the text, diagrams, and footnotes. Ground answers in the image and CURRENT STUDY NOTES.\n" +
+      "1. DIRECT INQUIRY & SNIPS: If images or snips are provided, carefully examine the text, diagrams, and footnotes across all images. Ground answers in the images and CURRENT STUDY NOTES.\n" +
       "2. EXPLORATORY & ADDITIVE: If the user asks you to expand or add context, use your broad theological/historical knowledge to enrich the study with Reformed insights.\n" +
       "3. UNRELATED QUESTIONS: If the user asks a general biblical question, freely use your general knowledge to answer them.\n\n" +
       "In ALL cases, maintain a pastorally warm, Christ-centered, grace-first perspective.";
 
-    var currentImg = pendingChatImage;
-    pendingChatImage = null;
+    var currentImgs = pendingChatImages.slice();
+    pendingChatImages = [];
     renderChatImgPreview();
 
-    askPending = { q: q, kind: 'thinking', text: 'Thinking...', img: currentImg ? currentImg.dataUrl : null };
+    askPending = { 
+      q: q, 
+      kind: 'thinking', 
+      text: 'Thinking...', 
+      imgs: currentImgs.map(function(ci){ return ci.dataUrl; }) 
+    };
     $('askQ').value = '';
     $('askBtn').disabled = true;
     askRender();
@@ -3415,12 +3518,14 @@ var SITE_PATH = "/sites/Bible_App";
       });
 
       var currentParts = [];
-      if (currentImg) {
-        currentParts.push({
-          inlineData: {
-            mimeType: currentImg.mimeType,
-            data: currentImg.base64
-          }
+      if (currentImgs && currentImgs.length) {
+        currentImgs.forEach(function(ci){
+          currentParts.push({
+            inlineData: {
+              mimeType: ci.mimeType,
+              data: ci.base64
+            }
+          });
         });
       }
       var currentText = q;
@@ -3482,7 +3587,7 @@ var SITE_PATH = "/sites/Bible_App";
       activeSession.messages.push({ 
         q: q, 
         a: reply.trim(), 
-        img: currentImg ? currentImg.dataUrl : null 
+        imgs: currentImgs.map(function(ci){ return ci.dataUrl; }) 
       });
       activeSession.messages = activeSession.messages.slice(-10);
       sessionsSave();
