@@ -631,9 +631,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 
     <!-- Main Chat Workspace -->
     <div class="ask-panel">
-      <!-- Session Header with Editable Title and Row ID -->
+    <!-- Session Header with Editable Title and Row ID -->
       <div class="chat-session-meta">
         <input type="text" class="chat-title-input" id="chatSessionTitle" placeholder="Chat Topic Title..." title="Click to rename this chat session">
+        <span id="chatPayloadMeter" class="pill" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;cursor:help;margin-right:6px;" title="Current thread payload size">0 chars</span>
         <span class="chat-row-bind">
           <b id="chatRowLabel">Target Row ID:</b>
           <input type="number" id="chatTargetRowId" placeholder="Row #" title="SharePoint Row or Topic ID bound to this chat thread">
@@ -3063,12 +3064,58 @@ var SITE_PATH = "/sites/Bible_App";
     });
   }
 
-  function syncActiveSessionHeader(){
+ function syncActiveSessionHeader(){
     var s = getActiveSession();
     if(!s) return;
     $('chatSessionTitle').value = s.title || '';
     $('chatTargetRowId').value = s.targetRowId || getActiveRowIdFromScreen();
     $('chatRowLabel').textContent = (s.mode === 'sermon' ? 'Topic ID:' : 'Target Row ID:');
+    updateChatPayloadMeter();
+  }
+
+  function updateChatPayloadMeter() {
+    var el = $('chatPayloadMeter');
+    if (!el) return;
+    var active = getActiveSession();
+    if (!active || !active.messages || !active.messages.length) {
+      el.textContent = '0 chars';
+      el.style.color = 'var(--muted)';
+      el.style.background = 'transparent';
+      el.style.borderColor = 'var(--line)';
+      el.title = 'Payload: 0 characters';
+      return;
+    }
+
+    var totalChars = 0;
+    active.messages.forEach(function(m){
+      totalChars += (m.q || '').length + (m.a || '').length;
+      var imgs = m.imgs || (m.img ? [m.img] : []);
+      imgs.forEach(function(src){ totalChars += (src || '').length; });
+    });
+
+    var formatted = totalChars >= 1000000 
+      ? (totalChars / 1000000).toFixed(2) + 'M chars'
+      : (totalChars >= 1000 ? Math.round(totalChars / 1000) + 'K chars' : totalChars + ' chars');
+
+    el.textContent = formatted;
+
+    // Thresholds: Safe (<750K), Warning (750K - 1.5M), Danger (1.5M+)
+    if (totalChars >= 1500000) {
+      el.style.color = '#B91C1C';
+      el.style.background = '#FEE2E2';
+      el.style.borderColor = '#FCA5A5';
+      el.title = '🚨 CRITICAL PAYLOAD: ' + totalChars.toLocaleString() + ' chars (~' + Math.round(totalChars/1024) + ' KB).\nApproaching Microsoft Graph 4MB request limit and browser storage limits!';
+    } else if (totalChars >= 750000) {
+      el.style.color = '#B45309';
+      el.style.background = '#FEF3C7';
+      el.style.borderColor = '#FCD34D';
+      el.title = '⚠️ ELEVATED PAYLOAD: ' + totalChars.toLocaleString() + ' chars.\nImages and long transcripts are building up.';
+    } else {
+      el.style.color = 'var(--green)';
+      el.style.background = 'var(--green-t)';
+      el.style.borderColor = 'var(--line)';
+      el.title = 'Thread Payload: ' + totalChars.toLocaleString() + ' characters (Safe)';
+    }
   }
 
   $('chatSessionTitle').addEventListener('input', function(){
@@ -3658,10 +3705,11 @@ var SITE_PATH = "/sites/Bible_App";
         a: reply.trim(), 
         imgs: currentImgs.map(function(ci){ return ci.dataUrl; }) 
       });
-      activeSession.messages = activeSession.messages.slice(-10);
+      // Allow thread to accumulate naturally without artificial 10-turn cap
       sessionsSave();
       syncActiveSessionHeader();
       renderSidebarSessions();
+      updateChatPayloadMeter();
       askPending = null;
     } catch(e){
       askPending = { q: q, kind: 'err', text: 'Chat error: ' + esc(e.message) };
