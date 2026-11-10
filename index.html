@@ -2261,59 +2261,7 @@ function htmlToPlainText(html) {
     }
   }
 
-  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
-/* DYNAMIC SHAREPOINT THEMES LOADER (Pulls all themes from Devotional_Themes list) */
-  async function loadSharePointThemes(token, siteId) {
-    try {
-      var themesListId = await getListId(token, siteId, 'Devotional_Themes');
-      var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + themesListId + '/items?expand=fields($select=Title,Theme_Title,Theme_Status)&$top=999';
-      var res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-      var data = await res.json();
-      if (!res.ok) throw new Error(data.error && data.error.message || 'Failed to fetch themes');
-
-      var currentVal = getActiveTheme();
-      var themeSet = new Set();
-      themeSet.add('Signal Mountain Church Sermons');
-      themeSet.add('Spurgeon');
-      themeSet.add('Other Sermons');
-
-      (data.value || []).forEach(function(item) {
-        var f = item.fields || {};
-        var tName = (f.Theme_Title || f.Title || '').trim();
-        if (tName && f.Theme_Status !== 'Inactive') {
-          themeSet.add(tName);
-        }
-      });
-
-      var sel = $('themeSelect');
-      sel.innerHTML = '';
-      Array.from(themeSet).sort().forEach(function(theme) {
-        var opt = document.createElement('option');
-        opt.value = theme;
-        opt.textContent = theme;
-        sel.appendChild(opt);
-      });
-
-      var customOpt = document.createElement('option');
-      customOpt.value = '_custom';
-      customOpt.textContent = '+ Create New Theme...';
-      sel.appendChild(customOpt);
-
-      if (themeSet.has(currentVal)) {
-        sel.value = currentVal;
-        $('customThemeInput').style.display = 'none';
-      } else if (currentVal && currentVal !== '_custom') {
-        sel.value = '_custom';
-        $('customThemeInput').style.display = 'inline-block';
-        $('customThemeInput').value = currentVal;
-      }
-      logSync('✓ Loaded ' + themeSet.size + ' active themes from Devotional_Themes list.');
-    } catch(e) {
-      logSync('⚠️ Devotional_Themes query note: ' + e.message);
-    }
-  }
-
-  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
+ // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
   $('pullDevoBtn').addEventListener('click', async function(){
     var rowId = $('targetResourceId').value.trim();
     if(!rowId){ alert('Please enter a Target Resource Row ID to pull.'); return; }
@@ -2936,9 +2884,131 @@ function htmlToPlainText(html) {
       logSync('❌ Family_Insights error: ' + e.message);
     }
 
-    logSync('🎉 COMPLETE! Devotional sync finished.');
+logSync('🎉 COMPLETE! Devotional sync finished.');
     toast('Devotional components saved with rich HTML formatting!');
   }
+
+  /* C. SURGICAL SUMMARY-ONLY APPEND (Omits StudyNotes_HTML to protect the raw transcript) */
+  $('appendSummaryBtn').addEventListener('click', async function(){
+    var btn = this;
+    var summaryHtml = out.innerHTML.trim();
+    if (!summaryHtml) { alert('No summary generated to save.'); return; }
+
+    btn.disabled = true;
+    logSync('Initiating Summary-Only Append...');
+
+    try {
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      var allP = getAllPresets();
+      var styleName = (allP[presetId] && allP[presetId].label) || presetId;
+      var timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+      var divider = '<hr style="margin:28px 0 14px; border:0; border-top:2px dashed #93C5FD;">' +
+        '<div style="background:#EFF6FF; border-left:4px solid #1E40AF; padding:8px 14px; margin-bottom:16px; border-radius:0 4px 4px 0;">' +
+        '<span style="font-size:11px; font-weight:bold; color:#1E40AF; text-transform:uppercase; letter-spacing:0.5px;">' +
+        '📑 Additional Summary [' + esc(styleName) + '] · ' + timeStr + '</span></div>';
+
+      if (mode === 'sermon') {
+        var topicId = $('sermonTopicId').value.trim() || qParams.get('topicId') || qParams.get('itemId') || '';
+        if (!topicId) {
+          alert('Please enter or pull an existing Topic ID first before appending a summary.');
+          $('sermonTopicId').focus();
+          return;
+        }
+
+        var topicsListId = await getListId(token, siteId, 'Devotional_Topics');
+        logSync('Reading existing KeyHighlights_HTML from Topic #' + topicId + '...');
+
+        var getRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + topicsListId + '/items/' + topicId + '?expand=fields', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var getData = await getRes.json();
+        if (!getRes.ok) throw new Error(getData.error && getData.error.message || ('Topic #' + topicId + ' not found'));
+
+        var fields = getData.fields || {};
+        var oldSummary = fields.KeyHighlights_HTML || '';
+        var oldRefs = fields.Scripture_Reference || '';
+        var newRefs = findRefs(page.value).join(', ');
+
+        var finalSummary = oldSummary ? (oldSummary + divider + summaryHtml) : summaryHtml;
+
+        var finalScriptures = oldRefs;
+        if (oldRefs && newRefs) {
+          var set = new Set(oldRefs.split(/,\s*/).concat(newRefs.split(/,\s*/)));
+          finalScriptures = Array.from(set).filter(Boolean).join(', ');
+        } else {
+          finalScriptures = oldRefs || newRefs;
+        }
+
+        logSync('Patching KeyHighlights_HTML on Topic #' + topicId + ' (StudyNotes_HTML left untouched)...');
+
+        var patchRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + topicsListId + '/items/' + topicId + '/fields', {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            KeyHighlights_HTML: finalSummary,
+            Scripture_Reference: finalScriptures
+          })
+        });
+
+        var patchData = await patchRes.json();
+        if (!patchRes.ok) throw new Error(patchData.error && patchData.error.message || ('Patch failed: ' + patchRes.status));
+
+        logSync('✓ SUCCESS: Appended [' + styleName + '] summary to Topic #' + topicId + ' (Transcript untouched).');
+        toast('Appended ' + styleName + ' to Topic #' + topicId + '!');
+
+      } else {
+        var rowId = $('targetResourceId').value.trim() || '17';
+        var resListId = await getListId(token, siteId, 'Resources');
+        logSync('Reading existing AdditionalCommentary from Resources #' + rowId + '...');
+
+        var getRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + resListId + '/items/' + rowId + '?expand=fields', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var getData = await getRes.json();
+        if (!getRes.ok) throw new Error(getData.error && getData.error.message || ('Resource #' + rowId + ' not found'));
+
+        var fields = getData.fields || {};
+        var targetFieldKey = Object.keys(fields).find(function(k){
+          return k.toLowerCase().replace(/[^a-z0-9]/g, '') === 'additionalcommentary';
+        }) || 'AdditionalCommentary';
+
+        var oldCommentary = fields[targetFieldKey] || '';
+        var finalCommentary = oldCommentary ? (oldCommentary + divider + summaryHtml) : summaryHtml;
+
+        logSync('Patching ' + targetFieldKey + ' on Resources #' + rowId + ' (Child cards untouched)...');
+
+        var patchRes = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + resListId + '/items/' + rowId + '/fields', {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [targetFieldKey]: finalCommentary })
+        });
+
+        var patchData = await patchRes.json();
+        if (!patchRes.ok) throw new Error(patchData.error && patchData.error.message || ('Patch failed: ' + patchRes.status));
+
+        logSync('✓ SUCCESS: Appended [' + styleName + '] to Resources #' + rowId + ' (Child cards untouched).');
+        toast('Appended ' + styleName + ' to Resources #' + rowId + '!');
+      }
+
+    } catch(e) {
+      logSync('❌ Append error: ' + e.message);
+      alert('Could not append summary: ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Theme Refresh Button Listener
+  $('refreshThemesBtn').addEventListener('click', async function(){
+    try {
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      await loadSharePointThemes(token, siteId);
+      toast('Themes updated from SharePoint!');
+    } catch(e) { alert('Theme refresh error: ' + e.message); }
+  });
 
   $('emailDigestBtn').addEventListener('click', function(){
     var title = $('title').value.trim() || 'Devotional & Family Focus';
@@ -3547,11 +3617,13 @@ function htmlToPlainText(html) {
         mImgsHtml += '<img src="' + src + '" style="max-width:100%; border-radius:6px; margin:8px 0; display:block; border:1px solid ' + borderColor + ';" />';
       });
 
+     var bodyRendered = (m.isPreRenderedHtml || (typeof m.a === 'string' && m.a.trim().startsWith('<'))) ? m.a : mdToHtml(m.a);
+
       html += '<div style="margin-bottom:14px; background:' + themeBg + '; border:1px solid ' + borderColor + '; border-radius:8px; padding:12px 14px;">' +
         '<p style="margin:0 0 8px; font-weight:bold; color:' + themeColor + '; font-size:13.5px;">Question: ' + esc(m.q) + '</p>' +
         mImgsHtml +
         '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; color:#1D1930; font-size:14px; line-height:1.55;">' +
-          mdToHtml(m.a) +
+          bodyRendered +
         '</div>' +
       '</div>';
     });
@@ -3739,7 +3811,7 @@ function htmlToPlainText(html) {
       var msgs = activeSession ? activeSession.messages : [];
       var recentHistory = msgs.slice(-6);
 
-      recentHistory.forEach(function(item, idx){
+     recentHistory.forEach(function(item, idx){
         var qPayload = item.q;
         var parts = [];
         if(idx === 0){
@@ -3747,7 +3819,9 @@ function htmlToPlainText(html) {
         }
         parts.push({ text: qPayload });
         contents.push({ role: 'user', parts: parts });
-        contents.push({ role: 'model', parts: [{ text: item.a }] });
+        // Strip HTML so Gemini receives clean text (including all of your personal in-place notes)
+        var ansText = item.a ? (htmlToPlainText(item.a) || item.a) : '';
+        contents.push({ role: 'model', parts: [{ text: ansText }] });
       });
 
       var currentParts = [];
