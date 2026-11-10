@@ -247,7 +247,9 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .q-pill{align-self:flex-end;max-width:85%;background:var(--violet);color:#fff;border-radius:16px 16px 4px 16px;padding:9px 15px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
 .chat-pill-imgs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
 .chat-pill-img{max-width:220px;max-height:140px;object-fit:contain;border-radius:6px;border:1px solid rgba(255,255,255,0.4);cursor:pointer}
-.a-bubble{align-self:flex-start;max-width:94%;background:#fff;border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:11px 16px;font-size:13.5px;line-height:1.55;overflow-wrap:anywhere;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.a-bubble{align-self:flex-start;max-width:94%;background:#fff;border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:11px 16px;font-size:13.5px;line-height:1.55;overflow-wrap:anywhere;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:text;transition:border-color .15s}
+.a-bubble[contenteditable="true"]:hover{border-color:var(--violet)}
+.a-bubble[contenteditable="true"]:focus{outline:2px solid var(--violet);outline-offset:1px;background:#FCFAFF}
 .a-bubble p{margin:4px 0}
 .a-bubble p:first-child{margin-top:0}
 .a-bubble p:last-child{margin-bottom:0}
@@ -322,7 +324,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <button class="btn sm" id="discardBtn">Discard</button>
     </div>
 
-    <!-- Context Bar with On-Demand SharePoint Pull Controls -->
+   <!-- Context Bar with On-Demand SharePoint Pull Controls -->
     <div class="ctx-bar" id="ctxBar">
       <div id="sermonCtx" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <b>Theme:</b>
@@ -332,6 +334,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           <option value="Other Sermons">Other Sermons</option>
           <option value="_custom">+ Create New Theme...</option>
         </select>
+        <button class="btn sm" id="refreshThemesBtn" type="button" title="Reload all themes from SharePoint Devotional_Themes list">🔄</button>
         <input type="text" id="customThemeInput" placeholder="New Theme Title..." style="display:none;width:170px">
         
         <!-- SERMON TOPIC ID & PULL / APPEND -->
@@ -498,10 +501,14 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <div class="sync-log-body" id="syncStatus"></div>
     </div>
 
-    <div class="actions">
+   <div class="actions">
       <button class="btn success" id="saveSharePointBtn" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         <span id="saveSpBtnText">Save to SharePoint</span>
+      </button>
+
+      <button class="btn accent" id="appendSummaryBtn" disabled title="Surgically append this AI summary to the existing SharePoint record without duplicating the raw transcript">
+        📝 Append Summary Only
       </button>
 
       <button class="btn" id="emailDigestBtn" disabled title="Draft an Outlook email with study notes or family digest">
@@ -631,7 +638,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 
     <!-- Main Chat Workspace -->
     <div class="ask-panel">
-    <!-- Session Header with Editable Title and Row ID -->
+   <!-- Session Header with Editable Title, Payload Meter and Row ID -->
       <div class="chat-session-meta">
         <input type="text" class="chat-title-input" id="chatSessionTitle" placeholder="Chat Topic Title..." title="Click to rename this chat session">
         <span id="chatPayloadMeter" class="pill" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;cursor:help;margin-right:6px;" title="Current thread payload size">0 chars</span>
@@ -1857,10 +1864,11 @@ var SITE_PATH = "/sites/Bible_App";
     return html;
   }
 
-  function checkNotesState(){
+ function checkNotesState(){
     var has=out.innerText.trim().length>0;
     $('copyNotes').disabled=!has;
     $('saveSharePointBtn').disabled=!has;
+    if ($('appendSummaryBtn')) $('appendSummaryBtn').disabled=!has;
     $('emailDigestBtn').disabled=!has;
     scheduleSave();
   }
@@ -2136,7 +2144,7 @@ var SITE_PATH = "/sites/Bible_App";
   /* -------------------------------------------------------------
      BI-DIRECTIONAL GRAPH PULL (RETRIEVAL FROM SHAREPOINT)
      ------------------------------------------------------------- */
- function htmlToPlainText(html) {
+function htmlToPlainText(html) {
     if (!html) return '';
     var tmp = document.createElement('div');
     var formatted = html
@@ -2149,13 +2157,12 @@ var SITE_PATH = "/sites/Bible_App";
     return (tmp.textContent || tmp.innerText || '').trim();
   }
 
-  /* CHAT REHYDRATION PARSER (Deconstructs saved SharePoint HTML cards back into live conversation bubbles) */
+  /* CHAT REHYDRATION PARSER (Deconstructs saved SharePoint HTML cards into live conversation bubbles) */
   function parseSharePointChatHtml(rawHtml) {
     if (!rawHtml || !rawHtml.trim()) return [];
     var temp = document.createElement('div');
     temp.innerHTML = rawHtml;
 
-    // Isolate cards that match the saved turn structure
     var cards = temp.querySelectorAll('.chat-sharepoint-card > div, div[style*="background:"]');
     var turnNodes = Array.from(cards).filter(function(el) {
       return /Question:/i.test(el.textContent || '');
@@ -2165,21 +2172,14 @@ var SITE_PATH = "/sites/Bible_App";
 
     if (turnNodes.length > 0) {
       turnNodes.forEach(function(node) {
-        // 1. Extract Question Text
         var qEl = node.querySelector('p');
         var qText = 'Saved Question';
-        if (qEl) {
-          qText = qEl.textContent.replace(/^Question:\s*/i, '').trim();
-        }
+        if (qEl) qText = qEl.textContent.replace(/^Question:\s*/i, '').trim();
 
-        // 2. Extract Embedded Base64 / URL Images
         var imgs = [];
         var imgEls = node.querySelectorAll('img');
-        imgEls.forEach(function(im) {
-          if (im.src) imgs.push(im.src);
-        });
+        imgEls.forEach(function(im) { if (im.src) imgs.push(im.src); });
 
-        // 3. Extract the Assistant's Answer HTML (the inner white response bubble)
         var aEl = node.querySelector('div[style*="background:#fff"], div[style*="background: rgb(255, 255, 255)"], div[style*="background:white"]');
         var aHtml = '';
         if (aEl) {
@@ -2199,7 +2199,6 @@ var SITE_PATH = "/sites/Bible_App";
         });
       });
     } else {
-      // Fallback: If legacy unstructured HTML was saved, preserve it cleanly
       parsedMessages.push({
         q: 'Saved Chat from SharePoint',
         a: rawHtml,
@@ -2209,6 +2208,109 @@ var SITE_PATH = "/sites/Bible_App";
     }
 
     return parsedMessages;
+  }
+
+  /* DYNAMIC SHAREPOINT THEMES LOADER (Pulls all themes from Devotional_Themes list) */
+  async function loadSharePointThemes(token, siteId) {
+    try {
+      var themesListId = await getListId(token, siteId, 'Devotional_Themes');
+      var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + themesListId + '/items?expand=fields($select=Title,Theme_Title,Theme_Status)&$top=999';
+      var res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error && data.error.message || 'Failed to fetch themes');
+
+      var currentVal = getActiveTheme();
+      var themeSet = new Set();
+      themeSet.add('Signal Mountain Church Sermons');
+      themeSet.add('Spurgeon');
+      themeSet.add('Other Sermons');
+
+      (data.value || []).forEach(function(item) {
+        var f = item.fields || {};
+        var tName = (f.Theme_Title || f.Title || '').trim();
+        if (tName && f.Theme_Status !== 'Inactive') {
+          themeSet.add(tName);
+        }
+      });
+
+      var sel = $('themeSelect');
+      sel.innerHTML = '';
+      Array.from(themeSet).sort().forEach(function(theme) {
+        var opt = document.createElement('option');
+        opt.value = theme;
+        opt.textContent = theme;
+        sel.appendChild(opt);
+      });
+
+      var customOpt = document.createElement('option');
+      customOpt.value = '_custom';
+      customOpt.textContent = '+ Create New Theme...';
+      sel.appendChild(customOpt);
+
+      if (themeSet.has(currentVal)) {
+        sel.value = currentVal;
+        $('customThemeInput').style.display = 'none';
+      } else if (currentVal && currentVal !== '_custom') {
+        sel.value = '_custom';
+        $('customThemeInput').style.display = 'inline-block';
+        $('customThemeInput').value = currentVal;
+      }
+      logSync('✓ Loaded ' + themeSet.size + ' active themes from Devotional_Themes list.');
+    } catch(e) {
+      logSync('⚠️ Devotional_Themes query note: ' + e.message);
+    }
+  }
+
+  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
+/* DYNAMIC SHAREPOINT THEMES LOADER (Pulls all themes from Devotional_Themes list) */
+  async function loadSharePointThemes(token, siteId) {
+    try {
+      var themesListId = await getListId(token, siteId, 'Devotional_Themes');
+      var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + themesListId + '/items?expand=fields($select=Title,Theme_Title,Theme_Status)&$top=999';
+      var res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error && data.error.message || 'Failed to fetch themes');
+
+      var currentVal = getActiveTheme();
+      var themeSet = new Set();
+      themeSet.add('Signal Mountain Church Sermons');
+      themeSet.add('Spurgeon');
+      themeSet.add('Other Sermons');
+
+      (data.value || []).forEach(function(item) {
+        var f = item.fields || {};
+        var tName = (f.Theme_Title || f.Title || '').trim();
+        if (tName && f.Theme_Status !== 'Inactive') {
+          themeSet.add(tName);
+        }
+      });
+
+      var sel = $('themeSelect');
+      sel.innerHTML = '';
+      Array.from(themeSet).sort().forEach(function(theme) {
+        var opt = document.createElement('option');
+        opt.value = theme;
+        opt.textContent = theme;
+        sel.appendChild(opt);
+      });
+
+      var customOpt = document.createElement('option');
+      customOpt.value = '_custom';
+      customOpt.textContent = '+ Create New Theme...';
+      sel.appendChild(customOpt);
+
+      if (themeSet.has(currentVal)) {
+        sel.value = currentVal;
+        $('customThemeInput').style.display = 'none';
+      } else if (currentVal && currentVal !== '_custom') {
+        sel.value = '_custom';
+        $('customThemeInput').style.display = 'inline-block';
+        $('customThemeInput').value = currentVal;
+      }
+      logSync('✓ Loaded ' + themeSet.size + ' active themes from Devotional_Themes list.');
+    } catch(e) {
+      logSync('⚠️ Devotional_Themes query note: ' + e.message);
+    }
   }
 
   // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
@@ -2267,7 +2369,7 @@ var SITE_PATH = "/sites/Bible_App";
         logSync('  📅 Date set to: ' + isoDateStr + ' (' + (fields.Month || ('Month ' + mNum)) + ' ' + dNum + ')');
       }
 
-    // 4. PULL CHAT HISTORY (From AINotes) INTO SIDEBAR SESSION
+   // 4. PULL CHAT HISTORY (From AINotes) INTO SIDEBAR SESSION
       var aiNotesContent = fields.AINotes || '';
       if (aiNotesContent && aiNotesContent.trim()) {
         var sessTitle = 'Devo #' + rowId + ' Chat';
@@ -2277,19 +2379,21 @@ var SITE_PATH = "/sites/Bible_App";
           existingSess.mode = 'devotional';
           existingSess.targetRowId = rowId;
         }
-        existingSess.messages = parseSharePointChatHtml(aiNotesContent);
+       existingSess.messages = parseSharePointChatHtml(otherSummaries);
         sessionsSave();
         renderSidebarSessions();
         askRender();
-        logSync('  💬 Rehydrated ' + existingSess.messages.length + ' Chat Turn(s) from AINotes for Row #' + rowId);
+        logSync('  💬 Rehydrated ' + existingSess.messages.length + ' Chat Turn(s) from Other_SummariesForStudy for Topic #' + topicId);
       }
 
+      // Automatically load all active themes from SharePoint Devotional_Themes
+      loadSharePointThemes(token, siteId);
 
-      logSync('✓ Pulled Resource #' + rowId + ': "' + (fields.Title || '') + '"');
-      toast('Pulled Resource #' + rowId + ' successfully!');
+      logSync('✓ Pulled Topic #' + topicId + ': "' + (fields.Title || '') + '"');
+      toast('Pulled Topic #' + topicId + ' successfully!');
     } catch(e) {
       logSync('❌ Pull error: ' + e.message);
-      alert('Could not pull Resource #' + rowId + ': ' + e.message);
+      alert('Could not pull Topic #' + topicId + ': ' + e.message);
     } finally {
       btn.disabled = false;
     }
@@ -3286,15 +3390,27 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
 
-  msgs.forEach(function(x){
+ msgs.forEach(function(x){
       var mImgs = x.imgs || (x.img ? [x.img] : []);
       add('q-pill', x.q, false, mImgs);
-      // If already formatted HTML from SharePoint or OCR card, render directly without running through esc()
+
+      var aEl;
       if (x.isPreRenderedHtml || (typeof x.a === 'string' && x.a.trim().startsWith('<'))) {
-        add('a-bubble', x.a, true);
+        aEl = add('a-bubble', x.a, true);
       } else {
-        add('a-bubble', mdToHtml(x.a), true);
+        aEl = add('a-bubble', mdToHtml(x.a), true);
       }
+
+      // MAKE RESPONSE BUBBLE DIRECTLY EDITABLE
+      aEl.contentEditable = "true";
+      aEl.spellcheck = true;
+      aEl.title = "✏️ Click anywhere to edit this response or add your notes before saving";
+      aEl.addEventListener('input', function(){
+        x.a = this.innerHTML;
+        x.isPreRenderedHtml = true;
+        sessionsSave();
+        if (typeof updateChatPayloadMeter === 'function') updateChatPayloadMeter();
+      });
     });
 
     if(askPending){
