@@ -2369,7 +2369,7 @@ function htmlToPlainText(html) {
         logSync('  📅 Date set to: ' + isoDateStr + ' (' + (fields.Month || ('Month ' + mNum)) + ' ' + dNum + ')');
       }
 
-   // 4. PULL CHAT HISTORY (From AINotes) INTO SIDEBAR SESSION
+      // 4. PULL CHAT HISTORY (From AINotes) INTO SIDEBAR SESSION
       var aiNotesContent = fields.AINotes || '';
       if (aiNotesContent && aiNotesContent.trim()) {
         var sessTitle = 'Devo #' + rowId + ' Chat';
@@ -2379,27 +2379,24 @@ function htmlToPlainText(html) {
           existingSess.mode = 'devotional';
           existingSess.targetRowId = rowId;
         }
-       existingSess.messages = parseSharePointChatHtml(otherSummaries);
+        existingSess.messages = parseSharePointChatHtml(aiNotesContent);
         sessionsSave();
         renderSidebarSessions();
         askRender();
-        logSync('  💬 Rehydrated ' + existingSess.messages.length + ' Chat Turn(s) from Other_SummariesForStudy for Topic #' + topicId);
+        logSync('  💬 Rehydrated ' + existingSess.messages.length + ' Chat Turn(s) from AINotes for Row #' + rowId);
       }
 
-      // Automatically load all active themes from SharePoint Devotional_Themes
-      loadSharePointThemes(token, siteId);
-
-      logSync('✓ Pulled Topic #' + topicId + ': "' + (fields.Title || '') + '"');
-      toast('Pulled Topic #' + topicId + ' successfully!');
+      logSync('✓ Pulled Resource #' + rowId + ': "' + (fields.Title || '') + '"');
+      toast('Pulled Resource #' + rowId + ' successfully!');
     } catch(e) {
       logSync('❌ Pull error: ' + e.message);
-      alert('Could not pull Topic #' + topicId + ': ' + e.message);
+      alert('Could not pull Resource #' + rowId + ': ' + e.message);
     } finally {
       btn.disabled = false;
     }
   });
 
-  // PULL SERMON TOPIC FROM DEVOTIONAL_TOPICS LIST
+    // PULL SERMON TOPIC FROM DEVOTIONAL_TOPICS LIST
   $('pullSermonBtn').addEventListener('click', async function(){
     var topicId = $('sermonTopicId').value.trim();
     if(!topicId){ alert('Please enter a Topic ID to pull.'); return; }
@@ -2463,7 +2460,7 @@ function htmlToPlainText(html) {
         checkNotesState();
       }
 
-     // 3. PULL CHAT HISTORY (From Other_SummariesForStudy) INTO SIDEBAR SESSION
+    // 3. PULL CHAT HISTORY (From Other_SummariesForStudy) INTO SIDEBAR SESSION
       var otherSummaries = fields.Other_SummariesForStudy || '';
       if (otherSummaries && otherSummaries.trim()) {
         var sessTitle = 'Sermon #' + topicId + ' Chat';
@@ -2479,6 +2476,10 @@ function htmlToPlainText(html) {
         askRender();
         logSync('  💬 Rehydrated ' + existingSess.messages.length + ' Chat Turn(s) from Other_SummariesForStudy for Topic #' + topicId);
       }
+
+      // Automatically populate all SharePoint themes into dropdown
+      loadSharePointThemes(token, siteId);
+
       logSync('✓ Pulled Topic #' + topicId + ': "' + (fields.Title || '') + '"');
       toast('Pulled Topic #' + topicId + ' successfully!');
     } catch(e) {
