@@ -660,7 +660,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
         <button class="btn primary" id="askBtn" type="button">Ask</button>
       </div>
 
-      <!-- Action Toolbar with Rich Copy & Dual SharePoint Save -->
+     <!-- Action Toolbar with Rich Copy & Dual SharePoint Save -->
       <div class="chat-toolbar">
         <div class="left-btns">
           <button class="btn sm" id="copyLastChatBtn" title="Copy last answer as rich formatted text (Word / Outlook ready)">📋 Copy Last Answer</button>
@@ -668,7 +668,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           <button class="btn sm success" id="saveLastChatSpBtn" title="Append only the latest Q&A to SharePoint in rich formatted HTML">💾 Save Last Q&amp;A</button>
           <button class="btn sm accent" id="saveFullChatSpBtn" title="Append the entire chat conversation to SharePoint in rich formatted HTML">📚 Save Full Thread</button>
         </div>
-        <button type="button" class="btn sm btn-danger-soft" id="askNew" title="⚠️ WARNING: This will permanently delete all messages in this active chat thread. To start a fresh thread without losing this one, click '+ New' in the left sidebar instead!">🗑️ Clear Active Thread</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button type="button" class="btn sm btn-danger-soft" id="askNew" title="⚠️ WARNING: This will permanently delete all messages in this active chat thread. To start a fresh thread without losing this one, click '+ New' in the left sidebar instead!">🗑️ Clear Active Thread</button>
+          <button type="button" class="btn sm" id="helpCloseBottom" title="Close this Assistant window" style="font-weight:600;">✕ Close</button>
+        </div>
       </div>
     </div>
 
@@ -2172,9 +2175,15 @@ function htmlToPlainText(html) {
 
     if (turnNodes.length > 0) {
       turnNodes.forEach(function(node) {
-        var qEl = node.querySelector('p');
+        var qEl = node.querySelector('.chat-q-text, p');
         var qText = 'Saved Question';
-        if (qEl) qText = qEl.textContent.replace(/^Question:\s*/i, '').trim();
+        if (qEl) {
+          // Convert <br> tags to \n before stripping other tags to preserve spacing and paragraphs
+          var rawQHtml = qEl.innerHTML.replace(/<strong[^>]*>.*?<\/strong>/i, '').replace(/<br\s*[\/]?>/gi, '\n');
+          var tmpSpan = document.createElement('span');
+          tmpSpan.innerHTML = rawQHtml;
+          qText = (tmpSpan.textContent || tmpSpan.innerText || '').replace(/^Question(\s*\/\s*Prompt)?:\s*/i, '').trim();
+        }
 
         var imgs = [];
         var imgEls = node.querySelectorAll('img');
@@ -3519,6 +3528,7 @@ logSync('🎉 COMPLETE! Devotional sync finished.');
   });
 
   $('helpClose').addEventListener('click', function(){ helpDlg.close(); });
+  if ($('helpCloseBottom')) $('helpCloseBottom').addEventListener('click', function(){ helpDlg.close(); });
 
   $('sidebarNewChatBtn').addEventListener('click', function(){
     createNewSession('New Chat');
@@ -3618,9 +3628,13 @@ logSync('🎉 COMPLETE! Devotional sync finished.');
       });
 
      var bodyRendered = (m.isPreRenderedHtml || (typeof m.a === 'string' && m.a.trim().startsWith('<'))) ? m.a : mdToHtml(m.a);
+     var qFormatted = esc(m.q).replace(/\n/g, '<br>');
 
       html += '<div style="margin-bottom:14px; background:' + themeBg + '; border:1px solid ' + borderColor + '; border-radius:8px; padding:12px 14px;">' +
-        '<p style="margin:0 0 8px; font-weight:bold; color:' + themeColor + '; font-size:13.5px;">Question: ' + esc(m.q) + '</p>' +
+        '<div class="chat-q-text" style="margin:0 0 10px; font-size:13.5px; line-height:1.55; white-space:pre-wrap; color:#1D1930; background:rgba(255,255,255,0.7); border:1px solid ' + borderColor + '; border-radius:6px; padding:8px 12px;">' +
+          '<strong style="color:' + themeColor + '; display:block; margin-bottom:4px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Question / Prompt:</strong>' +
+          qFormatted +
+        '</div>' +
         mImgsHtml +
         '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; color:#1D1930; font-size:14px; line-height:1.55;">' +
           bodyRendered +
