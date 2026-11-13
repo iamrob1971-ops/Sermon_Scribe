@@ -2691,33 +2691,28 @@ function htmlToPlainText(html) {
 
     // 1. CLEAN DOM EXTRACTION
     var familySplitIdx = rawText.search(/Family Micro-Cards/i);
-    var familyRaw = (familySplitIdx > -1) ? rawText.slice(familySplitIdx) : "";
+    var familyRaw = (familySplitIdx > -1) ? rawText.slice(familySplitIdx) : rawText;
 
     var tempDiv = document.createElement('div');
     tempDiv.innerHTML = out.innerHTML;
 
-    var walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
-    var targetNode = null;
-    while (walker.nextNode()) {
-      if (/Family Micro-Cards/i.test(walker.currentNode.nodeValue)) {
-        targetNode = walker.currentNode;
-        break;
+    // Remove Family Micro-Cards and everything downstream from commentary
+    var allElements = Array.from(tempDiv.querySelectorAll('h1, h2, h3, h4, p, div, hr'));
+    var cutEl = allElements.find(function(el){ return /Family Micro-Cards/i.test(el.textContent); });
+
+    if (cutEl) {
+      var cur = cutEl;
+      while (cur && cur.parentNode !== tempDiv) {
+        cur = cur.parentNode;
+      }
+      while (cur) {
+        var nxt = cur.nextSibling;
+        tempDiv.removeChild(cur);
+        cur = nxt;
       }
     }
 
-    if (targetNode) {
-      var block = targetNode;
-      while (block.parentNode && block.parentNode !== tempDiv) {
-        block = block.parentNode;
-      }
-      while (block) {
-        var nextBlock = block.nextSibling;
-        tempDiv.removeChild(block);
-        block = nextBlock;
-      }
-    }
-
-    var topCommentary = tempDiv.innerHTML.trim();
+    var topCommentary = tempDiv.innerHTML.trim() || out.innerHTML.trim();
 
     // Preserve any attached raw snips in Devotional Mode by embedding into commentary
     if (pageAttachedImages.length) {
@@ -2835,7 +2830,7 @@ function htmlToPlainText(html) {
     try {
       var famListId = await getListId(token, siteId, 'Family_Insights');
 
-      function getSlice(startRegex, endRegex) {
+     function getSlice(startRegex, endRegex) {
         var matchStart = familyRaw.search(startRegex);
         if (matchStart === -1) return '';
         var sub = familyRaw.slice(matchStart);
@@ -2844,14 +2839,15 @@ function htmlToPlainText(html) {
         return (matchEnd > -1 ? sub.slice(0, matchEnd) : sub).trim();
       }
 
-      var wesleyText  = getSlice(/(?:^|\n)\s*\*?\*?Wesley\s*[-—–]/i,       /(?:^|\n)\s*\*?\*?Mac\s*[-—–]/i);
-      var macText     = getSlice(/(?:^|\n)\s*\*?\*?Mac\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i);
-      var jonText     = getSlice(/(?:^|\n)\s*\*?\*?Jonathan\s*[-—–]/i,     /(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i);
-      var kimText     = getSlice(/(?:^|\n)\s*\*?\*?Kim\s*[-—–]/i,          /(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i);
-      var robText     = getSlice(/(?:^|\n)\s*\*?\*?Rob\s*[-—–]/i,          /(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i);
+      // Tolerates hyphens, em-dashes, en-dashes, colons, spaces, and smart quotes
+      var wesleyText  = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Wesley\b[^\n]*/i,        /(?:^|\n)\s*#*\s*\*?\*?Mac\b[^\n]*/i);
+      var macText     = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Mac\b[^\n]*/i,           /(?:^|\n)\s*#*\s*\*?\*?Jonathan\b[^\n]*/i);
+      var jonText     = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Jonathan\b[^\n]*/i,      /(?:^|\n)\s*#*\s*\*?\*?Kim\b[^\n]*/i);
+      var kimText     = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Kim\b[^\n]*/i,           /(?:^|\n)\s*#*\s*\*?\*?Rob\b[^\n]*/i);
+      var robText     = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Rob\b[^\n]*/i,           /(?:^|\n)\s*#*\s*\*?\*?Family Prayer\b/i);
       
-      var famPrayText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Family Prayer/i,   /(?:^|\n)\s*```/i);
-      var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain/i,         /(?:^|\n)\s*```/i);
+      var famPrayText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Family Prayer\b/i,       /(?:^|\n)\s*#*\s*\*?\*?Refrain\b|(?:^|\n)\s*```/i);
+      var refrainText = getSlice(/(?:^|\n)\s*#*\s*\*?\*?Refrain\b/i,             /(?:^|\n)\s*#*\s*\*?\*?Hymn\b|(?:^|\n)\s*```/i);
 
       var familyPayloads = [
         { person: 'Wesley',        title: 'Insight • Wesley • ' + monthDayStr,       raw: wesleyText },
