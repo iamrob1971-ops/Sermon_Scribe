@@ -521,7 +521,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
   </aside>
 </div>
 
-<!-- INSTRUCTIONS MODAL (WITH PRESET MANAGEMENT & GITHUB EXPORT) -->
+<!-- INSTRUCTIONS MODAL (SHAREPOINT PRESET LIBRARY + LOCAL FALLBACK) -->
 <dialog id="instDlg" aria-labelledby="dlgT">
   <div class="dlg-h">
     <h2 id="dlgT">AI Instructions &amp; Presets</h2>
@@ -541,16 +541,17 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
     <textarea id="instText" spellcheck="false" placeholder="Write or paste your custom AI instructions here..."></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span class="count" id="instCount" style="font-size:12px;color:var(--muted)"></span>
-      <small style="color:var(--muted)">Saved edits are stored on this device. Click "Export for GitHub" to bake them permanently into code.</small>
+      <small style="color:var(--muted)">Presets sync to SharePoint when signed in; a local copy remains available offline.</small>
     </div>
   </div>
   <div class="dlg-f">
     <button class="btn primary" id="instSave">Save</button>
+    <button class="btn" id="instRefresh" title="Load latest AI instructions from SharePoint">☁️ Refresh Library</button>
     <button class="btn" id="instSaveAsNew" title="Create a new named style with this prompt">Save as New Style</button>
     <button class="btn" id="instDelete" style="display:none;color:#B91C1C" title="Delete this custom preset">Delete Style</button>
     <button class="btn" id="instReset">Reset to Built-in</button>
     <span class="spacer"></span>
-    <button class="btn" id="exportHtmlBtn" title="Download updated index.html with all your custom presets baked in for GitHub">📥 Export for GitHub (Make Global)</button>
+    <button class="btn" id="exportHtmlBtn" title="Optional offline HTML backup. SharePoint presets now sync automatically.">📥 Export HTML Backup</button>
     <button class="btn" id="instCancel">Cancel</button>
   </div>
 </dialog>
@@ -987,53 +988,77 @@ var SITE_PATH = "/sites/Bible_App";
     return sel;
   }
 
-  /* Preset & Custom Styles Management */
-  var CUSTOM_KEY='ss_custom_presets_v1';
+  /* SharePoint-backed presets with local/baked offline fallbacks. */
+  var CUSTOM_KEY = 'ss_custom_presets_v1';
+  var SP_INSTRUCTIONS_CACHE_KEY = 'ss_sharepoint_ai_instructions_v1';
+  var sharePointPresets = {};
+  var sharePointInstructionsOnline = false;
+  var sharePointInstructionsPromise = null;
+  var cachedInstructionsListId = null;
+  (function restoreCachedInstructions(){
+    try {
+      var cache = JSON.parse(load(SP_INSTRUCTIONS_CACHE_KEY) || '{}');
+      if (cache && typeof cache === 'object' && !Array.isArray(cache)) {
+        Object.keys(cache).forEach(function(id){
+          if (cache[id] && typeof cache[id].text === 'string' && cache[id].text.trim()) {
+            sharePointPresets[id] = cache[id];
+          }
+        });
+      }
+    } catch(e) { sharePointPresets = {}; }
+  })();
   function getCustomPresets(){
-    var raw=load(CUSTOM_KEY);
-    var local={};
-    try{ local=raw?JSON.parse(raw):{}; }catch(e){}
+    var raw = load(CUSTOM_KEY), local = {};
+    try { local = raw ? JSON.parse(raw) : {}; } catch(e) {}
     return Object.assign({}, BAKED_CUSTOM_PRESETS, local);
   }
-  function saveCustomPresets(obj){
-    store(CUSTOM_KEY, JSON.stringify(obj));
-  }
-
+  function saveCustomPresets(obj){ store(CUSTOM_KEY, JSON.stringify(obj)); }
   function getAllPresets(){
-    var customs=getCustomPresets();
-    return Object.assign({}, BUILTIN_PRESETS, customs);
+    return Object.assign({}, BUILTIN_PRESETS, getCustomPresets(), sharePointPresets);
   }
-
   function fillPresets(){
-    var sel=$('preset');sel.innerHTML='';
-    var all=getAllPresets();
-    var keys=Object.keys(all);
-
-    keys.forEach(function(id){
-      var p=all[id];
-      if(p.mode===mode||p.mode==='any'){
-        var o=document.createElement('option');o.value=id;
-        var isCustom=!!getCustomPresets()[id];
-        var isEdited=!!load('ss_inst_'+id);
-        o.textContent=p.label+(isCustom?' [Custom]':(isEdited?' [Edited]':''));
-        sel.appendChild(o);
+    var sel = $('preset'); sel.innerHTML = '';
+    var all = getAllPresets();
+    Object.keys(all).forEach(function(id){
+      var p = all[id];
+      if (p.mode === mode || p.mode === 'any') {
+        var opt = document.createElement('option');
+        opt.value = id;
+        var cloud = !!sharePointPresets[id], custom = !!getCustomPresets()[id];
+        opt.textContent = p.label + (cloud ?
+          (sharePointInstructionsOnline ? '' : ' [Cached]') :
+          (custom ? ' [Custom]' : (load('ss_inst_' + id) ? ' [Edited]' : '')));
+        sel.appendChild(opt);
       }
     });
-
-    var newOpt=document.createElement('option');
-    newOpt.value='__new__';
-    newOpt.textContent='➕ Create New Style...';
+    var newOpt = document.createElement('option');
+    newOpt.value = '__new__'; newOpt.textContent = '➕ Create New Style...';
     sel.appendChild(newOpt);
-
-    if(!all[presetId]||(all[presetId].mode!==mode&&all[presetId].mode!=='any')){
-      presetId=MODES[mode].defaultPreset;
+    if (!all[presetId] || (all[presetId].mode !== mode && all[presetId].mode !== 'any')) {
+      presetId = MODES[mode].defaultPreset;
     }
-    sel.value=presetId;
+    sel.value = presetId;
   }
-
   function getInstr(){
-    var all=getAllPresets();
-    return load('ss_inst_'+presetId)||(all[presetId]&&all[presetId].text)||'';
+    var all = getAllPresets();
+    if (sharePointInstructionsOnline && sharePointPresets[presetId]) {
+      return sharePointPresets[presetId].text;
+    }
+    return load('ss_inst_' + presetId) || (all[presetId] && all[presetId].text) || '';
+  }
+  function selectRequestedPreset(requestedId){
+    var id = String(requestedId || '').trim(), all = getAllPresets();
+    var chosen = all[id];
+    if (chosen && (chosen.mode === mode || chosen.mode === 'any')) {
+      presetId = id; fillPresets();
+      logSync('✓ Selected AI instruction: ' + id +
+        (sharePointPresets[id] ? ' (SharePoint)' : ' (local/built-in)'));
+      return true;
+    }
+    presetId = MODES[mode].defaultPreset;
+    fillPresets();
+    if (id) logSync('⚠️ Instruction "' + id + '" unavailable; using ' + presetId);
+    return false;
   }
 
   $('preset').addEventListener('change',function(){
@@ -1050,98 +1075,173 @@ var SITE_PATH = "/sites/Bible_App";
     $('instCount').textContent=(t.trim()?t.trim().split(/\s+/).length:0)+' words';
   }
 
+  var creatingNewInstruction = false;
   function openPresetModal(targetId){
-    var all=getAllPresets();
-    var p=all[targetId]||all[presetId];
-    var isCustom=!!getCustomPresets()[targetId||presetId];
-
-    $('dlgT').textContent='Edit Style: '+(p?p.label:'Instructions');
-    $('instTitle').value=p?p.label:'';
-    $('instMode').value=(p&&p.mode)?p.mode:mode;
-    $('instText').value=getInstr();
-    $('instDelete').style.display=isCustom?'inline-flex':'none';
-    $('instReset').style.display=isCustom?'none':'inline-flex';
+    creatingNewInstruction = false;
+    var all = getAllPresets(), id = targetId || presetId;
+    var p = all[id] || all[presetId];
+    // Immutable baked fallback styles cannot be deleted from SharePoint alone.
+    var custom = !BUILTIN_PRESETS[id] && !BAKED_CUSTOM_PRESETS[id] &&
+      (!!getCustomPresets()[id] || !!sharePointPresets[id]);
+    $('dlgT').textContent = 'Edit Style: ' + (p ? p.label : 'Instructions');
+    $('instTitle').value = p ? p.label.replace(/\s*☁️(?:\s*\[Cached\])?$/, '') : '';
+    $('instMode').value = p && p.mode ? p.mode : mode;
+    $('instText').value = getInstr();
+    $('instDelete').style.display = custom ? 'inline-flex' : 'none';
+    $('instReset').style.display = p && BUILTIN_PRESETS[id] && !sharePointPresets[id] ?
+      'inline-flex' : 'none';
     countInst();
-    if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open','');
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
   }
-
   function openNewPresetModal(){
-    $('dlgT').textContent='Create New AI Instruction Style';
-    $('instTitle').value='';
-    $('instMode').value=mode;
-    $('instText').value=getInstr()||'';
-    $('instDelete').style.display='none';
-    $('instReset').style.display='none';
+    creatingNewInstruction = true;
+    $('dlgT').textContent = 'Create New AI Instruction Style';
+    $('instTitle').value = '';
+    $('instMode').value = mode;
+    $('instText').value = getInstr() || '';
+    $('instDelete').style.display = 'none';
+    $('instReset').style.display = 'none';
     countInst();
-    if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open','');
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+  $('editInst').addEventListener('click', function(){ openPresetModal(presetId); });
+  $('instText').addEventListener('input', countInst);
+
+  async function persistInstructionPreset(id, label, selectedMode, instructions, button){
+    if(button) button.disabled = true;
+    var savedInSharePoint = false;
+    var errorMessage = '';
+    try {
+      // Do not invoke Microsoft login popups merely to save an offline style.
+      if (msalApp.getAllAccounts().length) {
+        var online = await ensureSharePointInstructions(true);
+        if (online) {
+          try {
+            await writeSharePointInstruction(id, label, selectedMode, instructions);
+            savedInSharePoint = true;
+          } catch(err) {
+            errorMessage = err.message;
+            logSync('⚠️ SharePoint preset write failed; keeping local copy: ' + errorMessage);
+          }
+        } else {
+          errorMessage = 'Could not reach AI_Instructions.';
+        }
+      } else {
+        errorMessage = 'Not signed in with Microsoft.';
+      }
+      // Always retain a local fallback for offline work.
+      cacheLocalInstruction(id, label, selectedMode, instructions);
+      if (!savedInSharePoint) {
+        // Locally saved content takes priority when the cloud write did not succeed.
+        sharePointInstructionsOnline = false;
+      }
+      presetId = id;
+      fillPresets();
+      dlg.close();
+      toast(savedInSharePoint ? 'Preset saved to SharePoint ☁️' :
+        'Saved locally only — SharePoint not updated');
+      if (errorMessage) logSync('ℹ️ Instruction backup: ' + errorMessage);
+      return savedInSharePoint;
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
-  $('editInst').addEventListener('click',function(){
-    openPresetModal(presetId);
-  });
-  $('instText').addEventListener('input',countInst);
-
-  $('instSave').addEventListener('click',function(){
-    var v=$('instText').value.trim();
-    var title=$('instTitle').value.trim();
-    if(!v){toast('Instructions cannot be empty');return}
-    
-    var customs=getCustomPresets();
-    if(customs[presetId]){
-      customs[presetId].label=title||customs[presetId].label;
-      customs[presetId].mode=$('instMode').value;
-      customs[presetId].text=v;
-      saveCustomPresets(customs);
-      toast('Custom style updated');
-    } else {
-      store('ss_inst_'+presetId, v===BUILTIN_PRESETS[presetId].text.trim()?null:v);
-      toast('Saved as default for this device');
+  async function saveAsNewInstruction(){
+    var textValue = $('instText').value.trim();
+    var label = $('instTitle').value.trim() ||
+      ('Custom Style ' + new Date().toLocaleDateString());
+    if (!textValue) { toast('Instructions cannot be empty'); return; }
+    var newId = 'custom_' + Date.now().toString(36) +
+      '_' + Math.random().toString(36).slice(2, 6);
+    await persistInstructionPreset(newId, label, $('instMode').value,
+      textValue, $('instSaveAsNew'));
+    creatingNewInstruction = false;
+  }
+  $('instSave').addEventListener('click', async function(){
+    if (creatingNewInstruction) {
+      await saveAsNewInstruction();
+      return;
     }
-    fillPresets();
-    dlg.close();
+    var textValue = $('instText').value.trim();
+    var all = getAllPresets();
+    var label = $('instTitle').value.trim() ||
+      ((all[presetId] && all[presetId].label) || presetId).replace(/\s*☁️$/, '');
+    if (!textValue) { toast('Instructions cannot be empty'); return; }
+    await persistInstructionPreset(presetId, label, $('instMode').value,
+      textValue, this);
+  });
+  $('instSaveAsNew').addEventListener('click', saveAsNewInstruction);
+
+  $('instRefresh').addEventListener('click', async function(){
+    var button = this;
+    button.disabled = true;
+    try {
+      var ok = await ensureSharePointInstructions(true);
+      if (ok) {
+        $('instText').value = getInstr();
+        countInst();
+        toast('Instruction library refreshed from SharePoint ☁️');
+      } else {
+        toast('SharePoint unavailable; using saved local instructions');
+      }
+    } finally { button.disabled = false; }
   });
 
-  $('instSaveAsNew').addEventListener('click',function(){
-    var v=$('instText').value.trim();
-    var title=$('instTitle').value.trim()||('Custom Style '+(new Date().toLocaleDateString()));
-    if(!v){toast('Instructions cannot be empty');return}
-
-    var newId='custom_'+Date.now().toString(36);
-    var customs=getCustomPresets();
-    customs[newId]={
-      id:newId,
-      mode:$('instMode').value,
-      label:title,
-      text:v
-    };
+  $('instDelete').addEventListener('click', async function(){
+    if (!confirm('Delete this instruction style? SharePoint deletion affects every device.')) return;
+    var selectedId = presetId;
+    var remote = sharePointPresets[selectedId];
+    if (remote && remote.spId) {
+      if (!msalApp.getAllAccounts().length) {
+        toast('Sign in to delete a SharePoint style');
+        return;
+      }
+      var button = this;
+      button.disabled = true;
+      try {
+        var token = await getMsalToken();
+        var siteId = await resolveSiteId(token);
+        var listId = await getInstructionListId(token, siteId);
+        var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+          '/lists/' + listId + '/items/' + encodeURIComponent(remote.spId);
+        var response = await fetch(url, {
+          method: 'DELETE', headers: {Authorization: 'Bearer ' + token}
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        delete sharePointPresets[selectedId];
+        store(SP_INSTRUCTIONS_CACHE_KEY, JSON.stringify(sharePointPresets));
+      } catch(err) {
+        logSync('❌ Could not delete SharePoint instruction: ' + err.message);
+        toast('SharePoint deletion failed; style not deleted');
+        return;
+      } finally { button.disabled = false; }
+    }
+    var customs = getCustomPresets();
+    delete customs[selectedId];
     saveCustomPresets(customs);
-    presetId=newId;
+    store('ss_inst_' + selectedId, null);
+    presetId = MODES[mode].defaultPreset;
     fillPresets();
     dlg.close();
-    toast('New style "'+title+'" created!');
+    toast('Instruction style deleted');
   });
-
-  $('instDelete').addEventListener('click',function(){
-    if(!confirm('Delete this custom instruction style?'))return;
-    var customs=getCustomPresets();
-    delete customs[presetId];
-    saveCustomPresets(customs);
-    store('ss_inst_'+presetId,null);
-    presetId=MODES[mode].defaultPreset;
-    fillPresets();
-    dlg.close();
-    toast('Custom style deleted');
-  });
-
-  $('instReset').addEventListener('click',function(){
-    store('ss_inst_'+presetId,null);
-    $('instText').value=BUILTIN_PRESETS[presetId].text;
-    countInst();
-    fillPresets();
+  $('instReset').addEventListener('click', function(){
+    if (!BUILTIN_PRESETS[presetId] || sharePointPresets[presetId]) {
+      toast('This preset is managed by SharePoint; edit and save instead');
+      return;
+    }
+    store('ss_inst_' + presetId, null);
+    $('instText').value = BUILTIN_PRESETS[presetId].text;
+    countInst(); fillPresets();
     toast('Reset to built-in instructions');
   });
-  $('instCancel').addEventListener('click',function(){dlg.close()});
-  $('dlgX').addEventListener('click',function(){dlg.close()});
+  $('instCancel').addEventListener('click', function(){
+    creatingNewInstruction = false; dlg.close(); fillPresets();
+  });
+  $('dlgX').addEventListener('click', function(){
+    creatingNewInstruction = false; dlg.close(); fillPresets();
+  });
 
   $('exportHtmlBtn').addEventListener('click', async function(){
     toast('Packaging master index.html with custom styles baked in...');
@@ -1176,6 +1276,7 @@ var SITE_PATH = "/sites/Bible_App";
 
   /* URL Parameters Ingestion */
   var qParams=new URLSearchParams(window.location.search);
+  var requestedPresetId = String(qParams.get('presetId') || qParams.get('instruction') || '').trim();
   if(qParams.get('mode')&&MODES[qParams.get('mode')]) mode=qParams.get('mode');
   if(qParams.get('topicId')) $('sermonTopicId').value=qParams.get('topicId');
   if(qParams.get('itemId')) {
@@ -2073,7 +2174,12 @@ var SITE_PATH = "/sites/Bible_App";
   $('authBtn').addEventListener('click',async function(){
     var accs=msalApp.getAllAccounts();
     if(accs.length>0){msalApp.logoutPopup().then(function(){updateUserUI(null);toast('Signed out')});return}
-    try{await getMsalToken();toast('Signed in successfully!')}catch(e){alert('Sign in failed: '+e.message)}
+    try{
+      await getMsalToken();
+      await ensureSharePointInstructions(true);
+      if (requestedPresetId) selectRequestedPreset(requestedPresetId);
+      toast('Signed in with Microsoft. Preset library checked.');
+    }catch(e){alert('Sign in failed: '+e.message)}
   });
 
   async function resolveSiteId(token){
@@ -2100,6 +2206,151 @@ var SITE_PATH = "/sites/Bible_App";
     });
     if (!found) throw new Error("Could not find list matching '" + targetName + "'");
     return found.id;
+  }
+
+  /* SharePoint AI_Instructions list (verified internal text field:
+     AIInstructions, not AI_x0020_Instructions). */
+  async function getInstructionListId(token, siteId) {
+    if (!cachedInstructionsListId) {
+      cachedInstructionsListId = await getListId(token, siteId, 'AI_Instructions');
+    }
+    return cachedInstructionsListId;
+  }
+  async function loadSharePointInstructions(token, siteId) {
+    var listId = await getInstructionListId(token, siteId);
+    var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+      '/lists/' + listId +
+      '/items?expand=fields($select=Title,Instruction_Title,App_Theme,AIInstructions,Slot_Default,IsActive)&$top=999';
+    var records = {}, count = 0;
+    while (url) {
+      var response = await fetch(url, { headers: {Authorization: 'Bearer ' + token} });
+      var data = await response.json();
+      if (!response.ok) throw new Error('AI_Instructions GET failed: ' +
+        ((data.error && data.error.message) || ('HTTP ' + response.status)));
+      (data.value || []).forEach(function(item) {
+        var f = item.fields || {};
+        if (f.IsActive === false || String(f.IsActive).toLowerCase() === 'false') return;
+        var id = String(f.Title || item.id || '').trim();
+        var label = String(f.Instruction_Title || f.Title || id).trim();
+        var theme = String(f.App_Theme || 'Both').toLowerCase();
+        var selectedMode = theme.includes('sermon') ? 'sermon' :
+          (theme.includes('devo') ? 'devotional' : 'any');
+        var instructionText = String(f.AIInstructions ||
+          f.AI_x0020_Instructions || f['AI Instructions'] || '').trim();
+        if (id && instructionText) {
+          records[id] = {
+            id: id, spId: String(item.id), mode: selectedMode,
+            label: label + ' ☁️', text: instructionText,
+            slotDefault: String(f.Slot_Default || '')
+          };
+          count++;
+        }
+      });
+      url = data['@odata.nextLink'] || '';
+      if (url && !url.startsWith('https://graph.microsoft.com/')) {
+        throw new Error('Unexpected Graph paging URL for instructions');
+      }
+    }
+    sharePointPresets = records;
+    sharePointInstructionsOnline = true;
+    store(SP_INSTRUCTIONS_CACHE_KEY, JSON.stringify(records));
+    fillPresets();
+    logSync('✓ Loaded ' + count + ' active SharePoint AI instruction preset(s).');
+    return records;
+  }
+
+  /* Startup retrieval is silent-only. Interactive sign-in is reserved
+     for explicit actions and the existing URL auto-run login step. */
+  async function ensureSharePointInstructions(interactive) {
+    if (sharePointInstructionsPromise) return sharePointInstructionsPromise;
+    if (!interactive && !msalApp.getAllAccounts().length) return false;
+    sharePointInstructionsPromise = (async function() {
+      if (typeof msalApp.initialize === 'function') await msalApp.initialize();
+      var token;
+      if (interactive) {
+        token = await getMsalToken();
+      } else {
+        var account = msalApp.getAllAccounts()[0];
+        if (!account) return false;
+        var silent = await msalApp.acquireTokenSilent({scopes: GRAPH_SCOPES, account: account});
+        token = silent.accessToken;
+      }
+      var siteId = await resolveSiteId(token);
+      await loadSharePointInstructions(token, siteId);
+      return true;
+    })().catch(function(e) {
+      sharePointInstructionsOnline = false;
+      logSync('⚠️ AI_Instructions unavailable; using local presets: ' + e.message);
+      return false;
+    }).finally(function() { sharePointInstructionsPromise = null; });
+    return sharePointInstructionsPromise;
+  }
+
+  function sharePointThemeValue(presetMode) {
+    return presetMode === 'sermon' ? 'Sermon' :
+      (presetMode === 'devotional' ? 'Devotional' : 'Both');
+  }
+  function cacheLocalInstruction(id, title, presetMode, instructionText) {
+    var customs = getCustomPresets();
+    var existing = getAllPresets()[id];
+    if (!BUILTIN_PRESETS[id]) {
+      customs[id] = {
+        id: id, label: title, mode: presetMode, text: instructionText
+      };
+      saveCustomPresets(customs);
+    }
+    store('ss_inst_' + id, instructionText);
+  }
+  /* Create or update a preset. The multiline field's internal name is
+     AIInstructions (as supplied by the SharePoint column settings). */
+  async function writeSharePointInstruction(id, title, presetMode, textValue) {
+    var token = await getMsalToken();
+    var siteId = await resolveSiteId(token);
+    var listId = await getInstructionListId(token, siteId);
+    var existing = sharePointPresets[id];
+    var base = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+      '/lists/' + listId + '/items';
+    var fields = {
+      Instruction_Title: title,
+      App_Theme: sharePointThemeValue(presetMode),
+      AIInstructions: textValue
+    };
+    var requestUrl, method, body;
+    if (existing && existing.spId) {
+      requestUrl = base + '/' + encodeURIComponent(existing.spId) + '/fields';
+      method = 'PATCH';
+      body = fields;
+    } else {
+      requestUrl = base;
+      method = 'POST';
+      body = {fields: Object.assign({Title: id, IsActive: true}, fields)};
+    }
+    var response = await fetch(requestUrl, {
+      method: method,
+      headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      var responseText = await response.text();
+      throw new Error('SharePoint preset ' + method + ' failed (HTTP ' +
+        response.status + '): ' + responseText.slice(0, 260));
+    }
+    var updated = response.status === 204 ? {} : await response.json();
+    sharePointPresets[id] = {
+      id: id,
+      spId: String(updated.id || (existing && existing.spId) || ''),
+      mode: presetMode,
+      label: title + ' ☁️',
+      text: textValue,
+      slotDefault: existing ? existing.slotDefault : ''
+    };
+    sharePointInstructionsOnline = true;
+    store(SP_INSTRUCTIONS_CACHE_KEY, JSON.stringify(sharePointPresets));
+    // A subsequent refresh confirms the exact row ID and any server normalization.
+    try { await loadSharePointInstructions(token, siteId); }
+    catch(e) { logSync('⚠️ Preset saved; refresh could not confirm: ' + e.message); }
+    fillPresets();
+    return sharePointPresets[id];
   }
 
   /* -------------------------------------------------------------
@@ -4051,6 +4302,12 @@ if (pipelineErrors.length) {
       await getMsalToken();
       autoRunHasAuthenticated = true;
 
+      // Power Apps passes AI_Instructions.Title as presetId. Resolve its
+      // latest text BEFORE building the Gemini prompt. Fresh fetch is required
+      // when WelcomePage just created a preset immediately before Launch().
+      await ensureSharePointInstructions(true);
+      if (requestedPresetId) selectRequestedPreset(requestedPresetId);
+
       autoRunProgress('[Step 2/4] Pulling Devotional Record #' + id + '...',
         'Retrieving title, devotional body, date, and existing notes from SharePoint.', false);
       await pullDevoData(id, {clearNotes:true});
@@ -4099,9 +4356,15 @@ if (pipelineErrors.length) {
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
 
   applyMode(mode);
+  // Apply URL preset immediately from cache, then resolve it again when a
+  // fresh SharePoint library fetch becomes available.
+  if (requestedPresetId) selectRequestedPreset(requestedPresetId);
   if (autoRunRequested) {
-    // Handlers and presets have now been initialized, avoiding synthetic clicks.
     setTimeout(function(){runAutoDevotionalOrchestrator(autoRunItemId);}, 500);
+  } else if (cachedAccs.length) {
+    ensureSharePointInstructions(false).then(function(loaded){
+      if (loaded && requestedPresetId) selectRequestedPreset(requestedPresetId);
+    });
   }
 })();
 </script>
