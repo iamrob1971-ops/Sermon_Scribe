@@ -661,13 +661,14 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
         <button class="btn primary" id="askBtn" type="button">Ask</button>
       </div>
 
-     <!-- Action Toolbar with Rich Copy & Dual SharePoint Save -->
+     <!-- Action Toolbar: history saves plus independent Power Apps answer snapshot -->
       <div class="chat-toolbar">
         <div class="left-btns">
           <button class="btn sm" id="copyLastChatBtn" title="Copy last answer as rich formatted text (Word / Outlook ready)">📋 Copy Last Answer</button>
           <button class="btn sm" id="copyFullChatBtn" title="Copy full thread as rich formatted text (Word / Outlook ready)">📜 Copy Full Thread</button>
           <button class="btn sm success" id="saveLastChatSpBtn" title="Append only the latest Q&A to SharePoint in rich formatted HTML">💾 Save Last Q&amp;A</button>
           <button class="btn sm accent" id="saveFullChatSpBtn" title="Append the entire chat conversation to SharePoint in rich formatted HTML">📚 Save Full Thread</button>
+          <button class="btn sm success" id="saveAiChatAnswerBtn" type="button" title="Replace Resources.AI_Chat_Answer with the latest Q&amp;A for Power Apps; AINotes remains unchanged.">🚀 Push to AI_Chat_Answer</button>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button type="button" class="btn sm btn-danger-soft" id="askNew" title="⚠️ WARNING: This will permanently delete all messages in this active chat thread. To start a fresh thread without losing this one, click '+ New' in the left sidebar instead!">🗑️ Clear Active Thread</button>
@@ -3950,17 +3951,10 @@ if (pipelineErrors.length) {
         var richChatHtml = buildRichChatHtml(active.messages, isFullThread, timeStamp, 'devotional');
         var finalAiNotes = oldAiNotes ? (oldAiNotes + '<br>' + richChatHtml) : richChatHtml;
 
-        // Keep AINotes cumulative, but put only the latest formatted Q&A
-        // in AI_Chat_Answer, without inline base64 image attachments.
-        var lastTurn = active.messages[active.messages.length - 1];
-        var compactLastTurn = Object.assign({}, lastTurn, {imgs: [], img: null});
-        var latestChatHtml = buildRichChatHtml([compactLastTurn], false, timeStamp, 'devotional');
-
-        // Both column names are known; no extra Graph column probe needed.
-        var patchBody = {
-          [targetFieldKey]: finalAiNotes,
-          "AI_Chat_Answer": latestChatHtml
-        };
+        // Original historical-save behavior: append ONLY to AINotes.
+        // The Power Apps snapshot is now a separate explicit action.
+        var patchBody = {};
+        patchBody[targetFieldKey] = finalAiNotes;
 
         var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '/fields';
         var pRes = await fetch(patchUrl, {
@@ -3971,12 +3965,11 @@ if (pipelineErrors.length) {
 
         if(!pRes.ok) {
           var pData = await pRes.json();
-          throw new Error(pData.error && pData.error.message || 'Failed to update AINotes and AI_Chat_Answer. Verify the Resources column internal names.');
+          throw new Error(pData.error && pData.error.message || 'Failed to update AINotes. Verify the Resources column internal name.');
         }
 
-        logSync('✓ Saved Chat to Resources #' + rowId +
-          ' (' + targetFieldKey + ' + AI_Chat_Answer as Rich HTML)');
-        toast('Chat saved to AINotes and AI_Chat_Answer in Resources #' + rowId + ' ☁️');
+        logSync('✓ Appended Chat to Resources #' + rowId + ' (' + targetFieldKey + ' as Rich HTML)');
+        toast('Chat appended to Resources #' + rowId + ' (AINotes)!');
       } 
       // SERMON MODE -> Devotional_Topics (Other_SummariesForStudy)
       else {
