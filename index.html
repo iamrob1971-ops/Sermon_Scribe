@@ -4032,9 +4032,16 @@ if (pipelineErrors.length) {
       toast('Ask a question before posting a chat answer.');
       return false;
     }
-    var snapshotMode = active.mode || mode;
+    // The selected toggle determines the destination. Do not silently
+    // publish a Devotional-bound chat into a Sermon record (or vice versa).
+    var snapshotMode = mode;
+    if (active.mode && active.mode !== snapshotMode) {
+      toast('This chat belongs to ' + active.mode +
+        '. Start a new ' + snapshotMode + ' chat before pushing.');
+      return false;
+    }
     if (snapshotMode !== 'devotional' && snapshotMode !== 'sermon') {
-      toast('Select a Sermon or Devotional chat session before posting.');
+      toast('Select Sermon or Devotional mode before posting.');
       return false;
     }
     var snapshotListName = snapshotMode === 'sermon' ? 'Devotional_Topics' : 'Resources';
