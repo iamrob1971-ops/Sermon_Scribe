@@ -4201,6 +4201,95 @@ if (pipelineErrors.length) {
 
   sessionsLoad();
 
+  /* URL-initiated interactive Study Assistant. Always starts a NEW
+     record-bound chat after hydrating any previously saved AINotes.
+     No Graph write or automatic browser close occurs in this path. */
+  async function runInteractiveChatLauncher(itemId, question) {
+    var id = String(itemId == null ? '' : itemId).trim();
+    var q = String(question || '').trim();
+    if (!/^[1-9][0-9]*$/.test(id)) {
+      logSync('⚠️ Interactive chat requires a valid itemId or topicId.');
+      toast('Provide a valid SharePoint item ID to launch chat.');
+      return false;
+    }
+    try {
+      logSync('Starting interactive Study Assistant for ' +
+        (mode === 'sermon' ? 'Topic' : 'Resource') + ' #' + id + '...');
+      await getMsalToken();
+
+      // Use the selected SharePoint-managed style if Power Apps supplied it.
+      if (requestedPresetId) {
+        await ensureSharePointInstructions(true);
+        selectRequestedPreset(requestedPresetId);
+      }
+
+      if (mode === 'sermon') {
+        await pullSermonData(id);
+      } else {
+        await pullDevoData(id);
+      }
+
+      var sessTitle = q ?
+        (q.length > 28 ? q.slice(0, 26) + '…' : q) :
+        ((mode === 'sermon' ? 'Sermon #' : 'Devo #') + id + ' Q&A');
+      var newSess = createNewSession(sessTitle);
+      newSess.targetRowId = id;
+      newSess.mode = mode;
+      sessionsSave();
+      syncActiveSessionHeader();
+      renderSidebarSessions();
+
+      showHelpTab('ask');
+      if (!helpDlg.open) {
+        if (helpDlg.showModal) helpDlg.showModal();
+        else helpDlg.setAttribute('open', '');
+      }
+      askRender();
+
+      // Keep the new chat from re-submitting if the user reloads the tab,
+      // and avoid leaving the theological question in the address bar.
+      try {
+        var cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('chatQ');
+        cleanUrl.searchParams.delete('openChat');
+        window.history.replaceState(window.history.state, '',
+          cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+      } catch (ignored) {}
+
+      if (q) {
+        $('askQ').value = q;
+        await submitChatQuestion(); // Existing chat renderer and editor.
+        if (newSess.messages && newSess.messages.length) {
+          toast('Resource #' + id + ': answer ready to review. Save manually if desired.');
+          logSync('✓ Interactive chat answer ready for #' + id + '; NOT auto-saved.');
+          return true;
+        }
+        // submitChatQuestion intentionally handles its own errors and may
+        // leave the question in the textarea for manual retry.
+        toast('Chat opened; check the answer or retry the prepared question.');
+        logSync('⚠️ Chat answer not generated; session remains available for retry.');
+        return false;
+      }
+
+      $('askQ').focus();
+      toast('Context loaded for #' + id + '. Ask a question when ready.');
+      return true;
+    } catch (e) {
+      logSync('❌ Interactive chat launch failed: ' + e.message);
+      try {
+        if (!helpDlg.open) {
+          if (helpDlg.showModal) helpDlg.showModal();
+          else helpDlg.setAttribute('open', '');
+        }
+        showHelpTab('ask');
+        if (q) $('askQ').value = q;
+      } catch (ignored) {}
+      toast('Chat context could not load; check Microsoft sign-in and retry.');
+      return false;
+    }
+  }
+
+
   /* URL-based orchestration controller. Intentionally waits for initialization. */
   var autoRunActive = false;
   var autoRunHasAuthenticated = false;
@@ -4380,7 +4469,13 @@ if (pipelineErrors.length) {
   // Apply URL preset immediately from cache, then resolve it again when a
   // fresh SharePoint library fetch becomes available.
   if (requestedPresetId) selectRequestedPreset(requestedPresetId);
-  if (autoRunRequested) {
+  if (openChatRequested) {
+    // Interactive chat takes priority over autoRun: answers must never
+    // trigger the unattended SharePoint save/auto-close controller.
+    setTimeout(function(){
+      runInteractiveChatLauncher(chatTargetItemId, incomingChatQuestion);
+    }, 600);
+  } else if (autoRunRequested) {
     setTimeout(function(){runAutoDevotionalOrchestrator(autoRunItemId);}, 500);
   } else if (cachedAccs.length) {
     ensureSharePointInstructions(false).then(function(loaded){
