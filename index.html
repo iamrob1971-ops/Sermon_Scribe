@@ -2037,7 +2037,7 @@ var SITE_PATH = "/sites/Bible_App";
           sessionCapacityAction = decision.action;
         }
 
-        if (decision.action === 'fallback') {
+        if (decision.action === 'fallback' || decision.action === 'auto_free') {
           out.innerHTML = '<div class="loading"><span class="spin"></span>Failing over to Free: ' + fallbackFreeModel + '...</div>';
           try {
             var fbNotes = await executeGeminiRequest(fallbackFreeModel, freeKey, prompt, pageAttachedImages);
@@ -2047,7 +2047,7 @@ var SITE_PATH = "/sites/Bible_App";
           } catch(fbErr) {
             out.innerHTML = '<div class="err">Fallback model (' + fallbackFreeModel + ') also busy: ' + esc(fbErr.message) + '</div>';
           }
-        } else if (decision.action === 'paid' && paidKey) {
+        } else if ((decision.action === 'paid' || decision.action === 'auto_paid') && paidKey) {
           out.innerHTML = '<div class="loading"><span class="spin"></span>Switching to 💎 Paid Key (' + paidModel + ')...</div>';
           try {
             var pNotes = await executeGeminiRequest(paidModel, paidKey, prompt, pageAttachedImages);
@@ -2271,11 +2271,10 @@ function htmlToPlainText(html) {
   }
 
  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
-  $('pullDevoBtn').addEventListener('click', async function(){
-    var rowId = $('targetResourceId').value.trim();
-    if(!rowId){ alert('Please enter a Target Resource Row ID to pull.'); return; }
-    
-    var btn = this; btn.disabled = true;
+  async function pullDevoData(itemId){
+    var rowId = String(itemId == null ? '' : itemId).trim();
+    if(!/^[1-9]\d*$/.test(rowId)) throw new Error('A valid SharePoint Resources item ID is required.');
+    $('targetResourceId').value = rowId;
     try {
       var token = await getMsalToken();
       var siteId = await resolveSiteId(token);
@@ -2288,6 +2287,8 @@ function htmlToPlainText(html) {
       if(!r.ok) throw new Error(d.error && d.error.message || ('Item #' + rowId + ' not found'));
 
       var fields = d.fields || {};
+      out.innerHTML = '';
+      checkNotesState();
       var pulledTitle = (fields.Title || '').trim();
       if (pulledTitle) $('title').value = pulledTitle;
       
@@ -2345,12 +2346,19 @@ function htmlToPlainText(html) {
 
       logSync('✓ Pulled Resource #' + rowId + ': "' + (fields.Title || '') + '"');
       toast('Pulled Resource #' + rowId + ' successfully!');
+      return fields;
     } catch(e) {
       logSync('❌ Pull error: ' + e.message);
-      alert('Could not pull Resource #' + rowId + ': ' + e.message);
-    } finally {
-      btn.disabled = false;
+      throw e;
     }
+  }
+
+  $('pullDevoBtn').addEventListener('click', async function(){
+    var btn = this;
+    btn.disabled = true;
+    try { await pullDevoData($('targetResourceId').value); }
+    catch(e) { alert('Could not pull Resource: ' + e.message); }
+    finally { btn.disabled = false; }
   });
 
     // PULL SERMON TOPIC FROM DEVOTIONAL_TOPICS LIST
@@ -3875,10 +3883,10 @@ logSync('🎉 COMPLETE! Devotional sync finished.');
           }
           if (decision.remember) sessionCapacityAction = decision.action;
 
-          if (decision.action === 'fallback') {
+          if (decision.action === 'fallback' || decision.action === 'auto_free') {
             askPending.text = 'Failing over to Free: ' + fallbackFreeModel + '...'; askRender();
             reply = await executeGeminiChat(contents, fallbackFreeModel, freeKey);
-          } else if (decision.action === 'paid' && paidKey) {
+          } else if ((decision.action === 'paid' || decision.action === 'auto_paid') && paidKey) {
             askPending.text = 'Switching to 💎 Paid Key (' + paidModel + ')...'; askRender();
             reply = await executeGeminiChat(contents, paidModel, paidKey);
           } else if (decision.action === 'retry') {
