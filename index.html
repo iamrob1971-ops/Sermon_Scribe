@@ -1270,6 +1270,7 @@ var SITE_PATH = "/sites/Bible_App";
 
   /* URL Parameters Ingestion */
   var qParams=new URLSearchParams(window.location.search);
+  var requestedPresetId = String(qParams.get('presetId') || qParams.get('instruction') || '').trim();
   if(qParams.get('mode')&&MODES[qParams.get('mode')]) mode=qParams.get('mode');
   if(qParams.get('topicId')) $('sermonTopicId').value=qParams.get('topicId');
   if(qParams.get('itemId')) {
@@ -2167,7 +2168,12 @@ var SITE_PATH = "/sites/Bible_App";
   $('authBtn').addEventListener('click',async function(){
     var accs=msalApp.getAllAccounts();
     if(accs.length>0){msalApp.logoutPopup().then(function(){updateUserUI(null);toast('Signed out')});return}
-    try{await getMsalToken();toast('Signed in successfully!')}catch(e){alert('Sign in failed: '+e.message)}
+    try{
+      await getMsalToken();
+      await ensureSharePointInstructions(true);
+      if (requestedPresetId) selectRequestedPreset(requestedPresetId);
+      toast('Signed in with Microsoft. Preset library checked.');
+    }catch(e){alert('Sign in failed: '+e.message)}
   });
 
   async function resolveSiteId(token){
@@ -4290,6 +4296,12 @@ if (pipelineErrors.length) {
       await getMsalToken();
       autoRunHasAuthenticated = true;
 
+      // Power Apps passes AI_Instructions.Title as presetId. Resolve its
+      // latest text BEFORE building the Gemini prompt. Fresh fetch is required
+      // when WelcomePage just created a preset immediately before Launch().
+      await ensureSharePointInstructions(true);
+      if (requestedPresetId) selectRequestedPreset(requestedPresetId);
+
       autoRunProgress('[Step 2/4] Pulling Devotional Record #' + id + '...',
         'Retrieving title, devotional body, date, and existing notes from SharePoint.', false);
       await pullDevoData(id, {clearNotes:true});
@@ -4338,9 +4350,15 @@ if (pipelineErrors.length) {
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
 
   applyMode(mode);
+  // Apply URL preset immediately from cache, then resolve it again when a
+  // fresh SharePoint library fetch becomes available.
+  if (requestedPresetId) selectRequestedPreset(requestedPresetId);
   if (autoRunRequested) {
-    // Handlers and presets have now been initialized, avoiding synthetic clicks.
     setTimeout(function(){runAutoDevotionalOrchestrator(autoRunItemId);}, 500);
+  } else if (cachedAccs.length) {
+    ensureSharePointInstructions(false).then(function(loaded){
+      if (loaded && requestedPresetId) selectRequestedPreset(requestedPresetId);
+    });
   }
 })();
 </script>
