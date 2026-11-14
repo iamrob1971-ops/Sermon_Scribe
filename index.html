@@ -1182,6 +1182,9 @@ var SITE_PATH = "/sites/Bible_App";
     if(mode==='sermon') $('sermonTopicId').value=qParams.get('itemId');
     else $('targetResourceId').value=qParams.get('itemId');
   }
+  var autoRunRequested = qParams.get('autoRun') === '1' && mode === 'devotional';
+  // A missing ID must never silently process the hard-coded sample item 17.
+  var autoRunItemId = autoRunRequested ? (qParams.get('itemId') || '').trim() : '';
   if(qParams.get('saveMode')) $('sermonSaveMode').value=qParams.get('saveMode').toUpperCase();
   if(qParams.get('title')) $('title').value=qParams.get('title');
   if(qParams.get('source')) $('devoSource').value=qParams.get('source');
@@ -3924,10 +3927,155 @@ if (pipelineErrors.length) {
 
   sessionsLoad();
 
+  /* URL-based orchestration controller. Intentionally waits for initialization. */
+  var autoRunActive = false;
+  var autoRunHasAuthenticated = false;
+  var autoRunId = '';
+
+  function autoRunProgress(stage, message, isFailure, retryCallback) {
+    var container = document.getElementById('autoRunProgress');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'autoRunProgress';
+      container.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.78);display:flex;align-items:center;justify-content:center;padding:20px';
+      var panel = document.createElement('section');
+      panel.style.cssText = 'max-width:560px;width:100%;background:#fff;border-radius:16px;padding:30px;color:#1D1930;box-shadow:0 24px 72px #0003;font-family:Segoe UI,Arial,sans-serif';
+      var title = document.createElement('h2');
+      title.textContent = 'Devotional Scribe · Automatic Processing';
+      title.style.cssText = 'margin:0 0 15px;font-size:21px';
+      var step = document.createElement('p');
+      step.id = 'autoRunStep';
+      step.style.cssText = 'margin:0 0 12px;font-weight:bold;font-size:16px';
+      var detail = document.createElement('p');
+      detail.id = 'autoRunMessage';
+      detail.style.cssText = 'margin:0 0 20px;white-space:pre-wrap;font-size:14px;line-height:1.55;color:#56546B';
+      var retry = document.createElement('button');
+      retry.type = 'button';
+      retry.id = 'autoRunRetry';
+      retry.textContent = 'Continue / Retry';
+      retry.style.cssText = 'display:none;padding:10px 15px;border:none;border-radius:8px;background:#3A5A40;color:white;cursor:pointer;margin-right:8px';
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.textContent = 'Close this tab';
+      close.style.cssText = 'padding:10px 15px;border:none;border-radius:8px;background:#EAF0EB;color:#283E2C;cursor:pointer';
+      close.addEventListener('click',function(){
+        window.close();
+        document.getElementById('autoRunMessage').textContent =
+          'Your browser may prevent a tab from closing itself. Return to Power Apps and close this tab manually.';
+      });
+      panel.appendChild(title);panel.appendChild(step);panel.appendChild(detail);
+      panel.appendChild(retry);panel.appendChild(close);
+      container.appendChild(panel);
+      document.body.appendChild(container);
+    }
+    document.getElementById('autoRunStep').textContent = stage;
+    document.getElementById('autoRunStep').style.color = isFailure ? '#B42318' : '#283E2C';
+    document.getElementById('autoRunMessage').textContent = message || '';
+    var retry = document.getElementById('autoRunRetry');
+    retry.style.display = retryCallback ? 'inline-block' : 'none';
+    retry.onclick = retryCallback || null;
+  }
+
+  /* Optional automation status columns in Resources: AIProcessingStatus
+     (text), AILastError (text), AIModelUsed (text), AIRunId (text),
+     AILastRunUTC (date/time). Unprovisioned columns are skipped. */
+  async function publishAutoRunStatus(itemId, status, errorMessage) {
+    try {
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      var listId = await getListId(token, siteId, 'Resources');
+      var path = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+        '/lists/' + listId + '/items/' + encodeURIComponent(itemId);
+      var response = await fetch(path + '?expand=fields', {
+        headers: {'Authorization':'Bearer ' + token}
+      });
+      if (!response.ok) throw new Error('Could not inspect Resources status fields (HTTP ' + response.status + ')');
+      var record = await response.json();
+      var fields = record.fields || {};
+      if (!Object.prototype.hasOwnProperty.call(fields, 'AIProcessingStatus')) {
+        logSync('ℹ️ Status reporting skipped; Resources.AIProcessingStatus has not been provisioned.');
+        return false;
+      }
+      var payload = {AIProcessingStatus: status};
+      if ('AILastError' in fields) payload.AILastError = (errorMessage || '').slice(0,240);
+      if ('AIModelUsed' in fields) payload.AIModelUsed = runGeminiDevotional.lastModel || '';
+      if ('AIRunId' in fields) payload.AIRunId = autoRunId;
+      if ('AILastRunUTC' in fields) payload.AILastRunUTC = new Date().toISOString();
+      var patch = await fetch(path + '/fields', {
+        method:'PATCH',
+        headers: {'Authorization':'Bearer ' + token,'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (!patch.ok) throw new Error('Status PATCH failed (HTTP ' + patch.status + ')');
+      logSync('✓ Automation status: ' + status);
+      return true;
+    } catch(error) {
+      logSync('⚠️ Automation status not written: ' + error.message);
+      return false;
+    }
+  }
+
+  async function runAutoDevotionalOrchestrator(itemId) {
+    if (autoRunActive) return;
+    autoRunActive = true;
+    autoRunHasAuthenticated = false;
+    autoRunId = String(Date.now()) + '-' + String(itemId);
+    var isPartialSave = false;
+    try {
+      var id = String(itemId || '').trim();
+      if (!/^[1-9][0-9]*$/.test(id)) throw new Error('A valid itemId URL parameter is required for auto-run.');
+      autoRunProgress('[Step 1/4] Authenticating with Microsoft 365...',
+        'Checking Microsoft sign-in and Graph access.', false);
+      if (typeof msalApp.initialize === 'function') await msalApp.initialize();
+      await getMsalToken();
+      autoRunHasAuthenticated = true;
+
+      autoRunProgress('[Step 2/4] Pulling Devotional Record #' + id + '...',
+        'Retrieving title, devotional body, date, and existing notes from SharePoint.', false);
+      await pullDevoData(id);
+      if (!page.value.trim()) throw new Error('The selected devotional is missing source text.');
+      await publishAutoRunStatus(id, 'Running', '');
+
+      autoRunProgress('[Step 3/4] Generating Family Insights via Gemini (Flash-Lite)...',
+        'Generating with your free key, using your configured free model as a fallback on capacity failures.', false);
+      await runGeminiDevotional('gemini-3.5-flash-lite', getFullPromptText(), {automated:true});
+
+      autoRunProgress('[Step 4/4] Syncing Devotional Results to SharePoint...',
+        'Saving commentary, companion voices, and family insights.', false);
+      await syncDevotionalToSharePoint(id);
+      var statusSaved = await publishAutoRunStatus(id, 'Completed', '');
+      autoRunProgress('✓ Devotional processing complete',
+        'All devotional save stages completed.' +
+        (statusSaved ? ' Completion status was written to Resources.' :
+          ' Add AIProcessingStatus to Resources to enable automatic status reporting in Power Apps.'),
+        false);
+      if (statusSaved && qParams.get('autoClose') !== '0') {
+        setTimeout(function(){window.close();}, 1700);
+      }
+    } catch(error) {
+      isPartialSave = !!error.partialSave;
+      logSync('❌ Auto-run failed: ' + error.message);
+      if (autoRunHasAuthenticated && /^[1-9][0-9]*$/.test(String(itemId))) {
+        await publishAutoRunStatus(String(itemId), isPartialSave ? 'Partial' : 'Failed', error.message);
+      }
+      autoRunProgress(isPartialSave ? 'Devotional partially saved' : 'Devotional automation interrupted',
+        error.message + (isPartialSave ?
+          '\nSome rows may already be saved. Review SharePoint before retrying to avoid duplicates.' :
+          '\nIf Microsoft sign-in was blocked, select Continue / Retry.'),
+        true, isPartialSave ? null : function(){runAutoDevotionalOrchestrator(itemId);});
+    } finally {
+      autoRunActive = false;
+    }
+  }
+
   var cachedAccs=msalApp.getAllAccounts();
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
 
   applyMode(mode);
+  if (autoRunRequested) {
+    // Handlers and presets have now been initialized, avoiding synthetic clicks.
+    setTimeout(function(){runAutoDevotionalOrchestrator(autoRunItemId);}, 500);
+  }
 })();
 </script>
 </body>
