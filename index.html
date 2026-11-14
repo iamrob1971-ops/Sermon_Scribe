@@ -3933,8 +3933,9 @@ if (pipelineErrors.length) {
   var autoRunActive = false;
   var autoRunHasAuthenticated = false;
   var autoRunId = '';
+  var autoRunCloseTimer = null;
 
-  function autoRunProgress(stage, message, isFailure, retryCallback) {
+  function autoRunProgress(stage, message, isFailure, retryCallback, canContinue) {
     var container = document.getElementById('autoRunProgress');
     if (!container) {
       container = document.createElement('div');
@@ -3956,17 +3957,32 @@ if (pipelineErrors.length) {
       retry.id = 'autoRunRetry';
       retry.textContent = 'Continue / Retry';
       retry.style.cssText = 'display:none;padding:10px 15px;border:none;border-radius:8px;background:#3A5A40;color:white;cursor:pointer;margin-right:8px';
+      var keepWorking = document.createElement('button');
+      keepWorking.type = 'button';
+      keepWorking.id = 'autoRunContinue';
+      keepWorking.textContent = 'Continue in Scribe';
+      keepWorking.style.cssText = 'display:none;padding:10px 15px;border:none;border-radius:8px;background:#3A5A40;color:white;cursor:pointer;margin-right:8px;margin-bottom:6px';
+      keepWorking.addEventListener('click', function(){
+        // Staying in this tab must also cancel the scheduled close attempt.
+        if (autoRunCloseTimer !== null) {
+          clearTimeout(autoRunCloseTimer);
+          autoRunCloseTimer = null;
+        }
+        container.remove();
+        toast('Continuing in Devotional Scribe');
+      });
       var close = document.createElement('button');
+      close.id = 'autoRunClose';
       close.type = 'button';
       close.textContent = 'Close this tab';
-      close.style.cssText = 'padding:10px 15px;border:none;border-radius:8px;background:#EAF0EB;color:#283E2C;cursor:pointer';
+      close.style.cssText = 'display:none;padding:10px 15px;border:none;border-radius:8px;background:#EAF0EB;color:#283E2C;cursor:pointer;margin-bottom:6px';
       close.addEventListener('click',function(){
         window.close();
         document.getElementById('autoRunMessage').textContent =
-          'Your browser may prevent a tab from closing itself. Return to Power Apps and close this tab manually.';
+          'Your browser prevented closing this tab. Choose Continue in Scribe to keep working, or close the browser tab manually.';
       });
       panel.appendChild(title);panel.appendChild(step);panel.appendChild(detail);
-      panel.appendChild(retry);panel.appendChild(close);
+      panel.appendChild(retry);panel.appendChild(keepWorking);panel.appendChild(close);
       container.appendChild(panel);
       document.body.appendChild(container);
     }
@@ -3976,6 +3992,9 @@ if (pipelineErrors.length) {
     var retry = document.getElementById('autoRunRetry');
     retry.style.display = retryCallback ? 'inline-block' : 'none';
     retry.onclick = retryCallback || null;
+    // Completion/failure only: avoid dismissing an in-progress Graph save.
+    document.getElementById('autoRunContinue').style.display = canContinue ? 'inline-block' : 'none';
+    document.getElementById('autoRunClose').style.display = canContinue ? 'inline-block' : 'none';
   }
 
   /* Optional automation status columns in Resources: AIProcessingStatus
@@ -4049,10 +4068,16 @@ if (pipelineErrors.length) {
       autoRunProgress('✓ Devotional processing complete',
         'All devotional save stages completed.' +
         (statusSaved ? ' Completion status was written to Resources.' :
-          ' Add AIProcessingStatus to Resources to enable automatic status reporting in Power Apps.'),
-        false);
-      if (statusSaved && qParams.get('autoClose') !== '0') {
-        setTimeout(function(){window.close();}, 1700);
+          ' Add AIProcessingStatus to Resources to enable automatic status reporting in Power Apps.') +
+        '\nYou can continue using this Scribe tab without losing the generated notes.',
+        false, null, true);
+      // Graph save success is authoritative; optional status columns must not
+      // decide whether the browser should attempt to close its tab.
+      if (qParams.get('autoClose') !== '0') {
+        autoRunCloseTimer = setTimeout(function(){
+          autoRunCloseTimer = null;
+          window.close();
+        }, 3500);
       }
     } catch(error) {
       isPartialSave = !!error.partialSave;
@@ -4064,7 +4089,7 @@ if (pipelineErrors.length) {
         error.message + (isPartialSave ?
           '\nSome rows may already be saved. Review SharePoint before retrying to avoid duplicates.' :
           '\nIf Microsoft sign-in was blocked, select Continue / Retry.'),
-        true, isPartialSave ? null : function(){runAutoDevotionalOrchestrator(itemId);});
+        true, isPartialSave ? null : function(){runAutoDevotionalOrchestrator(itemId);}, true);
     } finally {
       autoRunActive = false;
     }
