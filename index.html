@@ -1182,6 +1182,9 @@ var SITE_PATH = "/sites/Bible_App";
     if(mode==='sermon') $('sermonTopicId').value=qParams.get('itemId');
     else $('targetResourceId').value=qParams.get('itemId');
   }
+  var autoRunRequested = qParams.get('autoRun') === '1' && mode === 'devotional';
+  // A missing ID must never silently process the hard-coded sample item 17.
+  var autoRunItemId = autoRunRequested ? (qParams.get('itemId') || '').trim() : '';
   if(qParams.get('saveMode')) $('sermonSaveMode').value=qParams.get('saveMode').toUpperCase();
   if(qParams.get('title')) $('title').value=qParams.get('title');
   if(qParams.get('source')) $('devoSource').value=qParams.get('source');
@@ -1957,127 +1960,82 @@ var SITE_PATH = "/sites/Bible_App";
     return d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
   }
 
-  /* Summarize Click Dispatcher (Sends Text + Attached Main Snips) */
-  $('sumBtn').addEventListener('click', async function(){
-    var activeTier = getActiveTier();
+  /* Reusable awaitable AI pipeline for manual and automated devotional generation. */
+  async function runGeminiDevotional(targetModel, promptText, options) {
+    options = options || {};
+    var automated = !!options.automated;
+    var activeTier = automated ? 'free' : getActiveTier();
     var freeKey = getFreeKey();
     var paidKey = getPaidKey();
-    var primaryFreeModel = $('freePrimaryModel').value.trim() || 'gemini-3.5-flash';
-    var fallbackFreeModel = $('freeFallbackModel').value.trim() || 'gemini-3.5-flash-lite';
+    var primaryModel = $('freePrimaryModel').value.trim() || 'gemini-3.5-flash';
+    var fallbackModel = $('freeFallbackModel').value.trim() || 'gemini-3.5-flash-lite';
     var paidModel = $('paidModel').value.trim() || 'gemini-3.8-flash';
     var busyPolicy = $('freeBusyPolicy').value;
-
-    if (activeTier === 'free' && !freeKey) {
-      $('cfg').open = true;
-      alert('Please enter your Free Gemini API Key under AI settings.');
-      return;
-    }
-    if (activeTier === 'paid' && !paidKey) {
-      $('cfg').open = true;
-      alert('Please enter your Paid Gemini API Key under AI settings.');
-      return;
-    }
-
-    var prompt = getFullPromptText();
-    this.disabled = true; $('copyNotes').disabled = true; $('saveSharePointBtn').disabled = true;
-    
-    // PATH 1: RUN ON PAID KEY TIER
-    if (activeTier === 'paid') {
-      out.innerHTML = '<div class="loading"><span class="spin"></span>Generating notes via 💎 Paid Tier (' + paidModel + ')' + (pageAttachedImages.length ? ' with ' + pageAttachedImages.length + ' image(s)' : '') + '...</div>';
-      try {
-        var rawNotes = await executeGeminiRequest(paidModel, paidKey, prompt, pageAttachedImages);
-        out.innerHTML = mdToHtml(rawNotes);
-        checkNotesState();
-        toast('Notes generated with 💎 Paid Key (' + paidModel + ')!');
-      } catch(e) {
-        out.innerHTML = '<div class="err">Paid Key Error: ' + esc(e.message) + '</div>';
-      } finally {
-        $('sumBtn').disabled = false;
-      }
-      return;
+    var prompt = (promptText || '').trim();
+    if (!prompt || !page.value.trim()) throw new Error('No devotional source text is available for Gemini.');
+    if (activeTier === 'free' && !freeKey) throw new Error('Free Gemini API key missing; add it in AI Settings.');
+    if (activeTier === 'paid' && !paidKey) throw new Error('Paid Gemini API key missing; add it in AI Settings.');
+    var model = targetModel || (activeTier === 'paid' ? paidModel : primaryModel);
+    var key = activeTier === 'paid' ? paidKey : freeKey;
+    if (!automated && activeTier === 'free' && sessionCapacityAction === 'fallback') {
+      model = fallbackModel;
+    } else if (!automated && activeTier === 'free' && sessionCapacityAction === 'paid' && paidKey) {
+      model = paidModel; key = paidKey;
     }
 
-    // PATH 2: RUN ON FREE KEY TIER
-    var targetModel = primaryFreeModel;
-
-    if (sessionCapacityAction === 'fallback') {
-      targetModel = fallbackFreeModel;
-    } else if (sessionCapacityAction === 'paid' && paidKey) {
-      out.innerHTML = '<div class="loading"><span class="spin"></span>Generating via 💎 Paid Tier (' + paidModel + ') [Session Override]...</div>';
-      try {
-        var rawPaid = await executeGeminiRequest(paidModel, paidKey, prompt, pageAttachedImages);
-        out.innerHTML = mdToHtml(rawPaid);
-        checkNotesState();
-        toast('Notes generated via 💎 Paid Key (' + paidModel + ')!');
-      } catch(e2) {
-        out.innerHTML = '<div class="err">Paid Key Error: ' + esc(e2.message) + '</div>';
-      } finally {
-        $('sumBtn').disabled = false;
-      }
-      return;
-    }
-
-    out.innerHTML = '<div class="loading"><span class="spin"></span>Generating study notes via 🟢 Free Tier (' + targetModel + ')...</div>';
-
-    try {
-      var notesText = await executeGeminiRequest(targetModel, freeKey, prompt, pageAttachedImages);
-      out.innerHTML = mdToHtml(notesText);
+    async function generate(modelName, modelKey, label) {
+      out.innerHTML = '<div class="loading"><span class="spin"></span>' + esc(label) +
+        ' (' + esc(modelName) + ')...</div>';
+      var notes = await executeGeminiRequest(modelName, modelKey, prompt, pageAttachedImages);
+      if (!notes || !notes.trim()) throw new Error('Gemini produced an empty response.');
+      out.innerHTML = mdToHtml(notes);
       checkNotesState();
-      toast('Notes generated with ' + targetModel + '!');
-    } catch(err) {
-      if (err.isHighDemand) {
-        out.innerHTML = '<div class="err">🟢 Free model ' + targetModel + ' is currently congested on Google servers.</div>';
-
-        var decision = { action: busyPolicy, remember: false };
-        if (busyPolicy === 'ask') {
-          decision = await promptCapacityResolution(targetModel, fallbackFreeModel, paidModel, !!paidKey);
-        }
-
-        if (decision.remember) {
-          sessionCapacityAction = decision.action;
-        }
-
-        if (decision.action === 'fallback') {
-          out.innerHTML = '<div class="loading"><span class="spin"></span>Failing over to Free: ' + fallbackFreeModel + '...</div>';
-          try {
-            var fbNotes = await executeGeminiRequest(fallbackFreeModel, freeKey, prompt, pageAttachedImages);
-            out.innerHTML = mdToHtml(fbNotes);
-            checkNotesState();
-            toast('Notes generated via Free Fallback (' + fallbackFreeModel + ')');
-          } catch(fbErr) {
-            out.innerHTML = '<div class="err">Fallback model (' + fallbackFreeModel + ') also busy: ' + esc(fbErr.message) + '</div>';
-          }
-        } else if (decision.action === 'paid' && paidKey) {
-          out.innerHTML = '<div class="loading"><span class="spin"></span>Switching to 💎 Paid Key (' + paidModel + ')...</div>';
-          try {
-            var pNotes = await executeGeminiRequest(paidModel, paidKey, prompt, pageAttachedImages);
-            out.innerHTML = mdToHtml(pNotes);
-            checkNotesState();
-            toast('Bypassed queue! Notes generated via Paid Key (' + paidModel + ')');
-          } catch(pErr) {
-            out.innerHTML = '<div class="err">Paid key error: ' + esc(pErr.message) + '</div>';
-          }
-        } else if (decision.action === 'retry') {
-          out.innerHTML = '<div class="loading"><span class="spin"></span>Retrying in 10 seconds...</div>';
-          await new Promise(function(res){ setTimeout(res, 10000); });
-          try {
-            var retryNotes = await executeGeminiRequest(targetModel, freeKey, prompt, pageAttachedImages);
-            out.innerHTML = mdToHtml(retryNotes);
-            checkNotesState();
-            toast('Retry succeeded on ' + targetModel + '!');
-          } catch(rErr) {
-            out.innerHTML = '<div class="err">Retry failed: ' + esc(rErr.message) + '</div>';
-          }
-        } else {
-          out.innerHTML = '<div class="err">Summarization cancelled.</div>';
-        }
-
-      } else {
-        out.innerHTML = '<div class="err">Gemini API Error: ' + esc(err.message) + '</div>';
-      }
-    } finally {
-      $('sumBtn').disabled = false;
+      runGeminiDevotional.lastModel = modelName;
+      toast('Notes generated with ' + modelName);
+      return notes;
     }
+    try {
+      return await generate(model, key, 'Generating notes with Gemini');
+    } catch(err) {
+      if (activeTier !== 'free' || key !== freeKey || !err.isHighDemand) throw err;
+      var decision = { action: busyPolicy, remember: false };
+      if (automated && decision.action === 'ask') decision.action = 'auto_free';
+      else if (decision.action === 'ask') {
+        decision = await promptCapacityResolution(model, fallbackModel, paidModel, !!paidKey);
+      }
+      if (decision.remember) sessionCapacityAction = decision.action;
+
+      if (decision.action === 'retry') {
+        await new Promise(function(resolve){setTimeout(resolve, 10000);});
+        return await generate(model, freeKey, 'Retrying Gemini');
+      }
+      if (decision.action === 'fallback' || decision.action === 'auto_free') {
+        var secondModel = (model === fallbackModel && automated) ? primaryModel : fallbackModel;
+        if (secondModel === model) throw new Error('Primary and fallback models are identical: ' + err.message);
+        return await generate(secondModel, freeKey, 'Failing over to free Gemini');
+      }
+      if ((decision.action === 'paid' || decision.action === 'auto_paid') && paidKey) {
+        return await generate(paidModel, paidKey, 'Using paid Gemini fallback');
+      }
+      throw new Error(decision.action === 'cancel' ? 'Summarization cancelled.' :
+        'Gemini failed without an available fallback: ' + err.message);
+    }
+  }
+  runGeminiDevotional.lastModel = '';
+
+  /* Manual Summarize uses exactly the same awaitable Gemini pipeline. */
+  $('sumBtn').addEventListener('click', async function(){
+    var button = this;
+    button.disabled = true;
+    $('copyNotes').disabled = true;
+    $('saveSharePointBtn').disabled = true;
+    try {
+      await runGeminiDevotional(getActiveModel(), getFullPromptText(), { automated: false });
+    } catch(e) {
+      out.innerHTML = '<div class="err">' + esc(e.message) + '</div>';
+      checkNotesState();
+      if (/key missing/i.test(e.message)) $('cfg').open = true;
+    } finally { button.disabled = false; }
   });
 
   $('copyNotes').addEventListener('click',function(){copy(out.innerText.trim()).then(function(){toast('Notes copied (with edits)')})});
@@ -2271,11 +2229,10 @@ function htmlToPlainText(html) {
   }
 
  // PULL DEVOTIONAL RECORD FROM RESOURCES LIST
-  $('pullDevoBtn').addEventListener('click', async function(){
-    var rowId = $('targetResourceId').value.trim();
-    if(!rowId){ alert('Please enter a Target Resource Row ID to pull.'); return; }
-    
-    var btn = this; btn.disabled = true;
+  async function pullDevoData(itemId, options){
+    var rowId = String(itemId == null ? '' : itemId).trim();
+    if(!/^[1-9]\d*$/.test(rowId)) throw new Error('A valid SharePoint Resources item ID is required.');
+    $('targetResourceId').value = rowId;
     try {
       var token = await getMsalToken();
       var siteId = await resolveSiteId(token);
@@ -2288,6 +2245,10 @@ function htmlToPlainText(html) {
       if(!r.ok) throw new Error(d.error && d.error.message || ('Item #' + rowId + ' not found'));
 
       var fields = d.fields || {};
+      if (options && options.clearNotes) {
+        out.innerHTML = '';
+        checkNotesState();
+      }
       var pulledTitle = (fields.Title || '').trim();
       if (pulledTitle) $('title').value = pulledTitle;
       
@@ -2345,12 +2306,19 @@ function htmlToPlainText(html) {
 
       logSync('✓ Pulled Resource #' + rowId + ': "' + (fields.Title || '') + '"');
       toast('Pulled Resource #' + rowId + ' successfully!');
+      return fields;
     } catch(e) {
       logSync('❌ Pull error: ' + e.message);
-      alert('Could not pull Resource #' + rowId + ': ' + e.message);
-    } finally {
-      btn.disabled = false;
+      throw e;
     }
+  }
+
+  $('pullDevoBtn').addEventListener('click', async function(){
+    var btn = this;
+    btn.disabled = true;
+    try { await pullDevoData($('targetResourceId').value); }
+    catch(e) { alert('Could not pull Resource: ' + e.message); }
+    finally { btn.disabled = false; }
   });
 
     // PULL SERMON TOPIC FROM DEVOTIONAL_TOPICS LIST
@@ -2447,26 +2415,33 @@ function htmlToPlainText(html) {
     }
   });
 
-  /* Dispatcher */
-  $('saveSharePointBtn').addEventListener('click',async function(){
-    var btn=this;btn.disabled=true;
-    $('syncStatus').textContent='';
+  /* Reusable awaitable devotional SharePoint sync. */
+  async function syncDevotionalToSharePoint(itemId) {
+    var id = String(itemId == null ? '' : itemId).trim();
+    if (!/^[1-9][0-9]*$/.test(id)) throw new Error('A valid Resources item ID is required to save.');
+    if (!out.innerText.trim() || out.querySelector('.loading, .err')) {
+      throw new Error('Devotional notes must be successfully generated before saving.');
+    }
+    var token = await getMsalToken();
+    var siteId = await resolveSiteId(token);
+    return await saveDevotionalPipeline(token, siteId, id);
+  }
 
-    try{
-      var token=await getMsalToken();
-      var siteId=await resolveSiteId(token);
-
-      if(mode==='sermon'){
+  $('saveSharePointBtn').addEventListener('click', async function(){
+    var btn = this; btn.disabled = true;
+    $('syncStatus').textContent = '';
+    try {
+      if (mode === 'sermon') {
+        var token = await getMsalToken();
+        var siteId = await resolveSiteId(token);
         await saveSermonToTopics(token, siteId);
       } else {
-        await saveDevotionalPipeline(token, siteId);
+        await syncDevotionalToSharePoint($('targetResourceId').value);
       }
-    }catch(e){
-      logSync('❌ FAILED: '+e.message);
-      alert('SharePoint save error: '+e.message);
-    }finally{
-      btn.disabled=false;
-    }
+    } catch(e) {
+      logSync('❌ FAILED: ' + e.message);
+      alert('SharePoint save error: ' + e.message);
+    } finally { btn.disabled = false; }
   });
 
   /* A. SERMON MODE -> DEVOTIONAL_TOPICS & DEVOTIONAL_THEMES (WITH RAW IMAGES) */
@@ -2677,9 +2652,11 @@ function htmlToPlainText(html) {
   }
 
   /* B. DEVOTIONAL MODE -> RESOURCES + COMPANION_VOICES + FAMILY_INSIGHTS (WITH SNIPS PRESERVATION) */
-  async function saveDevotionalPipeline(token, siteId){
+  async function saveDevotionalPipeline(token, siteId, itemId){
+    var pipelineErrors = [];
     var rawText = out.innerText;
-    var targetRowId = $('targetResourceId').value.trim() || '17';
+    var targetRowId = String(itemId == null ? '' : itemId).trim();
+    if (!/^[1-9][0-9]*$/.test(targetRowId)) throw new Error('Invalid Resources ID for devotional save.');
     var devoDate = $('devoDate').value || new Date().toISOString().slice(0,10);
     
     var isoDateAtNoon = devoDate + 'T12:00:00Z';
@@ -2756,12 +2733,15 @@ function htmlToPlainText(html) {
       var rData = await rRes.json();
 
       if (!rRes.ok) {
-        logSync('❌ Resources patch FAILED: ' + (rData.error && rData.error.message || ('HTTP ' + rRes.status)));
+        var resourceError = rData.error && rData.error.message || ('HTTP ' + rRes.status);
+        logSync('❌ Resources patch FAILED: ' + resourceError);
+        pipelineErrors.push('Resources: ' + resourceError);
       } else {
         logSync('✓ Resources #' + targetRowId + ' (' + targetFieldKey + ') updated successfully.');
       }
     } catch(e) {
       logSync('❌ Resources error: ' + e.message);
+      pipelineErrors.push('Resources: ' + e.message);
     }
 
     // 3. Parse & Post Companion Voices
@@ -2803,7 +2783,7 @@ function htmlToPlainText(html) {
           if (/^(?:[1-3]\s*)?[A-Za-z]+\s+\d+$/i.test(compName) || /^\d+:\d+/.test(compContent)) continue;
 
           if (compName.length > 1 && compName.length < 50 && compContent.length > 5) {
-            await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + compListId + '/items', {
+            var voiceResponse = await fetch('https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + compListId + '/items', {
               method: 'POST',
               headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -2817,11 +2797,18 @@ function htmlToPlainText(html) {
                 }
               })
             });
-            logSync('  + Voice: ' + compName);
+            if (!voiceResponse.ok) {
+              var voiceError = await voiceResponse.text();
+              pipelineErrors.push('Companion_Voices ' + compName + ': HTTP ' + voiceResponse.status + ' ' + voiceError.slice(0, 160));
+              logSync('  ❌ Voice failed: ' + compName);
+            } else {
+              logSync('  + Voice: ' + compName);
+            }
           }
         }
       } catch(e) {
         logSync('⚠️ Companion_Voices error: ' + e.message);
+        pipelineErrors.push('Companion_Voices: ' + e.message);
       }
     }
 
@@ -2881,16 +2868,26 @@ function htmlToPlainText(html) {
           if (postRes.ok) {
             logSync('  + Saved: ' + item.title + ' (Row: ' + resData.id + ')');
           } else {
-            logSync('  ❌ Error on ' + item.person + ': ' + (resData.error && resData.error.message || postRes.status));
+            var familyError = resData.error && resData.error.message || ('HTTP ' + postRes.status);
+            logSync('  ❌ Error on ' + item.person + ': ' + familyError);
+            pipelineErrors.push('Family_Insights ' + item.person + ': ' + familyError);
           }
         }
       }
     } catch(e) {
       logSync('❌ Family_Insights error: ' + e.message);
+      pipelineErrors.push('Family_Insights: ' + e.message);
     }
 
-logSync('🎉 COMPLETE! Devotional sync finished.');
+if (pipelineErrors.length) {
+      logSync('❌ INCOMPLETE: ' + pipelineErrors.length + ' SharePoint operation(s) failed.');
+      var error = new Error('Partial devotional save: ' + pipelineErrors.join('; '));
+      error.partialSave = true;
+      throw error;
+    }
+    logSync('🎉 COMPLETE! Devotional sync finished.');
     toast('Devotional components saved with rich HTML formatting!');
+    return true;
   }
 
   /* C. SURGICAL SUMMARY-ONLY APPEND (Omits StudyNotes_HTML to protect the raw transcript) */
@@ -3875,10 +3872,10 @@ logSync('🎉 COMPLETE! Devotional sync finished.');
           }
           if (decision.remember) sessionCapacityAction = decision.action;
 
-          if (decision.action === 'fallback') {
+          if (decision.action === 'fallback' || decision.action === 'auto_free') {
             askPending.text = 'Failing over to Free: ' + fallbackFreeModel + '...'; askRender();
             reply = await executeGeminiChat(contents, fallbackFreeModel, freeKey);
-          } else if (decision.action === 'paid' && paidKey) {
+          } else if ((decision.action === 'paid' || decision.action === 'auto_paid') && paidKey) {
             askPending.text = 'Switching to 💎 Paid Key (' + paidModel + ')...'; askRender();
             reply = await executeGeminiChat(contents, paidModel, paidKey);
           } else if (decision.action === 'retry') {
@@ -3932,10 +3929,155 @@ logSync('🎉 COMPLETE! Devotional sync finished.');
 
   sessionsLoad();
 
+  /* URL-based orchestration controller. Intentionally waits for initialization. */
+  var autoRunActive = false;
+  var autoRunHasAuthenticated = false;
+  var autoRunId = '';
+
+  function autoRunProgress(stage, message, isFailure, retryCallback) {
+    var container = document.getElementById('autoRunProgress');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'autoRunProgress';
+      container.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.78);display:flex;align-items:center;justify-content:center;padding:20px';
+      var panel = document.createElement('section');
+      panel.style.cssText = 'max-width:560px;width:100%;background:#fff;border-radius:16px;padding:30px;color:#1D1930;box-shadow:0 24px 72px #0003;font-family:Segoe UI,Arial,sans-serif';
+      var title = document.createElement('h2');
+      title.textContent = 'Devotional Scribe · Automatic Processing';
+      title.style.cssText = 'margin:0 0 15px;font-size:21px';
+      var step = document.createElement('p');
+      step.id = 'autoRunStep';
+      step.style.cssText = 'margin:0 0 12px;font-weight:bold;font-size:16px';
+      var detail = document.createElement('p');
+      detail.id = 'autoRunMessage';
+      detail.style.cssText = 'margin:0 0 20px;white-space:pre-wrap;font-size:14px;line-height:1.55;color:#56546B';
+      var retry = document.createElement('button');
+      retry.type = 'button';
+      retry.id = 'autoRunRetry';
+      retry.textContent = 'Continue / Retry';
+      retry.style.cssText = 'display:none;padding:10px 15px;border:none;border-radius:8px;background:#3A5A40;color:white;cursor:pointer;margin-right:8px';
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.textContent = 'Close this tab';
+      close.style.cssText = 'padding:10px 15px;border:none;border-radius:8px;background:#EAF0EB;color:#283E2C;cursor:pointer';
+      close.addEventListener('click',function(){
+        window.close();
+        document.getElementById('autoRunMessage').textContent =
+          'Your browser may prevent a tab from closing itself. Return to Power Apps and close this tab manually.';
+      });
+      panel.appendChild(title);panel.appendChild(step);panel.appendChild(detail);
+      panel.appendChild(retry);panel.appendChild(close);
+      container.appendChild(panel);
+      document.body.appendChild(container);
+    }
+    document.getElementById('autoRunStep').textContent = stage;
+    document.getElementById('autoRunStep').style.color = isFailure ? '#B42318' : '#283E2C';
+    document.getElementById('autoRunMessage').textContent = message || '';
+    var retry = document.getElementById('autoRunRetry');
+    retry.style.display = retryCallback ? 'inline-block' : 'none';
+    retry.onclick = retryCallback || null;
+  }
+
+  /* Optional automation status columns in Resources: AIProcessingStatus
+     (text), AILastError (text), AIModelUsed (text), AIRunId (text),
+     AILastRunUTC (date/time). Unprovisioned columns are skipped. */
+  async function publishAutoRunStatus(itemId, status, errorMessage) {
+    try {
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      var listId = await getListId(token, siteId, 'Resources');
+      var path = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+        '/lists/' + listId + '/items/' + encodeURIComponent(itemId);
+      var response = await fetch(path + '?expand=fields', {
+        headers: {'Authorization':'Bearer ' + token}
+      });
+      if (!response.ok) throw new Error('Could not inspect Resources status fields (HTTP ' + response.status + ')');
+      var record = await response.json();
+      var fields = record.fields || {};
+      if (!Object.prototype.hasOwnProperty.call(fields, 'AIProcessingStatus')) {
+        logSync('ℹ️ Status reporting skipped; Resources.AIProcessingStatus has not been provisioned.');
+        return false;
+      }
+      var payload = {AIProcessingStatus: status};
+      if ('AILastError' in fields) payload.AILastError = (errorMessage || '').slice(0,240);
+      if ('AIModelUsed' in fields) payload.AIModelUsed = runGeminiDevotional.lastModel || '';
+      if ('AIRunId' in fields) payload.AIRunId = autoRunId;
+      if ('AILastRunUTC' in fields) payload.AILastRunUTC = new Date().toISOString();
+      var patch = await fetch(path + '/fields', {
+        method:'PATCH',
+        headers: {'Authorization':'Bearer ' + token,'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (!patch.ok) throw new Error('Status PATCH failed (HTTP ' + patch.status + ')');
+      logSync('✓ Automation status: ' + status);
+      return true;
+    } catch(error) {
+      logSync('⚠️ Automation status not written: ' + error.message);
+      return false;
+    }
+  }
+
+  async function runAutoDevotionalOrchestrator(itemId) {
+    if (autoRunActive) return;
+    autoRunActive = true;
+    autoRunHasAuthenticated = false;
+    autoRunId = String(Date.now()) + '-' + String(itemId);
+    var isPartialSave = false;
+    try {
+      var id = String(itemId || '').trim();
+      if (!/^[1-9][0-9]*$/.test(id)) throw new Error('A valid itemId URL parameter is required for auto-run.');
+      autoRunProgress('[Step 1/4] Authenticating with Microsoft 365...',
+        'Checking Microsoft sign-in and Graph access.', false);
+      if (typeof msalApp.initialize === 'function') await msalApp.initialize();
+      await getMsalToken();
+      autoRunHasAuthenticated = true;
+
+      autoRunProgress('[Step 2/4] Pulling Devotional Record #' + id + '...',
+        'Retrieving title, devotional body, date, and existing notes from SharePoint.', false);
+      await pullDevoData(id, {clearNotes:true});
+      if (!page.value.trim()) throw new Error('The selected devotional is missing source text.');
+      await publishAutoRunStatus(id, 'Running', '');
+
+      autoRunProgress('[Step 3/4] Generating Family Insights via Gemini (Flash-Lite)...',
+        'Generating with your free key, using your configured free model as a fallback on capacity failures.', false);
+      await runGeminiDevotional('gemini-3.5-flash-lite', getFullPromptText(), {automated:true});
+
+      autoRunProgress('[Step 4/4] Syncing Devotional Results to SharePoint...',
+        'Saving commentary, companion voices, and family insights.', false);
+      await syncDevotionalToSharePoint(id);
+      var statusSaved = await publishAutoRunStatus(id, 'Completed', '');
+      autoRunProgress('✓ Devotional processing complete',
+        'All devotional save stages completed.' +
+        (statusSaved ? ' Completion status was written to Resources.' :
+          ' Add AIProcessingStatus to Resources to enable automatic status reporting in Power Apps.'),
+        false);
+      if (statusSaved && qParams.get('autoClose') !== '0') {
+        setTimeout(function(){window.close();}, 1700);
+      }
+    } catch(error) {
+      isPartialSave = !!error.partialSave;
+      logSync('❌ Auto-run failed: ' + error.message);
+      if (autoRunHasAuthenticated && /^[1-9][0-9]*$/.test(String(itemId))) {
+        await publishAutoRunStatus(String(itemId), isPartialSave ? 'Partial' : 'Failed', error.message);
+      }
+      autoRunProgress(isPartialSave ? 'Devotional partially saved' : 'Devotional automation interrupted',
+        error.message + (isPartialSave ?
+          '\nSome rows may already be saved. Review SharePoint before retrying to avoid duplicates.' :
+          '\nIf Microsoft sign-in was blocked, select Continue / Retry.'),
+        true, isPartialSave ? null : function(){runAutoDevotionalOrchestrator(itemId);});
+    } finally {
+      autoRunActive = false;
+    }
+  }
+
   var cachedAccs=msalApp.getAllAccounts();
   if(cachedAccs.length>0) updateUserUI(cachedAccs[0]);
 
   applyMode(mode);
+  if (autoRunRequested) {
+    // Handlers and presets have now been initialized, avoiding synthetic clicks.
+    setTimeout(function(){runAutoDevotionalOrchestrator(autoRunItemId);}, 500);
+  }
 })();
 </script>
 </body>
