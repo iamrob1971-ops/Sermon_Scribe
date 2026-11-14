@@ -1277,6 +1277,9 @@ var SITE_PATH = "/sites/Bible_App";
   /* URL Parameters Ingestion */
   var qParams=new URLSearchParams(window.location.search);
   var requestedPresetId = String(qParams.get('presetId') || qParams.get('instruction') || '').trim();
+  var openChatRequested = qParams.get('openChat') === '1';
+  var incomingChatQuestion = String(qParams.get('chatQ') || '').trim();
+  var chatTargetItemId = String(qParams.get('itemId') || qParams.get('topicId') || '').trim();
   if(qParams.get('mode')&&MODES[qParams.get('mode')]) mode=qParams.get('mode');
   if(qParams.get('topicId')) $('sermonTopicId').value=qParams.get('topicId');
   if(qParams.get('itemId')) {
@@ -3645,7 +3648,16 @@ if (pipelineErrors.length) {
     if(activeInst) {
       ctx += '\nORIGINAL GUIDING INSTRUCTIONS & THEOLOGICAL FRAMEWORK:\n' + activeInst + '\n';
     }
-    
+
+    // Pulled Resources.Body / sermon transcript must be available even when
+    // AdditionalCommentary and generated notes have not been written yet.
+    var sourceText = (page.value || '').trim();
+    if(sourceText) {
+      ctx += '\nCURRENT SOURCE TEXT (DEVOTIONAL BODY / SERMON TRANSCRIPT):\n' +
+        sourceText.slice(0, 18000) +
+        (sourceText.length > 18000 ? '\n[Source truncated for chat context.]' : '') + '\n';
+    }
+
     if(notesText && !notesText.includes('Notes appear here after clicking Summarize')) {
       ctx += '\nCURRENT STUDY NOTES / SUMMARY (PRIMARY TRUTH SOURCE):\n' + notesText + '\n';
     } else {
