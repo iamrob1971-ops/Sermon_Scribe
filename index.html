@@ -1080,7 +1080,9 @@ var SITE_PATH = "/sites/Bible_App";
     creatingNewInstruction = false;
     var all = getAllPresets(), id = targetId || presetId;
     var p = all[id] || all[presetId];
-    var custom = !BUILTIN_PRESETS[id] && (!!getCustomPresets()[id] || !!sharePointPresets[id]);
+    // Immutable baked fallback styles cannot be deleted from SharePoint alone.
+    var custom = !BUILTIN_PRESETS[id] && !BAKED_CUSTOM_PRESETS[id] &&
+      (!!getCustomPresets()[id] || !!sharePointPresets[id]);
     $('dlgT').textContent = 'Edit Style: ' + (p ? p.label : 'Instructions');
     $('instTitle').value = p ? p.label.replace(/\s*☁️(?:\s*\[Cached\])?$/, '') : '';
     $('instMode').value = p && p.mode ? p.mode : mode;
@@ -1234,8 +1236,12 @@ var SITE_PATH = "/sites/Bible_App";
     countInst(); fillPresets();
     toast('Reset to built-in instructions');
   });
-  $('instCancel').addEventListener('click', function(){ dlg.close(); });
-  $('dlgX').addEventListener('click', function(){ dlg.close(); });
+  $('instCancel').addEventListener('click', function(){
+    creatingNewInstruction = false; dlg.close(); fillPresets();
+  });
+  $('dlgX').addEventListener('click', function(){
+    creatingNewInstruction = false; dlg.close(); fillPresets();
+  });
 
   $('exportHtmlBtn').addEventListener('click', async function(){
     toast('Packaging master index.html with custom styles baked in...');
