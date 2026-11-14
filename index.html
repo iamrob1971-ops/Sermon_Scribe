@@ -4023,22 +4023,33 @@ if (pipelineErrors.length) {
   $('saveLastChatSpBtn').addEventListener('click', function(){ pushChatToSharePoint(false, this); });
   $('saveFullChatSpBtn').addEventListener('click', function(){ pushChatToSharePoint(true, this); });
 
-  /* Explicit Power Apps snapshot: overwrite ONLY Resources.AI_Chat_Answer.
-     Never called by automatic launches, and never modifies AINotes. */
+  /* Explicit Power Apps snapshot: overwrite ONLY AI_Chat_Answer on
+     Resources (devotional) or Devotional_Topics (sermon).
+     Never called by automatic launches and never modifies history fields. */
   async function pushChatAnswerToPowerApps(){
     var active = getActiveSession();
     if (!active || !active.messages || !active.messages.length) {
       toast('Ask a question before posting a chat answer.');
       return false;
     }
-    if ((active.mode || mode) !== 'devotional') {
-      toast('Push to AI_Chat_Answer is for devotional Resources records.');
+    // The selected toggle determines the destination. Do not silently
+    // publish a Devotional-bound chat into a Sermon record (or vice versa).
+    var snapshotMode = mode;
+    if (active.mode && active.mode !== snapshotMode) {
+      toast('This chat belongs to ' + active.mode +
+        '. Start a new ' + snapshotMode + ' chat before pushing.');
       return false;
     }
+    if (snapshotMode !== 'devotional' && snapshotMode !== 'sermon') {
+      toast('Select Sermon or Devotional mode before posting.');
+      return false;
+    }
+    var snapshotListName = snapshotMode === 'sermon' ? 'Devotional_Topics' : 'Resources';
+    var snapshotItemLabel = snapshotMode === 'sermon' ? 'Sermon Topic' : 'Resource';
     var itemId = ($('chatTargetRowId').value || '').trim() ||
       String(active.targetRowId || '').trim() || getActiveRowIdFromScreen();
     if (!/^[1-9][0-9]*$/.test(String(itemId))) {
-      toast('Enter a valid Resources item ID before posting.');
+      toast('Enter a valid ' + snapshotItemLabel + ' item ID before posting.');
       $('chatTargetRowId').focus();
       return false;
     }
@@ -4053,7 +4064,7 @@ if (pipelineErrors.length) {
     try {
       var timeStamp = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
       var compactLastTurn = Object.assign({}, lastTurn, {imgs: [], img: null});
-      var richCard = buildRichChatHtml([compactLastTurn], false, timeStamp, 'devotional');
+      var richCard = buildRichChatHtml([compactLastTurn], false, timeStamp, snapshotMode);
 
       // Strip inline data-image tags even if the user edited them into the answer.
       var wrapper = document.createElement('div');
@@ -4064,7 +4075,7 @@ if (pipelineErrors.length) {
 
       // Increase only the Power Apps snapshot's inline pixel font sizes by
       // 1.5px (e.g. 12 -> 13.5), not by a 1.5x scaling factor.
-      // The regular AINotes and sermon history saves are unchanged.
+      // The regular AINotes and Other_SummariesForStudy saves are unchanged.
       wrapper.querySelectorAll('[style]').forEach(function(element){
         var fontSize = element.style.fontSize;
         if (/^[0-9]+(?:\.[0-9]+)?px$/i.test(fontSize)) {
@@ -4075,12 +4086,12 @@ if (pipelineErrors.length) {
 
       var token = await getMsalToken();
       var siteId = await resolveSiteId(token);
-      var listId = await getListId(token, siteId, 'Resources');
+      var listId = await getListId(token, siteId, snapshotListName);
       var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
         '/lists/' + listId + '/items/' + itemId + '/fields';
 
-      // AI_Chat_Answer is the known SharePoint internal field name.
-      // PATCH replaces the snapshot without touching cumulative AINotes.
+      // AI_Chat_Answer is the known SharePoint internal field name in
+      // both lists. PATCH replaces only this snapshot, not chat history.
       var response = await fetch(patchUrl, {
         method: 'PATCH',
         headers: {'Authorization':'Bearer ' + token, 'Content-Type':'application/json'},
@@ -4093,15 +4104,15 @@ if (pipelineErrors.length) {
           var parsed = JSON.parse(responseText);
           detail = (parsed.error && parsed.error.message) || detail;
         } catch (ignored) {}
-        throw new Error('Resources #' + itemId + ': ' + detail);
+        throw new Error(snapshotListName + ' #' + itemId + ': ' + detail);
       }
 
       active.targetRowId = String(itemId);
       sessionsSave();
       syncActiveSessionHeader();
       renderSidebarSessions();
-      logSync('✓ Replaced Resources #' + itemId +
-        ' AI_Chat_Answer with latest Q&A (AINotes unchanged).');
+      logSync('✓ Replaced ' + snapshotListName + ' #' + itemId +
+        ' AI_Chat_Answer with latest Q&A (chat history unchanged).');
       toast('✓ Latest chat posted to AI_Chat_Answer for Power Apps ☁️');
       return true;
     } catch(error) {
