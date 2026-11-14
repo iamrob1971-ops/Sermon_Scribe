@@ -521,7 +521,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
   </aside>
 </div>
 
-<!-- INSTRUCTIONS MODAL (WITH PRESET MANAGEMENT & GITHUB EXPORT) -->
+<!-- INSTRUCTIONS MODAL (SHAREPOINT PRESET LIBRARY + LOCAL FALLBACK) -->
 <dialog id="instDlg" aria-labelledby="dlgT">
   <div class="dlg-h">
     <h2 id="dlgT">AI Instructions &amp; Presets</h2>
@@ -541,16 +541,17 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
     <textarea id="instText" spellcheck="false" placeholder="Write or paste your custom AI instructions here..."></textarea>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span class="count" id="instCount" style="font-size:12px;color:var(--muted)"></span>
-      <small style="color:var(--muted)">Saved edits are stored on this device. Click "Export for GitHub" to bake them permanently into code.</small>
+      <small style="color:var(--muted)">Presets sync to SharePoint when signed in; a local copy remains available offline.</small>
     </div>
   </div>
   <div class="dlg-f">
     <button class="btn primary" id="instSave">Save</button>
+    <button class="btn" id="instRefresh" title="Load latest AI instructions from SharePoint">☁️ Refresh Library</button>
     <button class="btn" id="instSaveAsNew" title="Create a new named style with this prompt">Save as New Style</button>
     <button class="btn" id="instDelete" style="display:none;color:#B91C1C" title="Delete this custom preset">Delete Style</button>
     <button class="btn" id="instReset">Reset to Built-in</button>
     <span class="spacer"></span>
-    <button class="btn" id="exportHtmlBtn" title="Download updated index.html with all your custom presets baked in for GitHub">📥 Export for GitHub (Make Global)</button>
+    <button class="btn" id="exportHtmlBtn" title="Optional offline HTML backup. SharePoint presets now sync automatically.">📥 Export HTML Backup</button>
     <button class="btn" id="instCancel">Cancel</button>
   </div>
 </dialog>
@@ -2202,6 +2203,73 @@ var SITE_PATH = "/sites/Bible_App";
       return false;
     }).finally(function() { sharePointInstructionsPromise = null; });
     return sharePointInstructionsPromise;
+  }
+
+  function sharePointThemeValue(presetMode) {
+    return presetMode === 'sermon' ? 'Sermon' :
+      (presetMode === 'devotional' ? 'Devotional' : 'Both');
+  }
+  function cacheLocalInstruction(id, title, presetMode, instructionText) {
+    var customs = getCustomPresets();
+    var existing = getAllPresets()[id];
+    if (!BUILTIN_PRESETS[id]) {
+      customs[id] = {
+        id: id, label: title, mode: presetMode, text: instructionText
+      };
+      saveCustomPresets(customs);
+    }
+    store('ss_inst_' + id, instructionText);
+  }
+  /* Create or update a preset. The multiline field's internal name is
+     AIInstructions (as supplied by the SharePoint column settings). */
+  async function writeSharePointInstruction(id, title, presetMode, textValue) {
+    var token = await getMsalToken();
+    var siteId = await resolveSiteId(token);
+    var listId = await getInstructionListId(token, siteId);
+    var existing = sharePointPresets[id];
+    var base = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+      '/lists/' + listId + '/items';
+    var fields = {
+      Instruction_Title: title,
+      App_Theme: sharePointThemeValue(presetMode),
+      AIInstructions: textValue
+    };
+    var requestUrl, method, body;
+    if (existing && existing.spId) {
+      requestUrl = base + '/' + encodeURIComponent(existing.spId) + '/fields';
+      method = 'PATCH';
+      body = fields;
+    } else {
+      requestUrl = base;
+      method = 'POST';
+      body = {fields: Object.assign({Title: id, IsActive: true}, fields)};
+    }
+    var response = await fetch(requestUrl, {
+      method: method,
+      headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      var responseText = await response.text();
+      throw new Error('SharePoint preset ' + method + ' failed (HTTP ' +
+        response.status + '): ' + responseText.slice(0, 260));
+    }
+    var updated = response.status === 204 ? {} : await response.json();
+    sharePointPresets[id] = {
+      id: id,
+      spId: String(updated.id || (existing && existing.spId) || ''),
+      mode: presetMode,
+      label: title + ' ☁️',
+      text: textValue,
+      slotDefault: existing ? existing.slotDefault : ''
+    };
+    sharePointInstructionsOnline = true;
+    store(SP_INSTRUCTIONS_CACHE_KEY, JSON.stringify(sharePointPresets));
+    // A subsequent refresh confirms the exact row ID and any server normalization.
+    try { await loadSharePointInstructions(token, siteId); }
+    catch(e) { logSync('⚠️ Preset saved; refresh could not confirm: ' + e.message); }
+    fillPresets();
+    return sharePointPresets[id];
   }
 
   /* -------------------------------------------------------------
