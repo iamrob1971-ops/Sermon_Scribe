@@ -2126,6 +2126,84 @@ var SITE_PATH = "/sites/Bible_App";
     return found.id;
   }
 
+  /* SharePoint AI_Instructions list (verified internal text field:
+     AIInstructions, not AI_x0020_Instructions). */
+  async function getInstructionListId(token, siteId) {
+    if (!cachedInstructionsListId) {
+      cachedInstructionsListId = await getListId(token, siteId, 'AI_Instructions');
+    }
+    return cachedInstructionsListId;
+  }
+  async function loadSharePointInstructions(token, siteId) {
+    var listId = await getInstructionListId(token, siteId);
+    var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+      '/lists/' + listId +
+      '/items?expand=fields($select=Title,Instruction_Title,App_Theme,AIInstructions,Slot_Default,IsActive)&$top=999';
+    var records = {}, count = 0;
+    while (url) {
+      var response = await fetch(url, { headers: {Authorization: 'Bearer ' + token} });
+      var data = await response.json();
+      if (!response.ok) throw new Error('AI_Instructions GET failed: ' +
+        ((data.error && data.error.message) || ('HTTP ' + response.status)));
+      (data.value || []).forEach(function(item) {
+        var f = item.fields || {};
+        if (f.IsActive === false || String(f.IsActive).toLowerCase() === 'false') return;
+        var id = String(f.Title || item.id || '').trim();
+        var label = String(f.Instruction_Title || f.Title || id).trim();
+        var theme = String(f.App_Theme || 'Both').toLowerCase();
+        var selectedMode = theme.includes('sermon') ? 'sermon' :
+          (theme.includes('devo') ? 'devotional' : 'any');
+        var instructionText = String(f.AIInstructions ||
+          f.AI_x0020_Instructions || f['AI Instructions'] || '').trim();
+        if (id && instructionText) {
+          records[id] = {
+            id: id, spId: String(item.id), mode: selectedMode,
+            label: label + ' ☁️', text: instructionText,
+            slotDefault: String(f.Slot_Default || '')
+          };
+          count++;
+        }
+      });
+      url = data['@odata.nextLink'] || '';
+      if (url && !url.startsWith('https://graph.microsoft.com/')) {
+        throw new Error('Unexpected Graph paging URL for instructions');
+      }
+    }
+    sharePointPresets = records;
+    sharePointInstructionsOnline = true;
+    store(SP_INSTRUCTIONS_CACHE_KEY, JSON.stringify(records));
+    fillPresets();
+    logSync('✓ Loaded ' + count + ' active SharePoint AI instruction preset(s).');
+    return records;
+  }
+
+  /* Startup retrieval is silent-only. Interactive sign-in is reserved
+     for explicit actions and the existing URL auto-run login step. */
+  async function ensureSharePointInstructions(interactive) {
+    if (sharePointInstructionsPromise) return sharePointInstructionsPromise;
+    if (!interactive && !msalApp.getAllAccounts().length) return false;
+    sharePointInstructionsPromise = (async function() {
+      if (typeof msalApp.initialize === 'function') await msalApp.initialize();
+      var token;
+      if (interactive) {
+        token = await getMsalToken();
+      } else {
+        var account = msalApp.getAllAccounts()[0];
+        if (!account) return false;
+        var silent = await msalApp.acquireTokenSilent({scopes: GRAPH_SCOPES, account: account});
+        token = silent.accessToken;
+      }
+      var siteId = await resolveSiteId(token);
+      await loadSharePointInstructions(token, siteId);
+      return true;
+    })().catch(function(e) {
+      sharePointInstructionsOnline = false;
+      logSync('⚠️ AI_Instructions unavailable; using local presets: ' + e.message);
+      return false;
+    }).finally(function() { sharePointInstructionsPromise = null; });
+    return sharePointInstructionsPromise;
+  }
+
   /* -------------------------------------------------------------
      BI-DIRECTIONAL GRAPH PULL (RETRIEVAL FROM SHAREPOINT)
      ------------------------------------------------------------- */
