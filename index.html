@@ -3911,7 +3911,42 @@ if (pipelineErrors.length) {
     return html;
   }
 
-  /* DUAL GRAPH SAVE TO SHAREPOINT */
+  /* Resolve the field by internal name, including when an empty multiline
+     column is omitted from the Graph item.fields payload. */
+  async function resolveAIChatAnswerField(token, siteId, listId, fields) {
+    var normalize = function(v) {
+      return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    };
+    var fromItem = Object.keys(fields || {}).find(function(key) {
+      return normalize(key) === 'aichatanswer';
+    });
+    if (fromItem) return fromItem;
+
+    try {
+      var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+        '/lists/' + listId + '/columns?$select=name,displayName&$top=999';
+      while (url) {
+        var res = await fetch(url, {headers: {'Authorization': 'Bearer ' + token}});
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var data = await res.json();
+        var column = (data.value || []).find(function(c) {
+          return normalize(c.name) === 'aichatanswer' ||
+            normalize(c.displayName) === 'aichatanswer';
+        });
+        if (column && column.name) return column.name;
+        url = data['@odata.nextLink'] || '';
+        if (url && !url.startsWith('https://graph.microsoft.com/')) {
+          throw new Error('Unexpected Graph column paging URL');
+        }
+      }
+      logSync('⚠️ Resources has no AI_Chat_Answer column; AINotes remains available.');
+    } catch (e) {
+      logSync('⚠️ Unable to resolve AI_Chat_Answer column: ' + e.message);
+    }
+    return null;
+  }
+
+  /* DUAL GRAPH SAVE TO SHAREPOINT: only called by manual Save buttons. */
   async function pushChatToSharePoint(isFullThread, triggerBtn){
     var active = getActiveSession();
     if(!active || !active.messages.length){ alert('Please have a chat conversation first before saving.'); return; }
@@ -3953,6 +3988,18 @@ if (pipelineErrors.length) {
         var patchBody = {};
         patchBody[targetFieldKey] = finalAiNotes;
 
+        // Store ONLY the latest Q&A in the dedicated summary field, even
+        // when the user chooses "Save Full Thread" for cumulative AINotes.
+        // Keep uploaded image base64 out of this compact Power Apps field;
+        // existing AINotes retains its full original rich chat payload.
+        var chatAnsKey = await resolveAIChatAnswerField(token, siteId, listId, fields);
+        if (chatAnsKey) {
+          var lastTurn = active.messages[active.messages.length - 1];
+          var compactLastTurn = Object.assign({}, lastTurn, {imgs: [], img: null});
+          var latestChatHtml = buildRichChatHtml([compactLastTurn], false, timeStamp, 'devotional');
+          patchBody[chatAnsKey] = latestChatHtml;
+        }
+
         var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '/fields';
         var pRes = await fetch(patchUrl, {
           method: 'PATCH',
@@ -3965,8 +4012,11 @@ if (pipelineErrors.length) {
           throw new Error(pData.error && pData.error.message || 'Failed to update AINotes. Ensure column "AINotes" exists in Resources list.');
         }
 
-        logSync('✓ Saved Chat to Resources #' + rowId + ' (' + targetFieldKey + ' as Rich HTML)');
-        toast('Chat appended to Resources #' + rowId + ' (AINotes)!');
+        logSync('✓ Saved Chat to Resources #' + rowId + ' (' + targetFieldKey +
+          (chatAnsKey ? ' + ' + chatAnsKey : '') + ' as Rich HTML)');
+        toast(chatAnsKey ?
+          'Chat saved to AINotes and AI_Chat_Answer in Resources #' + rowId + ' ☁️' :
+          'Chat appended to AINotes only (AI_Chat_Answer not found)');
       } 
       // SERMON MODE -> Devotional_Topics (Other_SummariesForStudy)
       else {
