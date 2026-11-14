@@ -4023,6 +4023,87 @@ if (pipelineErrors.length) {
   $('saveLastChatSpBtn').addEventListener('click', function(){ pushChatToSharePoint(false, this); });
   $('saveFullChatSpBtn').addEventListener('click', function(){ pushChatToSharePoint(true, this); });
 
+  /* Explicit Power Apps snapshot: overwrite ONLY Resources.AI_Chat_Answer.
+     Never called by automatic launches, and never modifies AINotes. */
+  async function pushChatAnswerToPowerApps(){
+    var active = getActiveSession();
+    if (!active || !active.messages || !active.messages.length) {
+      toast('Ask a question before posting a chat answer.');
+      return false;
+    }
+    if ((active.mode || mode) !== 'devotional') {
+      toast('Push to AI_Chat_Answer is for devotional Resources records.');
+      return false;
+    }
+    var itemId = ($('chatTargetRowId').value || '').trim() ||
+      String(active.targetRowId || '').trim() || getActiveRowIdFromScreen();
+    if (!/^[1-9][0-9]*$/.test(String(itemId))) {
+      toast('Enter a valid Resources item ID before posting.');
+      $('chatTargetRowId').focus();
+      return false;
+    }
+    var lastTurn = active.messages[active.messages.length - 1];
+    if (!lastTurn || !String(lastTurn.a || '').trim()) {
+      toast('The latest Q&A has no answer to post.');
+      return false;
+    }
+
+    var button = $('saveAiChatAnswerBtn');
+    button.disabled = true;
+    try {
+      var timeStamp = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      var compactLastTurn = Object.assign({}, lastTurn, {imgs: [], img: null});
+      var richCard = buildRichChatHtml([compactLastTurn], false, timeStamp, 'devotional');
+
+      // Strip inline data-image tags even if the user edited them into the answer.
+      var wrapper = document.createElement('div');
+      wrapper.innerHTML = richCard;
+      wrapper.querySelectorAll('img').forEach(function(img){
+        if (/^data:image\//i.test(img.getAttribute('src') || '')) img.remove();
+      });
+      var latestChatHtml = wrapper.innerHTML;
+
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      var listId = await getListId(token, siteId, 'Resources');
+      var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+        '/lists/' + listId + '/items/' + itemId + '/fields';
+
+      // AI_Chat_Answer is the known SharePoint internal field name.
+      // PATCH replaces the snapshot without touching cumulative AINotes.
+      var response = await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {'Authorization':'Bearer ' + token, 'Content-Type':'application/json'},
+        body: JSON.stringify({'AI_Chat_Answer': latestChatHtml})
+      });
+      if (!response.ok) {
+        var responseText = await response.text();
+        var detail = responseText || ('HTTP ' + response.status);
+        try {
+          var parsed = JSON.parse(responseText);
+          detail = (parsed.error && parsed.error.message) || detail;
+        } catch (ignored) {}
+        throw new Error('Resources #' + itemId + ': ' + detail);
+      }
+
+      active.targetRowId = String(itemId);
+      sessionsSave();
+      syncActiveSessionHeader();
+      renderSidebarSessions();
+      logSync('✓ Replaced Resources #' + itemId +
+        ' AI_Chat_Answer with latest Q&A (AINotes unchanged).');
+      toast('✓ Latest chat posted to AI_Chat_Answer for Power Apps ☁️');
+      return true;
+    } catch(error) {
+      logSync('❌ Power Apps chat answer save failed: ' + error.message);
+      alert('Could not post AI_Chat_Answer: ' + error.message);
+      return false;
+    } finally {
+      button.disabled = false;
+    }
+  }
+  $('saveAiChatAnswerBtn').addEventListener('click', pushChatAnswerToPowerApps);
+
   async function executeGeminiChat(contentsList, model, key) {
     var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
       method: 'POST',
