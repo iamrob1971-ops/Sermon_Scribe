@@ -2576,11 +2576,14 @@ function htmlToPlainText(html) {
   });
 
     // PULL SERMON TOPIC FROM DEVOTIONAL_TOPICS LIST
-  $('pullSermonBtn').addEventListener('click', async function(){
-    var topicId = $('sermonTopicId').value.trim();
-    if(!topicId){ alert('Please enter a Topic ID to pull.'); return; }
-
-    var btn = this; btn.disabled = true;
+  // Reusable, awaitable Graph pull for both the manual Pull button and
+  // the Power Apps Study Assistant launcher (no synthetic clicks).
+  async function pullSermonData(itemId) {
+    var topicId = String(itemId == null ? '' : itemId).trim();
+    if (!/^[1-9][0-9]*$/.test(topicId)) {
+      throw new Error('A valid Devotional_Topics item ID is required.');
+    }
+    $('sermonTopicId').value = topicId;
     try {
       var token = await getMsalToken();
       var siteId = await resolveSiteId(token);
@@ -2657,16 +2660,22 @@ function htmlToPlainText(html) {
       }
 
       // Automatically populate all SharePoint themes into dropdown
-      loadSharePointThemes(token, siteId);
+      await loadSharePointThemes(token, siteId);
 
       logSync('✓ Pulled Topic #' + topicId + ': "' + (fields.Title || '') + '"');
       toast('Pulled Topic #' + topicId + ' successfully!');
+      return fields;
     } catch(e) {
       logSync('❌ Pull error: ' + e.message);
-      alert('Could not pull Topic #' + topicId + ': ' + e.message);
-    } finally {
-      btn.disabled = false;
+      throw e;
     }
+  }
+
+  $('pullSermonBtn').addEventListener('click', async function(){
+    var btn = this; btn.disabled = true;
+    try { await pullSermonData($('sermonTopicId').value); }
+    catch(e) { alert('Could not pull Topic: ' + e.message); }
+    finally { btn.disabled = false; }
   });
 
   /* Reusable awaitable devotional SharePoint sync. */
