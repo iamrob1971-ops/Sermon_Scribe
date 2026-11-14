@@ -1277,6 +1277,9 @@ var SITE_PATH = "/sites/Bible_App";
   /* URL Parameters Ingestion */
   var qParams=new URLSearchParams(window.location.search);
   var requestedPresetId = String(qParams.get('presetId') || qParams.get('instruction') || '').trim();
+  var openChatRequested = qParams.get('openChat') === '1';
+  var incomingChatQuestion = String(qParams.get('chatQ') || '').trim();
+  var chatTargetItemId = String(qParams.get('itemId') || qParams.get('topicId') || '').trim();
   if(qParams.get('mode')&&MODES[qParams.get('mode')]) mode=qParams.get('mode');
   if(qParams.get('topicId')) $('sermonTopicId').value=qParams.get('topicId');
   if(qParams.get('itemId')) {
@@ -2573,11 +2576,14 @@ function htmlToPlainText(html) {
   });
 
     // PULL SERMON TOPIC FROM DEVOTIONAL_TOPICS LIST
-  $('pullSermonBtn').addEventListener('click', async function(){
-    var topicId = $('sermonTopicId').value.trim();
-    if(!topicId){ alert('Please enter a Topic ID to pull.'); return; }
-
-    var btn = this; btn.disabled = true;
+  // Reusable, awaitable Graph pull for both the manual Pull button and
+  // the Power Apps Study Assistant launcher (no synthetic clicks).
+  async function pullSermonData(itemId) {
+    var topicId = String(itemId == null ? '' : itemId).trim();
+    if (!/^[1-9][0-9]*$/.test(topicId)) {
+      throw new Error('A valid Devotional_Topics item ID is required.');
+    }
+    $('sermonTopicId').value = topicId;
     try {
       var token = await getMsalToken();
       var siteId = await resolveSiteId(token);
@@ -2654,16 +2660,22 @@ function htmlToPlainText(html) {
       }
 
       // Automatically populate all SharePoint themes into dropdown
-      loadSharePointThemes(token, siteId);
+      await loadSharePointThemes(token, siteId);
 
       logSync('✓ Pulled Topic #' + topicId + ': "' + (fields.Title || '') + '"');
       toast('Pulled Topic #' + topicId + ' successfully!');
+      return fields;
     } catch(e) {
       logSync('❌ Pull error: ' + e.message);
-      alert('Could not pull Topic #' + topicId + ': ' + e.message);
-    } finally {
-      btn.disabled = false;
+      throw e;
     }
+  }
+
+  $('pullSermonBtn').addEventListener('click', async function(){
+    var btn = this; btn.disabled = true;
+    try { await pullSermonData($('sermonTopicId').value); }
+    catch(e) { alert('Could not pull Topic: ' + e.message); }
+    finally { btn.disabled = false; }
   });
 
   /* Reusable awaitable devotional SharePoint sync. */
@@ -3645,7 +3657,16 @@ if (pipelineErrors.length) {
     if(activeInst) {
       ctx += '\nORIGINAL GUIDING INSTRUCTIONS & THEOLOGICAL FRAMEWORK:\n' + activeInst + '\n';
     }
-    
+
+    // Pulled Resources.Body / sermon transcript must be available even when
+    // AdditionalCommentary and generated notes have not been written yet.
+    var sourceText = (page.value || '').trim();
+    if(sourceText) {
+      ctx += '\nCURRENT SOURCE TEXT (DEVOTIONAL BODY / SERMON TRANSCRIPT):\n' +
+        sourceText.slice(0, 18000) +
+        (sourceText.length > 18000 ? '\n[Source truncated for chat context.]' : '') + '\n';
+    }
+
     if(notesText && !notesText.includes('Notes appear here after clicking Summarize')) {
       ctx += '\nCURRENT STUDY NOTES / SUMMARY (PRIMARY TRUTH SOURCE):\n' + notesText + '\n';
     } else {
@@ -3890,7 +3911,42 @@ if (pipelineErrors.length) {
     return html;
   }
 
-  /* DUAL GRAPH SAVE TO SHAREPOINT */
+  /* Resolve the field by internal name, including when an empty multiline
+     column is omitted from the Graph item.fields payload. */
+  async function resolveAIChatAnswerField(token, siteId, listId, fields) {
+    var normalize = function(v) {
+      return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    };
+    var fromItem = Object.keys(fields || {}).find(function(key) {
+      return normalize(key) === 'aichatanswer';
+    });
+    if (fromItem) return fromItem;
+
+    try {
+      var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+        '/lists/' + listId + '/columns?$select=name,displayName&$top=999';
+      while (url) {
+        var res = await fetch(url, {headers: {'Authorization': 'Bearer ' + token}});
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var data = await res.json();
+        var column = (data.value || []).find(function(c) {
+          return normalize(c.name) === 'aichatanswer' ||
+            normalize(c.displayName) === 'aichatanswer';
+        });
+        if (column && column.name) return column.name;
+        url = data['@odata.nextLink'] || '';
+        if (url && !url.startsWith('https://graph.microsoft.com/')) {
+          throw new Error('Unexpected Graph column paging URL');
+        }
+      }
+      logSync('⚠️ Resources has no AI_Chat_Answer column; AINotes remains available.');
+    } catch (e) {
+      logSync('⚠️ Unable to resolve AI_Chat_Answer column: ' + e.message);
+    }
+    return null;
+  }
+
+  /* DUAL GRAPH SAVE TO SHAREPOINT: only called by manual Save buttons. */
   async function pushChatToSharePoint(isFullThread, triggerBtn){
     var active = getActiveSession();
     if(!active || !active.messages.length){ alert('Please have a chat conversation first before saving.'); return; }
@@ -3932,6 +3988,18 @@ if (pipelineErrors.length) {
         var patchBody = {};
         patchBody[targetFieldKey] = finalAiNotes;
 
+        // Store ONLY the latest Q&A in the dedicated summary field, even
+        // when the user chooses "Save Full Thread" for cumulative AINotes.
+        // Keep uploaded image base64 out of this compact Power Apps field;
+        // existing AINotes retains its full original rich chat payload.
+        var chatAnsKey = await resolveAIChatAnswerField(token, siteId, listId, fields);
+        if (chatAnsKey) {
+          var lastTurn = active.messages[active.messages.length - 1];
+          var compactLastTurn = Object.assign({}, lastTurn, {imgs: [], img: null});
+          var latestChatHtml = buildRichChatHtml([compactLastTurn], false, timeStamp, 'devotional');
+          patchBody[chatAnsKey] = latestChatHtml;
+        }
+
         var patchUrl = 'https://graph.microsoft.com/v1.0/sites/' + siteId + '/lists/' + listId + '/items/' + rowId + '/fields';
         var pRes = await fetch(patchUrl, {
           method: 'PATCH',
@@ -3944,8 +4012,11 @@ if (pipelineErrors.length) {
           throw new Error(pData.error && pData.error.message || 'Failed to update AINotes. Ensure column "AINotes" exists in Resources list.');
         }
 
-        logSync('✓ Saved Chat to Resources #' + rowId + ' (' + targetFieldKey + ' as Rich HTML)');
-        toast('Chat appended to Resources #' + rowId + ' (AINotes)!');
+        logSync('✓ Saved Chat to Resources #' + rowId + ' (' + targetFieldKey +
+          (chatAnsKey ? ' + ' + chatAnsKey : '') + ' as Rich HTML)');
+        toast(chatAnsKey ?
+          'Chat saved to AINotes and AI_Chat_Answer in Resources #' + rowId + ' ☁️' :
+          'Chat appended to AINotes only (AI_Chat_Answer not found)');
       } 
       // SERMON MODE -> Devotional_Topics (Other_SummariesForStudy)
       else {
@@ -4180,6 +4251,95 @@ if (pipelineErrors.length) {
 
   sessionsLoad();
 
+  /* URL-initiated interactive Study Assistant. Always starts a NEW
+     record-bound chat after hydrating any previously saved AINotes.
+     No Graph write or automatic browser close occurs in this path. */
+  async function runInteractiveChatLauncher(itemId, question) {
+    var id = String(itemId == null ? '' : itemId).trim();
+    var q = String(question || '').trim();
+    if (!/^[1-9][0-9]*$/.test(id)) {
+      logSync('⚠️ Interactive chat requires a valid itemId or topicId.');
+      toast('Provide a valid SharePoint item ID to launch chat.');
+      return false;
+    }
+    try {
+      logSync('Starting interactive Study Assistant for ' +
+        (mode === 'sermon' ? 'Topic' : 'Resource') + ' #' + id + '...');
+      await getMsalToken();
+
+      // Use the selected SharePoint-managed style if Power Apps supplied it.
+      if (requestedPresetId) {
+        await ensureSharePointInstructions(true);
+        selectRequestedPreset(requestedPresetId);
+      }
+
+      if (mode === 'sermon') {
+        await pullSermonData(id);
+      } else {
+        await pullDevoData(id);
+      }
+
+      var sessTitle = q ?
+        (q.length > 28 ? q.slice(0, 26) + '…' : q) :
+        ((mode === 'sermon' ? 'Sermon #' : 'Devo #') + id + ' Q&A');
+      var newSess = createNewSession(sessTitle);
+      newSess.targetRowId = id;
+      newSess.mode = mode;
+      sessionsSave();
+      syncActiveSessionHeader();
+      renderSidebarSessions();
+
+      showHelpTab('ask');
+      if (!helpDlg.open) {
+        if (helpDlg.showModal) helpDlg.showModal();
+        else helpDlg.setAttribute('open', '');
+      }
+      askRender();
+
+      // Keep the new chat from re-submitting if the user reloads the tab,
+      // and avoid leaving the theological question in the address bar.
+      try {
+        var cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('chatQ');
+        cleanUrl.searchParams.delete('openChat');
+        window.history.replaceState(window.history.state, '',
+          cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+      } catch (ignored) {}
+
+      if (q) {
+        $('askQ').value = q;
+        await submitChatQuestion(); // Existing chat renderer and editor.
+        if (newSess.messages && newSess.messages.length) {
+          toast('Resource #' + id + ': answer ready to review. Save manually if desired.');
+          logSync('✓ Interactive chat answer ready for #' + id + '; NOT auto-saved.');
+          return true;
+        }
+        // submitChatQuestion intentionally handles its own errors and may
+        // leave the question in the textarea for manual retry.
+        toast('Chat opened; check the answer or retry the prepared question.');
+        logSync('⚠️ Chat answer not generated; session remains available for retry.');
+        return false;
+      }
+
+      $('askQ').focus();
+      toast('Context loaded for #' + id + '. Ask a question when ready.');
+      return true;
+    } catch (e) {
+      logSync('❌ Interactive chat launch failed: ' + e.message);
+      try {
+        if (!helpDlg.open) {
+          if (helpDlg.showModal) helpDlg.showModal();
+          else helpDlg.setAttribute('open', '');
+        }
+        showHelpTab('ask');
+        if (q) $('askQ').value = q;
+      } catch (ignored) {}
+      toast('Chat context could not load; check Microsoft sign-in and retry.');
+      return false;
+    }
+  }
+
+
   /* URL-based orchestration controller. Intentionally waits for initialization. */
   var autoRunActive = false;
   var autoRunHasAuthenticated = false;
@@ -4359,7 +4519,13 @@ if (pipelineErrors.length) {
   // Apply URL preset immediately from cache, then resolve it again when a
   // fresh SharePoint library fetch becomes available.
   if (requestedPresetId) selectRequestedPreset(requestedPresetId);
-  if (autoRunRequested) {
+  if (openChatRequested) {
+    // Interactive chat takes priority over autoRun: answers must never
+    // trigger the unattended SharePoint save/auto-close controller.
+    setTimeout(function(){
+      runInteractiveChatLauncher(chatTargetItemId, incomingChatQuestion);
+    }, 600);
+  } else if (autoRunRequested) {
     setTimeout(function(){runAutoDevotionalOrchestrator(autoRunItemId);}, 500);
   } else if (cachedAccs.length) {
     ensureSharePointInstructions(false).then(function(loaded){
