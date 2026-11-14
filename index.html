@@ -987,53 +987,77 @@ var SITE_PATH = "/sites/Bible_App";
     return sel;
   }
 
-  /* Preset & Custom Styles Management */
-  var CUSTOM_KEY='ss_custom_presets_v1';
+  /* SharePoint-backed presets with local/baked offline fallbacks. */
+  var CUSTOM_KEY = 'ss_custom_presets_v1';
+  var SP_INSTRUCTIONS_CACHE_KEY = 'ss_sharepoint_ai_instructions_v1';
+  var sharePointPresets = {};
+  var sharePointInstructionsOnline = false;
+  var sharePointInstructionsPromise = null;
+  var cachedInstructionsListId = null;
+  (function restoreCachedInstructions(){
+    try {
+      var cache = JSON.parse(load(SP_INSTRUCTIONS_CACHE_KEY) || '{}');
+      if (cache && typeof cache === 'object' && !Array.isArray(cache)) {
+        Object.keys(cache).forEach(function(id){
+          if (cache[id] && typeof cache[id].text === 'string' && cache[id].text.trim()) {
+            sharePointPresets[id] = cache[id];
+          }
+        });
+      }
+    } catch(e) { sharePointPresets = {}; }
+  })();
   function getCustomPresets(){
-    var raw=load(CUSTOM_KEY);
-    var local={};
-    try{ local=raw?JSON.parse(raw):{}; }catch(e){}
+    var raw = load(CUSTOM_KEY), local = {};
+    try { local = raw ? JSON.parse(raw) : {}; } catch(e) {}
     return Object.assign({}, BAKED_CUSTOM_PRESETS, local);
   }
-  function saveCustomPresets(obj){
-    store(CUSTOM_KEY, JSON.stringify(obj));
-  }
-
+  function saveCustomPresets(obj){ store(CUSTOM_KEY, JSON.stringify(obj)); }
   function getAllPresets(){
-    var customs=getCustomPresets();
-    return Object.assign({}, BUILTIN_PRESETS, customs);
+    return Object.assign({}, BUILTIN_PRESETS, getCustomPresets(), sharePointPresets);
   }
-
   function fillPresets(){
-    var sel=$('preset');sel.innerHTML='';
-    var all=getAllPresets();
-    var keys=Object.keys(all);
-
-    keys.forEach(function(id){
-      var p=all[id];
-      if(p.mode===mode||p.mode==='any'){
-        var o=document.createElement('option');o.value=id;
-        var isCustom=!!getCustomPresets()[id];
-        var isEdited=!!load('ss_inst_'+id);
-        o.textContent=p.label+(isCustom?' [Custom]':(isEdited?' [Edited]':''));
-        sel.appendChild(o);
+    var sel = $('preset'); sel.innerHTML = '';
+    var all = getAllPresets();
+    Object.keys(all).forEach(function(id){
+      var p = all[id];
+      if (p.mode === mode || p.mode === 'any') {
+        var opt = document.createElement('option');
+        opt.value = id;
+        var cloud = !!sharePointPresets[id], custom = !!getCustomPresets()[id];
+        opt.textContent = p.label + (cloud ?
+          (sharePointInstructionsOnline ? '' : ' [Cached]') :
+          (custom ? ' [Custom]' : (load('ss_inst_' + id) ? ' [Edited]' : '')));
+        sel.appendChild(opt);
       }
     });
-
-    var newOpt=document.createElement('option');
-    newOpt.value='__new__';
-    newOpt.textContent='➕ Create New Style...';
+    var newOpt = document.createElement('option');
+    newOpt.value = '__new__'; newOpt.textContent = '➕ Create New Style...';
     sel.appendChild(newOpt);
-
-    if(!all[presetId]||(all[presetId].mode!==mode&&all[presetId].mode!=='any')){
-      presetId=MODES[mode].defaultPreset;
+    if (!all[presetId] || (all[presetId].mode !== mode && all[presetId].mode !== 'any')) {
+      presetId = MODES[mode].defaultPreset;
     }
-    sel.value=presetId;
+    sel.value = presetId;
   }
-
   function getInstr(){
-    var all=getAllPresets();
-    return load('ss_inst_'+presetId)||(all[presetId]&&all[presetId].text)||'';
+    var all = getAllPresets();
+    if (sharePointInstructionsOnline && sharePointPresets[presetId]) {
+      return sharePointPresets[presetId].text;
+    }
+    return load('ss_inst_' + presetId) || (all[presetId] && all[presetId].text) || '';
+  }
+  function selectRequestedPreset(requestedId){
+    var id = String(requestedId || '').trim(), all = getAllPresets();
+    var chosen = all[id];
+    if (chosen && (chosen.mode === mode || chosen.mode === 'any')) {
+      presetId = id; fillPresets();
+      logSync('✓ Selected AI instruction: ' + id +
+        (sharePointPresets[id] ? ' (SharePoint)' : ' (local/built-in)'));
+      return true;
+    }
+    presetId = MODES[mode].defaultPreset;
+    fillPresets();
+    if (id) logSync('⚠️ Instruction "' + id + '" unavailable; using ' + presetId);
+    return false;
   }
 
   $('preset').addEventListener('change',function(){
