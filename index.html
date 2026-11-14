@@ -4061,6 +4061,16 @@ if (pipelineErrors.length) {
       wrapper.querySelectorAll('img').forEach(function(img){
         if (/^data:image\//i.test(img.getAttribute('src') || '')) img.remove();
       });
+
+      // Increase only the Power Apps snapshot's inline pixel font sizes by
+      // 1.5px (e.g. 12 -> 13.5), not by a 1.5x scaling factor.
+      // The regular AINotes and sermon history saves are unchanged.
+      wrapper.querySelectorAll('[style]').forEach(function(element){
+        var fontSize = element.style.fontSize;
+        if (/^[0-9]+(?:\.[0-9]+)?px$/i.test(fontSize)) {
+          element.style.fontSize = (parseFloat(fontSize) + 1.5) + 'px';
+        }
+      });
       var latestChatHtml = wrapper.innerHTML;
 
       var token = await getMsalToken();
