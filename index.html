@@ -2087,6 +2087,116 @@ var SITE_PATH = "/sites/Bible_App";
     return d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
   }
 
+  /* Real-time Gemini SSE executor for both devotional notes and multi-turn chat.
+     promptText is a string for summarization or Gemini contents[] for chat.
+     attachedImages use the existing {mimeType,base64} format.
+     Returns the COMPLETE text; partial chunks are never persisted as answers. */
+  async function executeGeminiStreamRequest(model, key, promptText, attachedImages, onChunk) {
+    var contents;
+    if (Array.isArray(promptText)) {
+      contents = promptText;
+    } else {
+      var parts = [];
+      (attachedImages || []).forEach(function(image) {
+        parts.push({inlineData: {mimeType: image.mimeType, data: image.base64}});
+      });
+      parts.push({text: String(promptText || '')});
+      contents = [{role: 'user', parts: parts}];
+    }
+
+    // Browsers without ReadableStream support retain the legacy request flow.
+    if (typeof ReadableStream === 'undefined' || typeof TextDecoder === 'undefined') {
+      var oldAnswer = Array.isArray(promptText) ?
+        await executeGeminiChat(contents, model, key) :
+        await executeGeminiRequest(model, key, promptText, attachedImages);
+      if (onChunk) onChunk(oldAnswer, oldAnswer);
+      return oldAnswer;
+    }
+
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+      encodeURIComponent(model) + ':streamGenerateContent?alt=sse';
+    var response = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'x-goog-api-key': key},
+      body: JSON.stringify({
+        contents: contents,
+        generationConfig: {temperature: 0.25, maxOutputTokens: 8192}
+      })
+    });
+    if (!response.ok) {
+      var responseText = await response.text();
+      var errMessage = responseText || ('HTTP ' + response.status);
+      try {
+        var errJson = JSON.parse(responseText);
+        errMessage = (errJson.error && errJson.error.message) || errMessage;
+      } catch (ignored) {}
+      var httpError = new Error(errMessage);
+      httpError.isHighDemand = response.status === 503 || response.status === 429 ||
+        /demand|overload|exhaust|resource/i.test(errMessage);
+      throw httpError;
+    }
+
+    if (!response.body || typeof response.body.getReader !== 'function') {
+      // Some older browser/network paths return a non-streaming response.
+      // Fall back to the existing complete-response executor.
+      var buffered = Array.isArray(promptText) ?
+        await executeGeminiChat(contents, model, key) :
+        await executeGeminiRequest(model, key, promptText, attachedImages);
+      if (onChunk) onChunk(buffered, buffered);
+      return buffered;
+    }
+
+    var reader = response.body.getReader();
+    var decoder = new TextDecoder('utf-8');
+    var buffer = '';
+    var accumulatedText = '';
+    function consumeEvent(eventText) {
+      var data = eventText.split(/\r?\n/).filter(function(line) {
+        return /^data:/i.test(line);
+      }).map(function(line) {
+        return line.slice(5).trimStart();
+      }).join('\n').trim();
+      if (!data || data === '[DONE]') return;
+      var packet;
+      try { packet = JSON.parse(data); }
+      catch (error) { throw new Error('Could not parse Gemini streaming response.'); }
+      if (packet.error) {
+        var apiError = new Error(packet.error.message || 'Gemini stream failed.');
+        apiError.isHighDemand = Number(packet.error.code) === 429 ||
+          Number(packet.error.code) === 503 ||
+          /demand|overload|exhaust|resource/i.test(apiError.message);
+        throw apiError;
+      }
+      var candidate = (packet.candidates || [])[0];
+      var chunkText = ((candidate && candidate.content && candidate.content.parts) || [])
+        .filter(function(part) { return !part.thought; })
+        .map(function(part) { return part.text || ''; }).join('');
+      if (chunkText) {
+        accumulatedText += chunkText;
+        if (onChunk) onChunk(accumulatedText, chunkText);
+      }
+    }
+    try {
+      while (true) {
+        var result = await reader.read();
+        if (result.done) break;
+        buffer += decoder.decode(result.value, {stream:true});
+        var boundary;
+        while ((boundary = /\r?\n\r?\n/.exec(buffer)) !== null) {
+          var frame = buffer.slice(0, boundary.index);
+          buffer = buffer.slice(boundary.index + boundary[0].length);
+          consumeEvent(frame);
+        }
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) consumeEvent(buffer);
+      if (!accumulatedText.trim()) throw new Error('Gemini streamed no answer text.');
+      return accumulatedText;
+    } finally {
+      try { reader.releaseLock(); } catch (ignored) {}
+    }
+  }
+
   /* Reusable awaitable AI pipeline for manual and automated devotional generation. */
   async function runGeminiDevotional(targetModel, promptText, options) {
     options = options || {};
@@ -2113,7 +2223,16 @@ var SITE_PATH = "/sites/Bible_App";
     async function generate(modelName, modelKey, label) {
       out.innerHTML = '<div class="loading"><span class="spin"></span>' + esc(label) +
         ' (' + esc(modelName) + ')...</div>';
-      var notes = await executeGeminiRequest(modelName, modelKey, prompt, pageAttachedImages);
+      var lastRendered = 0;
+      var notes = await executeGeminiStreamRequest(modelName, modelKey, prompt,
+        pageAttachedImages, function(accumulatedText) {
+          // Render at most ten times per second; keep streaming responsive
+          // without repeatedly reflowing a large HTML study on every token.
+          if (Date.now() - lastRendered >= 100) {
+            out.innerHTML = mdToHtml(accumulatedText);
+            lastRendered = Date.now();
+          }
+        });
       if (!notes || !notes.trim()) throw new Error('Gemini produced an empty response.');
       out.innerHTML = mdToHtml(notes);
       checkNotesState();
