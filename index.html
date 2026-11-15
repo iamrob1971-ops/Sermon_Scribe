@@ -668,7 +668,8 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           <button class="btn sm" id="copyFullChatBtn" title="Copy full thread as rich formatted text (Word / Outlook ready)">📜 Copy Full Thread</button>
           <button class="btn sm success" id="saveLastChatSpBtn" title="Append only the latest Q&A to SharePoint in rich formatted HTML">💾 Save Last Q&amp;A</button>
           <button class="btn sm accent" id="saveFullChatSpBtn" title="Append the entire chat conversation to SharePoint in rich formatted HTML">📚 Save Full Thread</button>
-          <button class="btn sm success" id="saveAiChatAnswerBtn" type="button" title="Replace Resources.AI_Chat_Answer with the latest Q&amp;A for Power Apps; AINotes remains unchanged.">🚀 Push to AI_Chat_Answer</button>
+          <button class="btn sm success" id="saveAiChatAnswerBtn" type="button" title="Replace AI_Chat_Answer with the latest Q&amp;A only; historical notes remain unchanged.">🚀 Push Latest Q&amp;A</button>
+          <button class="btn sm accent" id="saveFullAiChatAnswerBtn" type="button" title="Replace AI_Chat_Answer with all Q&amp;A turns from the active chat session; historical notes remain unchanged.">🚀 Push Full Chat</button>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button type="button" class="btn sm btn-danger-soft" id="askNew" title="⚠️ WARNING: This will permanently delete all messages in this active chat thread. To start a fresh thread without losing this one, click '+ New' in the left sidebar instead!">🗑️ Clear Active Thread</button>
@@ -4026,7 +4027,7 @@ if (pipelineErrors.length) {
   /* Explicit Power Apps snapshot: overwrite ONLY AI_Chat_Answer on
      Resources (devotional) or Devotional_Topics (sermon).
      Never called by automatic launches and never modifies history fields. */
-  async function pushChatAnswerToPowerApps(){
+  async function pushChatAnswerToPowerApps(isFullThread, triggerBtn){
     var active = getActiveSession();
     if (!active || !active.messages || !active.messages.length) {
       toast('Ask a question before posting a chat answer.');
@@ -4059,12 +4060,17 @@ if (pipelineErrors.length) {
       return false;
     }
 
-    var button = $('saveAiChatAnswerBtn');
+    var button = triggerBtn || $('saveAiChatAnswerBtn');
     button.disabled = true;
     try {
       var timeStamp = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-      var compactLastTurn = Object.assign({}, lastTurn, {imgs: [], img: null});
-      var richCard = buildRichChatHtml([compactLastTurn], false, timeStamp, snapshotMode);
+      // Publish only this active chat session, never other sidebar sessions.
+      // Snapshot messages have no image attachments; original local messages remain intact.
+      var messagesToPost = isFullThread ? active.messages : [lastTurn];
+      var compactMessages = messagesToPost.map(function(turn){
+        return Object.assign({}, turn, {imgs: [], img: null});
+      });
+      var richCard = buildRichChatHtml(compactMessages, !!isFullThread, timeStamp, snapshotMode);
 
       // Strip inline data-image tags even if the user edited them into the answer.
       var wrapper = document.createElement('div');
@@ -4072,6 +4078,15 @@ if (pipelineErrors.length) {
       wrapper.querySelectorAll('img').forEach(function(img){
         if (/^data:image\//i.test(img.getAttribute('src') || '')) img.remove();
       });
+
+      // Label full-thread snapshots by their session title to make distinct
+      // branches of research recognizable when viewed in Power Apps.
+      if (isFullThread && active.title) {
+        var branchHeading = document.createElement('div');
+        branchHeading.textContent = 'Chat Research: ' + active.title;
+        branchHeading.style.cssText = 'font-size:14px;font-weight:700;margin:0 0 12px;color:#1D1930';
+        wrapper.insertBefore(branchHeading, wrapper.firstChild);
+      }
 
       // Increase only the Power Apps snapshot's inline pixel font sizes by
       // 1.5px (e.g. 12 -> 13.5), not by a 1.5x scaling factor.
@@ -4112,8 +4127,12 @@ if (pipelineErrors.length) {
       syncActiveSessionHeader();
       renderSidebarSessions();
       logSync('✓ Replaced ' + snapshotListName + ' #' + itemId +
-        ' AI_Chat_Answer with latest Q&A (chat history unchanged).');
-      toast('✓ Latest chat posted to AI_Chat_Answer for Power Apps ☁️');
+        ' AI_Chat_Answer with ' + (isFullThread ?
+          ('full active chat (' + messagesToPost.length + ' Q&A turns)') :
+          'latest Q&A') + ' (chat history unchanged).');
+      toast(isFullThread ?
+        '✓ Full chat posted to AI_Chat_Answer for Power Apps ☁️' :
+        '✓ Latest chat posted to AI_Chat_Answer for Power Apps ☁️');
       return true;
     } catch(error) {
       logSync('❌ Power Apps chat answer save failed: ' + error.message);
@@ -4123,7 +4142,12 @@ if (pipelineErrors.length) {
       button.disabled = false;
     }
   }
-  $('saveAiChatAnswerBtn').addEventListener('click', pushChatAnswerToPowerApps);
+  $('saveAiChatAnswerBtn').addEventListener('click', function(){
+    pushChatAnswerToPowerApps(false, this);
+  });
+  $('saveFullAiChatAnswerBtn').addEventListener('click', function(){
+    pushChatAnswerToPowerApps(true, this);
+  });
 
   async function executeGeminiChat(contentsList, model, key) {
     var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
