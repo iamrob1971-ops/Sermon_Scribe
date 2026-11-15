@@ -79,6 +79,10 @@ header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:spac
 .ribbon .empty{font-size:13px;color:var(--muted)}
 .chip{white-space:nowrap;text-decoration:none;font-family:var(--serif);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid color-mix(in srgb,var(--gold) 35%,white);border-radius:6px;padding:2px 8px}
 a.chip:hover{border-color:var(--gold)}
+.scripture-mention{cursor:help;text-decoration:underline dotted #9B7B38;text-underline-offset:3px;border-radius:3px}
+.scripture-mention:hover,.scripture-mention:focus-visible{background:var(--gold-t);outline-offset:2px}
+#verseHoverCard{position:fixed;z-index:100000;display:none;pointer-events:none;max-width:min(430px,calc(100vw - 24px));padding:13px 16px;border-radius:10px;border:1px solid #CBD5E1;background:#fff;color:#1D1930;box-shadow:0 12px 36px #0003;font-size:14px;line-height:1.6;white-space:pre-wrap}
+#verseHoverCard b{display:block;font-size:14px;color:#1E40AF;margin-bottom:6px}
 
 /* Audio Progress Banner */
 .audio-queue-status{
@@ -1337,6 +1341,206 @@ var SITE_PATH = "/sites/Bible_App";
     }
     return outArr;
   }
+  /* Verse hover reads the user's own SharePoint Bible_VerseText_Wide.
+     BookNum is assumed to follow the conventional 1–66 Protestant order;
+     actual BookNum, Chapter, Verse, and text fields must be provisioned.
+     No fallback verse text is generated or guessed. */
+  var bibleCanonicalBooks = ('Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|' +
+    '1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|Ezra|Nehemiah|Esther|Job|' +
+    'Psalms|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|' +
+    'Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|' +
+    'Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|' +
+    'Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|' +
+    '1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|' +
+    '3 John|Jude|Revelation').split('|');
+  var verseCache = Object.create(null);
+  var versePending = Object.create(null);
+  var verseListPromise = null;
+  var verseHoverTimer = null;
+  var verseHoverCurrent = '';
+  var verseHoverCard = document.createElement('div');
+  verseHoverCard.id = 'verseHoverCard';
+  verseHoverCard.setAttribute('role', 'tooltip');
+  document.body.appendChild(verseHoverCard);
+
+  function parseBibleReference(referenceString) {
+    var ref = String(referenceString || '').replace(/\s+/g, ' ').trim();
+    var m = /^(.+?)\s+(\d{1,3}):(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?$/.exec(ref);
+    if (!m) throw new Error('Hover lookup needs a book, chapter and verse (e.g., Romans 8:28).');
+    var book = m[1].toLowerCase().replace(/\./g,'');
+    if (book === 'psalm') book = 'psalms';
+    if (book === 'song of songs') book = 'song of solomon';
+    var bookIndex = bibleCanonicalBooks.findIndex(function(name) {
+      return name.toLowerCase() === book;
+    });
+    if (bookIndex < 0) throw new Error('Unrecognized Bible book in ' + ref + '.');
+    var chapter = Number(m[2]), startVerse = Number(m[3]);
+    var endVerse = Number(m[4] || m[3]);
+    if (chapter < 1 || startVerse < 1 || endVerse < startVerse ||
+        endVerse - startVerse >= 50) {
+      throw new Error('Verse reference must specify a valid range of 1–50 verses.');
+    }
+    return {reference:ref,bookNum:bookIndex+1,chapter:chapter,
+      startVerse:startVerse,endVerse:endVerse};
+  }
+
+  async function fetchBibleVerseFromSharePoint(referenceString) {
+    var ref = parseBibleReference(referenceString);
+    var cacheKey = [ref.bookNum,ref.chapter,ref.startVerse,ref.endVerse].join(':');
+    if (verseCache[cacheKey]) return verseCache[cacheKey];
+    if (versePending[cacheKey]) return versePending[cacheKey];
+    var task = (async function() {
+      var token = await getMsalToken();
+      var siteId = await resolveSiteId(token);
+      if (!verseListPromise) {
+        verseListPromise = getListId(token, siteId, 'Bible_VerseText_Wide').catch(function(error) {
+          verseListPromise = null;
+          throw error;
+        });
+      }
+      var listId = await verseListPromise;
+      var filter = 'fields/BookNum eq ' + ref.bookNum +
+        ' and fields/Chapter eq ' + ref.chapter +
+        ' and fields/Verse ge ' + ref.startVerse +
+        ' and fields/Verse le ' + ref.endVerse;
+      var url = 'https://graph.microsoft.com/v1.0/sites/' + siteId +
+        '/lists/' + listId + '/items?$filter=' + encodeURIComponent(filter) +
+        '&$expand=fields&$top=50';
+      var response = await fetch(url, {
+        headers: {'Authorization':'Bearer ' + token}
+      });
+      var data = await response.json();
+      if (!response.ok) {
+        throw new Error((data.error && data.error.message) ||
+          ('Verse lookup failed (HTTP ' + response.status + '). Verify indexed BookNum/Chapter/Verse columns.'));
+      }
+      var rows = (data.value || []).map(function(item) {
+        var fields = item.fields || {};
+        var keys = Object.keys(fields);
+        var names = ['VerseText','Verse_Text','Text','ScriptureText','VerseTextWide',
+          'TextWide','WEB','TextWEB','Body','Content'];
+        var textKey = names.map(function(name) {
+          return keys.find(function(key) {
+            return key.toLowerCase().replace(/[^a-z0-9]/g,'') ===
+              name.toLowerCase().replace(/[^a-z0-9]/g,'');
+          });
+        }).find(function(key) {return !!key;});
+        var value = textKey ? String(fields[textKey] || '') : '';
+        return {verse:Number(fields.Verse),text:value.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim()};
+      }).filter(function(row) {return row.text && Number.isFinite(row.verse);})
+        .sort(function(a,b) {return a.verse-b.verse;});
+      if (!rows.length) throw new Error('No verse text returned. Check the Bible_VerseText_Wide text field and list filters.');
+      var result = {reference:ref.reference, text:rows.map(function(row) {
+        return row.verse + '. ' + row.text;
+      }).join('\n')};
+      verseCache[cacheKey] = result;
+      return result;
+    })();
+    versePending[cacheKey] = task;
+    try { return await task; }
+    finally { delete versePending[cacheKey]; }
+  }
+
+  function decorateScriptureReferences(container) {
+    if (!container || !container.ownerDocument || !window.NodeFilter) return;
+    var walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    var textNodes = [];
+    var node;
+    while ((node = walker.nextNode()) !== null && textNodes.length < 4000) {
+      if (!node.parentElement || node.parentElement.closest(
+        'a,code,pre,script,style,.scripture-mention')) continue;
+      if (node.nodeValue && findRefs(node.nodeValue).length) textNodes.push(node);
+    }
+    textNodes.forEach(function(textNode) {
+      var raw = textNode.nodeValue, fragment = document.createDocumentFragment();
+      var match, last = 0;
+      refRe.lastIndex = 0;
+      while ((match = refRe.exec(raw))) {
+        fragment.appendChild(document.createTextNode(raw.slice(last, match.index)));
+        var span = document.createElement('span');
+        span.className = 'scripture-mention';
+        span.tabIndex = 0;
+        span.dataset.scriptureRef = match[0];
+        span.textContent = match[0];
+        fragment.appendChild(span);
+        last = refRe.lastIndex;
+      }
+      fragment.appendChild(document.createTextNode(raw.slice(last)));
+      textNode.parentNode.replaceChild(fragment, textNode);
+    });
+  }
+
+  function positionVerseHover(target) {
+    if (!target || !target.isConnected) return;
+    var box = target.getBoundingClientRect();
+    var width = Math.min(430, window.innerWidth - 24);
+    var left = Math.min(Math.max(12,box.left),window.innerWidth-width-12);
+    verseHoverCard.style.left = left + 'px';
+    var height = verseHoverCard.offsetHeight || 100;
+    var below = box.bottom + 10;
+    verseHoverCard.style.top = (below + height < window.innerHeight-12 ?
+      below : Math.max(12,box.top-height-10)) + 'px';
+  }
+  function hideVerseHover() {
+    clearTimeout(verseHoverTimer);
+    verseHoverCurrent = '';
+    verseHoverCard.style.display = 'none';
+  }
+  function startVerseHover(target) {
+    var reference = target.dataset.scriptureRef ||
+      (target.matches('.ribbon .chip') ? target.textContent.trim() : '');
+    if (!reference) return;
+    clearTimeout(verseHoverTimer);
+    var hoverId = reference + ':' + Date.now();
+    verseHoverCurrent = hoverId;
+    verseHoverTimer = setTimeout(async function() {
+      if (verseHoverCurrent !== hoverId) return;
+      verseHoverCard.textContent = 'Looking up ' + reference + '...';
+      verseHoverCard.style.display = 'block';
+      positionVerseHover(target);
+      try {
+        var verse = await fetchBibleVerseFromSharePoint(reference);
+        if (verseHoverCurrent !== hoverId) return;
+        verseHoverCard.textContent = '';
+        var header = document.createElement('b');
+        header.textContent = verse.reference;
+        verseHoverCard.appendChild(header);
+        verseHoverCard.appendChild(document.createTextNode(verse.text));
+      } catch (error) {
+        if (verseHoverCurrent !== hoverId) return;
+        verseHoverCard.textContent = reference + '\nVerse unavailable: ' + error.message;
+      }
+      positionVerseHover(target);
+    }, 160);
+  }
+  document.addEventListener('pointerover', function(event) {
+    var target = event.target && event.target.closest &&
+      event.target.closest('.ribbon .chip, #out .scripture-mention');
+    if (!target || (event.relatedTarget && target.contains(event.relatedTarget))) return;
+    startVerseHover(target);
+  });
+  document.addEventListener('pointerout', function(event) {
+    var target = event.target && event.target.closest &&
+      event.target.closest('.ribbon .chip, #out .scripture-mention');
+    if (target && (!event.relatedTarget || !target.contains(event.relatedTarget))) hideVerseHover();
+  });
+  document.addEventListener('focusin', function(event) {
+    if (event.target && event.target.matches &&
+        event.target.matches('.ribbon .chip, #out .scripture-mention')) {
+      startVerseHover(event.target);
+    }
+  });
+  document.addEventListener('focusout', function(event) {
+    if (event.target && event.target.matches &&
+        event.target.matches('.ribbon .chip, #out .scripture-mention')) hideVerseHover();
+  });
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') hideVerseHover();
+  });
+  window.addEventListener('scroll', hideVerseHover, true);
+  // Work with static and pulled notes, without disturbing the editing caret.
+  out.addEventListener('blur', function() {decorateScriptureReferences(out);});
+
   function renderRibbon(){
     var c=MODES[mode],ribbon=$('ribbon');
     ribbon.innerHTML='<span class="lbl">'+esc(c.ribbonLbl)+'</span>';
