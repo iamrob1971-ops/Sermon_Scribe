@@ -359,8 +359,9 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
         <!-- SERMON TOPIC ID & PULL / APPEND -->
         <span>
           <b>Topic ID:</b> 
-          <input type="number" id="sermonTopicId" placeholder="New" style="width:70px" title="Enter ID to append or pull">
+          <input type="number" id="sermonTopicId" placeholder="New" min="1" step="1" style="width:70px" title="Blank = create a new Topic in the selected Theme; enter an existing ID to update or pull">
           <button class="btn sm" id="pullSermonBtn" title="Pull Title, Theme, Notes & Transcript from SharePoint">📥 Pull</button>
+          <button class="btn sm" type="button" id="newSermonTopicBtn" title="Clear Topic ID to create a new topic in the selected Theme on the next Save; keep the title and notes on screen.">➕ New Topic</button>
         </span>
         <span>
           <b>Mode:</b>
@@ -3279,6 +3280,16 @@ function htmlToPlainText(html) {
     finally { btn.disabled = false; }
   });
 
+  // Explicit new-topic action keeps the selected Theme and current source,
+  // title, transcript and generated AI notes intact.
+  $('newSermonTopicBtn').addEventListener('click', function(){
+    $('sermonTopicId').value = '';
+    scheduleSave();
+    logSync('New Topic selected: next Save will POST a new Devotional_Topics item under Theme "' +
+      getActiveTheme() + '". Existing on-screen content is preserved.');
+    toast('New Topic ready in "' + getActiveTheme() + '". Save to create it.');
+  });
+
   /* Reusable awaitable devotional SharePoint sync. */
   async function syncDevotionalToSharePoint(itemId) {
     var id = String(itemId == null ? '' : itemId).trim();
@@ -3328,7 +3339,12 @@ function htmlToPlainText(html) {
       '</div>';
     }
     
-    var existingTopicId = $('sermonTopicId').value.trim() || qParams.get('topicId') || qParams.get('itemId') || '';
+    // The visible Topic ID is authoritative: empty means CREATE, even if
+    // this tab was launched with an older itemId/topicId URL parameter.
+    var existingTopicId = $('sermonTopicId').value.trim();
+    if (existingTopicId && !/^[1-9][0-9]*$/.test(existingTopicId)) {
+      throw new Error('Topic ID must be a positive whole number, or blank to create a new Topic.');
+    }
     var saveMode = $('sermonSaveMode').value || 'APPEND';
 
     logSync('Syncing to Sermon Lists...');
@@ -3366,7 +3382,7 @@ function htmlToPlainText(html) {
 
       // CASE 1: CREATE NEW TOPIC RECORD
       if (!existingTopicId) {
-        logSync('Creating NEW Topic record (POST)...');
+        logSync('Creating NEW Topic record in Theme "' + themeName + '" (POST)...');
         var newPayload = {
           fields: {
             Title: titleVal,
@@ -3776,9 +3792,11 @@ if (pipelineErrors.length) {
         '📑 Additional Summary [' + esc(styleName) + '] · ' + timeStr + '</span></div>';
 
       if (mode === 'sermon') {
-        var topicId = $('sermonTopicId').value.trim() || qParams.get('topicId') || qParams.get('itemId') || '';
-        if (!topicId) {
-          alert('Please enter or pull an existing Topic ID first before appending a summary.');
+        // Summary-only append NEVER creates; do not fall back to a stale
+        // URL ID when the user cleared the visible Topic ID.
+        var topicId = $('sermonTopicId').value.trim();
+        if (!/^[1-9][0-9]*$/.test(topicId)) {
+          alert('Append Summary Only requires an existing Topic ID. To create a new topic, use Save to Devotional_Topics with the Topic ID blank.');
           $('sermonTopicId').focus();
           return;
         }
