@@ -4376,9 +4376,10 @@ if (pipelineErrors.length) {
 
   sessionsLoad();
 
-  /* URL-initiated interactive Study Assistant. Always starts a NEW
-     record-bound chat after hydrating any previously saved AINotes.
-     No Graph write or automatic browser close occurs in this path. */
+  /* URL-initiated interactive Study Assistant.
+     Reuse a record-bound conversation (including restored SharePoint Q&A)
+     instead of starting a blank thread after every Power Apps launch.
+     No automatic Graph write or tab closure occurs. */
   async function runInteractiveChatLauncher(itemId, question) {
     var id = String(itemId == null ? '' : itemId).trim();
     var q = String(question || '').trim();
@@ -4387,12 +4388,11 @@ if (pipelineErrors.length) {
       toast('Provide a valid SharePoint item ID to launch chat.');
       return false;
     }
+    var itemLabel = mode === 'sermon' ? 'Topic' : 'Resource';
     try {
-      logSync('Starting interactive Study Assistant for ' +
-        (mode === 'sermon' ? 'Topic' : 'Resource') + ' #' + id + '...');
+      logSync('Starting interactive Study Assistant for ' + itemLabel + ' #' + id + '...');
       await getMsalToken();
 
-      // Use the selected SharePoint-managed style if Power Apps supplied it.
       if (requestedPresetId) {
         await ensureSharePointInstructions(true);
         selectRequestedPreset(requestedPresetId);
@@ -4404,25 +4404,35 @@ if (pipelineErrors.length) {
         await pullDevoData(id);
       }
 
+      // The SharePoint pull may have created/activated a restored session.
+      // Prefer that session; otherwise find a prior browser session for
+      // this specific item and mode. Only create a chat when none exists.
+      var selected = getActiveSession();
+      var existingSess = (selected && String(selected.targetRowId) === id &&
+        selected.mode === mode) ? selected : chatSessions.find(function(sess) {
+          return String(sess.targetRowId) === id && sess.mode === mode;
+        });
+      var resumed = !!existingSess;
       var sessTitle = q ?
         (q.length > 28 ? q.slice(0, 26) + '…' : q) :
         ((mode === 'sermon' ? 'Sermon #' : 'Devo #') + id + ' Q&A');
-      var newSess = createNewSession(sessTitle);
-      newSess.targetRowId = id;
-      newSess.mode = mode;
+      var session = existingSess || createNewSession(sessTitle);
+      session.targetRowId = id;
+      session.mode = mode;
+      currentSessionId = session.id;
       sessionsSave();
-      syncActiveSessionHeader();
-      renderSidebarSessions();
 
-      showHelpTab('ask');
       if (!helpDlg.open) {
         if (helpDlg.showModal) helpDlg.showModal();
         else helpDlg.setAttribute('open', '');
       }
+      showHelpTab('ask');
+      syncActiveSessionHeader();
+      renderSidebarSessions();
       askRender();
 
-      // Keep the new chat from re-submitting if the user reloads the tab,
-      // and avoid leaving the theological question in the address bar.
+      // Remove the question from the address bar after creating or
+      // activating a session, preventing accidental resubmission.
       try {
         var cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete('chatQ');
@@ -4432,22 +4442,25 @@ if (pipelineErrors.length) {
       } catch (ignored) {}
 
       if (q) {
+        var turnsBefore = session.messages.length;
         $('askQ').value = q;
-        await submitChatQuestion(); // Existing chat renderer and editor.
-        if (newSess.messages && newSess.messages.length) {
-          toast('Resource #' + id + ': answer ready to review. Save manually if desired.');
-          logSync('✓ Interactive chat answer ready for #' + id + '; NOT auto-saved.');
+        await submitChatQuestion();
+        if (session.messages.length > turnsBefore) {
+          toast(itemLabel + ' #' + id + ': answer ready for review. Save manually if desired.');
+          logSync('✓ New Q&A added to ' + (resumed ? 'existing' : 'new') +
+            ' ' + itemLabel + ' #' + id + ' chat; NOT auto-saved.');
           return true;
         }
-        // submitChatQuestion intentionally handles its own errors and may
-        // leave the question in the textarea for manual retry.
+        // submitChatQuestion retains failed text for a manual retry.
         toast('Chat opened; check the answer or retry the prepared question.');
         logSync('⚠️ Chat answer not generated; session remains available for retry.');
         return false;
       }
 
       $('askQ').focus();
-      toast('Context loaded for #' + id + '. Ask a question when ready.');
+      toast(resumed && session.messages.length ?
+        ('Previous discussion for ' + itemLabel + ' #' + id + ' loaded. Ready for follow-ups.') :
+        ('Context loaded for ' + itemLabel + ' #' + id + '. Ask a question when ready.'));
       return true;
     } catch (e) {
       logSync('❌ Interactive chat launch failed: ' + e.message);
@@ -4463,7 +4476,6 @@ if (pipelineErrors.length) {
       return false;
     }
   }
-
 
   /* URL-based orchestration controller. Intentionally waits for initialization. */
   var autoRunActive = false;
