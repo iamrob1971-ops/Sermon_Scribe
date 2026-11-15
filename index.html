@@ -5015,7 +5015,9 @@ if (pipelineErrors.length) {
         false, null, true);
       // Graph save success is authoritative; optional status columns must not
       // decide whether the browser should attempt to close its tab.
-      if (qParams.get('autoClose') !== '0') {
+      // When a return link is supplied, keep the completion panel open
+      // long enough for the user to choose Return to Power Apps.
+      if (qParams.get('autoClose') !== '0' && !powerAppsReturnUrl) {
         autoRunCloseTimer = setTimeout(function(){
           autoRunCloseTimer = null;
           window.close();
