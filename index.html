@@ -673,6 +673,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <button type="button" class="btn sm btn-danger-soft" id="askNew" title="⚠️ WARNING: This will permanently delete all messages in this active chat thread. To start a fresh thread without losing this one, click '+ New' in the left sidebar instead!">🗑️ Clear Active Thread</button>
+          <a id="returnToPowerAppsBtn" class="btn sm" style="display:none;font-weight:600;background:#092162;color:#fff;text-decoration:none;" rel="noopener noreferrer">📱 App</a>
           <button type="button" class="btn sm" id="helpCloseBottom" title="Close this Assistant window" style="font-weight:600;">✕ Close</button>
         </div>
       </div>
@@ -1279,6 +1280,26 @@ var SITE_PATH = "/sites/Bible_App";
   /* URL Parameters Ingestion */
   var qParams=new URLSearchParams(window.location.search);
   var requestedPresetId = String(qParams.get('presetId') || qParams.get('instruction') || '').trim();
+  var powerAppsReturnUrl = String(qParams.get('appUrl') || qParams.get('returnUrl') || '').trim();
+  // Prevent arbitrary script/data URL navigation from untrusted query strings.
+  function validatedPowerAppsReturnUrl(rawUrl) {
+    if (!rawUrl) return '';
+    try {
+      var candidate = new URL(rawUrl);
+      var hostname = candidate.hostname.toLowerCase();
+      if (candidate.protocol === 'https:' &&
+          (hostname === 'powerapps.com' || hostname.endsWith('.powerapps.com'))) {
+        return candidate.href;
+      }
+    } catch (ignored) {}
+    return '';
+  }
+  powerAppsReturnUrl = validatedPowerAppsReturnUrl(powerAppsReturnUrl);
+  if (powerAppsReturnUrl) {
+    var returnChatLink = $('returnToPowerAppsBtn');
+    returnChatLink.href = powerAppsReturnUrl;
+    returnChatLink.style.display = 'inline-flex';
+  }
   var openChatRequested = qParams.get('openChat') === '1';
   var incomingChatQuestion = String(qParams.get('chatQ') || '').trim();
   var chatTargetItemId = String(qParams.get('itemId') || qParams.get('topicId') || '').trim();
@@ -3956,12 +3977,12 @@ if (pipelineErrors.length) {
      var qFormatted = esc(m.q).replace(/\n/g, '<br>');
 
       html += '<div style="margin-bottom:14px; background:' + themeBg + '; border:1px solid ' + borderColor + '; border-radius:8px; padding:12px 14px;">' +
-        '<div class="chat-q-text" style="margin:0 0 10px; font-size:15px; line-height:1.55; white-space:pre-wrap; color:#1D1930; background:rgba(255,255,255,0.7); border:1px solid ' + borderColor + '; border-radius:6px; padding:8px 12px;">' +
-          '<strong style="color:' + themeColor + '; display:block; margin-bottom:4px; font-size:13.5px; text-transform:uppercase; letter-spacing:0.5px;">Question / Prompt:</strong>' +
+        '<div class="chat-q-text" style="margin:0 0 10px; font-size:16px; line-height:1.6; white-space:pre-wrap; color:#1D1930; background:rgba(255,255,255,0.7); border:1px solid ' + borderColor + '; border-radius:6px; padding:8px 12px;">' +
+          '<strong style="color:' + themeColor + '; display:block; margin-bottom:4px; font-size:14.5px; text-transform:uppercase; letter-spacing:0.5px;">Question / Prompt:</strong>' +
           qFormatted +
         '</div>' +
         mImgsHtml +
-        '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; color:#1D1930; font-size:15.5px; line-height:1.6;">' +
+        '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; color:#1D1930; font-size:17px; line-height:1.65;">' +
           bodyRendered +
         '</div>' +
       '</div>';
@@ -4531,6 +4552,12 @@ if (pipelineErrors.length) {
         container.remove();
         toast('Continuing in Devotional Scribe');
       });
+      var returnLink = document.createElement('a');
+      returnLink.id = 'autoRunReturnToApp';
+      returnLink.textContent = '📱 Return to Power Apps';
+      returnLink.rel = 'noopener noreferrer';
+      returnLink.style.cssText = 'display:none;padding:10px 20px;border-radius:8px;background:#092162;color:#fff;text-decoration:none;font-weight:bold;margin-right:8px;margin-bottom:6px';
+      if (powerAppsReturnUrl) returnLink.href = powerAppsReturnUrl;
       var close = document.createElement('button');
       close.id = 'autoRunClose';
       close.type = 'button';
@@ -4542,7 +4569,7 @@ if (pipelineErrors.length) {
           'Your browser prevented closing this tab. Choose Continue in Scribe to keep working, or close the browser tab manually.';
       });
       panel.appendChild(title);panel.appendChild(step);panel.appendChild(detail);
-      panel.appendChild(retry);panel.appendChild(keepWorking);panel.appendChild(close);
+      panel.appendChild(retry);panel.appendChild(keepWorking);panel.appendChild(returnLink);panel.appendChild(close);
       container.appendChild(panel);
       document.body.appendChild(container);
     }
@@ -4555,6 +4582,8 @@ if (pipelineErrors.length) {
     // Completion/failure only: avoid dismissing an in-progress Graph save.
     document.getElementById('autoRunContinue').style.display = canContinue ? 'inline-block' : 'none';
     document.getElementById('autoRunClose').style.display = canContinue ? 'inline-block' : 'none';
+    document.getElementById('autoRunReturnToApp').style.display =
+      (powerAppsReturnUrl && canContinue && !isFailure && /complete/i.test(stage)) ? 'inline-block' : 'none';
   }
 
   /* Optional automation status columns in Resources: AIProcessingStatus
