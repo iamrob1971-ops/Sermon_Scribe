@@ -4460,9 +4460,30 @@ if (pipelineErrors.length) {
         }
       }
 
+      // Stream into the existing pending assistant bubble without committing
+      // partial messages to the stored/editable conversation history.
+      async function streamChat(modelName, modelKey) {
+        askPending.kind = 'streaming';
+        askPending.text = 'Thinking...';
+        askRender();
+        var lastPaint = 0;
+        return await executeGeminiStreamRequest(modelName, modelKey, contents, [],
+          function(accumulatedText) {
+            askPending.text = accumulatedText;
+            if (Date.now() - lastPaint < 33) return;
+            var thread = $('askThread');
+            var bubble = thread.lastElementChild;
+            if (bubble && bubble.classList.contains('a-bubble')) {
+              var textBody = bubble.lastElementChild || bubble;
+              textBody.textContent = accumulatedText;
+              thread.scrollTop = thread.scrollHeight;
+            }
+            lastPaint = Date.now();
+          });
+      }
       var reply = '';
       try {
-        reply = await executeGeminiChat(contents, targetModel, activeKey);
+        reply = await streamChat(targetModel, activeKey);
       } catch (err) {
         if (err.isHighDemand && activeTier === 'free') {
           var decision = { action: busyPolicy, remember: false };
@@ -4473,15 +4494,15 @@ if (pipelineErrors.length) {
 
           if (decision.action === 'fallback' || decision.action === 'auto_free') {
             askPending.text = 'Failing over to Free: ' + fallbackFreeModel + '...'; askRender();
-            reply = await executeGeminiChat(contents, fallbackFreeModel, freeKey);
+            reply = await streamChat(fallbackFreeModel, freeKey);
           } else if ((decision.action === 'paid' || decision.action === 'auto_paid') && paidKey) {
             askPending.text = 'Switching to 💎 Paid Key (' + paidModel + ')...'; askRender();
-            reply = await executeGeminiChat(contents, paidModel, paidKey);
+            reply = await streamChat(paidModel, paidKey);
           } else if (decision.action === 'retry') {
             askPending.text = 'Retrying in 10s...'; askRender();
             await new Promise(function(res){ setTimeout(res, 10000); });
             askPending.text = 'Retrying now...'; askRender();
-            reply = await executeGeminiChat(contents, targetModel, freeKey);
+            reply = await streamChat(targetModel, freeKey);
           } else {
             throw new Error('Chat cancelled by user.');
           }
