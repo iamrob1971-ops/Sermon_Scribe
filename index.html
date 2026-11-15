@@ -2439,6 +2439,7 @@ var SITE_PATH = "/sites/Bible_App";
         });
       if (!notes || !notes.trim()) throw new Error('Gemini produced an empty response.');
       out.innerHTML = mdToHtml(notes);
+      decorateScriptureReferences(out);
       checkNotesState();
       runGeminiDevotional.lastModel = modelName;
       toast('Notes generated with ' + modelName);
@@ -2884,6 +2885,7 @@ function htmlToPlainText(html) {
       var commentary = fields.AdditionalCommentary || '';
       if (commentary) {
         out.innerHTML = commentary;
+        decorateScriptureReferences(out);
         checkNotesState();
       }
 
@@ -3004,6 +3006,7 @@ function htmlToPlainText(html) {
       var aiSummary = fields.KeyHighlights_HTML || '';
       if (aiSummary) {
         out.innerHTML = aiSummary;
+        decorateScriptureReferences(out);
         checkNotesState();
       }
 
