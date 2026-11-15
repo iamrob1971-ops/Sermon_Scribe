@@ -244,10 +244,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 .chat-empty .ex{justify-self:start;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font:inherit;font-size:12.5px;color:var(--violet);cursor:pointer;transition:.15s}
 .chat-empty .ex:hover{background:var(--violet-t);border-color:var(--violet)}
 
-.q-pill{align-self:flex-end;max-width:85%;background:var(--violet);color:#fff;border-radius:16px 16px 4px 16px;padding:9px 15px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.q-pill{align-self:flex-end;max-width:85%;background:var(--violet);color:#fff;border-radius:16px 16px 4px 16px;padding:9px 15px;font-size:15px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .chat-pill-imgs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
 .chat-pill-img{max-width:220px;max-height:140px;object-fit:contain;border-radius:6px;border:1px solid rgba(255,255,255,0.4);cursor:pointer}
-.a-bubble{align-self:flex-start;max-width:94%;background:#fff;border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:11px 16px;font-size:13.5px;line-height:1.55;overflow-wrap:anywhere;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:text;transition:border-color .15s}
+.a-bubble{align-self:flex-start;max-width:94%;background:#fff;border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:11px 16px;font-size:15px;line-height:1.6;overflow-wrap:anywhere;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:text;transition:border-color .15s}
 .a-bubble[contenteditable="true"]:hover{border-color:var(--violet)}
 .a-bubble[contenteditable="true"]:focus{outline:2px solid var(--violet);outline-offset:1px;background:#FCFAFF}
 .a-bubble p{margin:4px 0}
@@ -2374,63 +2374,70 @@ function htmlToPlainText(html) {
     return (tmp.textContent || tmp.innerText || '').trim();
   }
 
-  /* CHAT REHYDRATION PARSER (Deconstructs saved SharePoint HTML cards into live conversation bubbles) */
+  /* Parse each published Q&A card ONCE, not nested styled divs.
+     Works with AI_Chat_Answer snapshots and cumulative AINotes/Other_Summaries. */
   function parseSharePointChatHtml(rawHtml) {
-    if (!rawHtml || !rawHtml.trim()) return [];
-    var temp = document.createElement('div');
-    temp.innerHTML = rawHtml;
-
-    var cards = temp.querySelectorAll('.chat-sharepoint-card > div, div[style*="background:"]');
-    var turnNodes = Array.from(cards).filter(function(el) {
-      return /Question:/i.test(el.textContent || '');
-    });
-
+    if (!rawHtml || !String(rawHtml).trim()) return [];
+    var root = document.createElement('div');
+    root.innerHTML = rawHtml;
+    // The Q&A marker is present in Scribe's rich HTML, even when
+    // SharePoint wraps the published content in extra containers.
+    var questionNodes = Array.from(root.querySelectorAll('.chat-q-text'));
     var parsedMessages = [];
 
-    if (turnNodes.length > 0) {
-      turnNodes.forEach(function(node) {
-        var qEl = node.querySelector('.chat-q-text, p');
-        var qText = 'Saved Question';
-        if (qEl) {
-          // Convert <br> tags to \n before stripping other tags to preserve spacing and paragraphs
-          var rawQHtml = qEl.innerHTML.replace(/<strong[^>]*>.*?<\/strong>/i, '').replace(/<br\s*[\/]?>/gi, '\n');
-          var tmpSpan = document.createElement('span');
-          tmpSpan.innerHTML = rawQHtml;
-          qText = (tmpSpan.textContent || tmpSpan.innerText || '').replace(/^Question(\s*\/\s*Prompt)?:\s*/i, '').trim();
-        }
-
-        var imgs = [];
-        var imgEls = node.querySelectorAll('img');
-        imgEls.forEach(function(im) { if (im.src) imgs.push(im.src); });
-
-        var aEl = node.querySelector('div[style*="background:#fff"], div[style*="background: rgb(255, 255, 255)"], div[style*="background:white"]');
-        var aHtml = '';
-        if (aEl) {
-          aHtml = aEl.innerHTML.trim();
-        } else {
-          var clone = node.cloneNode(true);
-          var remQ = clone.querySelector('p'); if (remQ) remQ.remove();
-          var remImgs = clone.querySelectorAll('img'); remImgs.forEach(function(i){ i.remove(); });
-          aHtml = clone.innerHTML.trim();
-        }
-
-        parsedMessages.push({
-          q: qText,
-          a: aHtml,
-          imgs: imgs,
-          isPreRenderedHtml: true
-        });
+    questionNodes.forEach(function(qEl) {
+      var turn = qEl.parentElement;
+      if (!turn) return;
+      var qCopy = qEl.cloneNode(true);
+      var label = qCopy.querySelector('strong');
+      if (label) label.remove();
+      qCopy.querySelectorAll('br').forEach(function(br) {
+        br.replaceWith(document.createTextNode('\n'));
       });
-    } else {
+      var qText = (qCopy.textContent || '')
+        .replace(/^Question(\s*\/\s*Prompt)?:\s*/i, '').trim() || 'Saved Question';
+
+      // In buildRichChatHtml, the answer is the next sibling <div>
+      // after .chat-q-text; nested markdown divs are part of that answer.
+      var answerEl = Array.from(turn.children).find(function(child) {
+        return child !== qEl && child.tagName === 'DIV' &&
+          !child.classList.contains('chat-q-text');
+      });
+      if (!answerEl) return; // malformed card; do not create phantom turns
+      var imgs = [];
+      Array.from(turn.children).forEach(function(child) {
+        if (child.tagName === 'IMG' && child.getAttribute('src')) {
+          imgs.push(child.getAttribute('src'));
+        }
+      });
       parsedMessages.push({
-        q: 'Saved Chat from SharePoint',
-        a: rawHtml,
-        imgs: [],
+        q: qText,
+        a: answerEl.innerHTML.trim(),
+        imgs: imgs,
         isPreRenderedHtml: true
       });
-    }
+    });
 
-    return parsedMessages;
+    if (parsedMessages.length) return parsedMessages;
+    // Backward-compatible fallback for legacy freeform HTML, without
+    // pretending nested headings or styled divs are separate Q&A turns.
+    return [{
+      q: 'Saved Chat from SharePoint',
+      a: String(rawHtml),
+      imgs: [],
+      isPreRenderedHtml: true
+    }];
+  }
+
+  function fingerprintChatMessages(messages) {
+    // Small stored fingerprint detects unsaved local follow-ups/edits so a
+    // later SharePoint refresh cannot silently erase browser chat work.
+    var serialized = JSON.stringify(messages || []);
+    var hash = 2166136261;
+    for (var i = 0; i < serialized.length; i++) {
+      hash = Math.imul(hash ^ serialized.charCodeAt(i), 16777619);
+    }
+    return (hash >>> 0).toString(36) + ':' + serialized.length;
   }
 
   /* DYNAMIC SHAREPOINT THEMES LOADER (Pulls all themes from Devotional_Themes list) */
@@ -3883,7 +3890,7 @@ if (pipelineErrors.length) {
     var titleLabel = isFullThread ? ('📚 Full AI Study Conversation (' + messages.length + ' Turns) · ' + timeStamp) : ('💬 AI Discussion (Q&amp;A) · ' + timeStamp);
 
     var html = '<div class="chat-sharepoint-card" style="margin-top:20px; border-top:2px dashed ' + borderColor + '; padding-top:14px; font-family:Segoe UI, sans-serif;">' +
-      '<p style="font-size:12px; font-weight:bold; color:' + themeColor + '; text-transform:uppercase; margin-bottom:10px;">' + titleLabel + '</p>';
+      '<p style="font-size:13.5px; font-weight:bold; color:' + themeColor + '; text-transform:uppercase; margin-bottom:10px;">' + titleLabel + '</p>';
 
     var msgsToRender = isFullThread ? messages : [messages[messages.length - 1]];
 
@@ -3898,12 +3905,12 @@ if (pipelineErrors.length) {
      var qFormatted = esc(m.q).replace(/\n/g, '<br>');
 
       html += '<div style="margin-bottom:14px; background:' + themeBg + '; border:1px solid ' + borderColor + '; border-radius:8px; padding:12px 14px;">' +
-        '<div class="chat-q-text" style="margin:0 0 10px; font-size:13.5px; line-height:1.55; white-space:pre-wrap; color:#1D1930; background:rgba(255,255,255,0.7); border:1px solid ' + borderColor + '; border-radius:6px; padding:8px 12px;">' +
-          '<strong style="color:' + themeColor + '; display:block; margin-bottom:4px; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Question / Prompt:</strong>' +
+        '<div class="chat-q-text" style="margin:0 0 10px; font-size:15px; line-height:1.55; white-space:pre-wrap; color:#1D1930; background:rgba(255,255,255,0.7); border:1px solid ' + borderColor + '; border-radius:6px; padding:8px 12px;">' +
+          '<strong style="color:' + themeColor + '; display:block; margin-bottom:4px; font-size:13.5px; text-transform:uppercase; letter-spacing:0.5px;">Question / Prompt:</strong>' +
           qFormatted +
         '</div>' +
         mImgsHtml +
-        '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; color:#1D1930; font-size:14px; line-height:1.55;">' +
+        '<div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:10px 14px; color:#1D1930; font-size:15.5px; line-height:1.6;">' +
           bodyRendered +
         '</div>' +
       '</div>';
