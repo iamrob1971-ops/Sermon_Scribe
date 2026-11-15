@@ -74,7 +74,7 @@ header.top{grid-column:1/-1;display:flex;align-items:center;justify-content:spac
 .ctx-bar{padding:10px 22px;border-bottom:1px solid var(--line);background:var(--paper);display:flex;gap:12px;align-items:center;font-size:13px;flex-wrap:wrap}
 .ctx-bar select,.ctx-bar input{border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:13px;background:#fff}
 
-.ribbon{padding:10px 22px;border-bottom:1px solid var(--line);background:var(--gold-t);display:flex;gap:10px;align-items:center;min-height:48px;overflow-x:auto}
+.ribbon{padding:6px 22px;border-bottom:1px solid var(--line);background:var(--gold-t);display:flex;gap:10px;align-items:center;min-height:48px;overflow-x:auto}
 .ribbon .lbl{font-size:13px;color:var(--gold);font-weight:600;white-space:nowrap}
 .ribbon .empty{font-size:13px;color:var(--muted)}
 .chip{white-space:nowrap;text-decoration:none;font-family:var(--serif);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid color-mix(in srgb,var(--gold) 35%,white);border-radius:6px;padding:2px 8px}
@@ -91,7 +91,9 @@ a.chip:hover{border-color:var(--gold)}
 .verse-version-btn{border:1px solid #B8C7DE;background:#F8FAFC;color:#234A7B;border-radius:5px;padding:3px 7px;font:600 11px/1.3 'Segoe UI',sans-serif;cursor:pointer}
 .verse-version-btn:hover,.verse-version-btn:focus-visible{border-color:#315FBA;background:#E8F0FF}
 .verse-version-btn.active{background:#345C9D;color:#fff;border-color:#345C9D}
-.ribbon .verse-version-picker{display:inline-flex;align-items:center;gap:3px;padding-right:9px;border-right:1px solid #D5C6A8;flex-shrink:0}
+.ribbon .verse-label-stack{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;flex-shrink:0;padding-right:10px;border-right:1px solid #D5C6A8}
+.ribbon .verse-label-stack .lbl{line-height:1.2}
+.ribbon .verse-version-picker{display:flex;align-items:center;gap:3px;flex-shrink:0}
 .ribbon .verse-version-picker .verse-version-btn{font-size:10px;padding:3px 5px}
 #verseHoverCard .verse-close,#verseHoverCard .verse-pin{border:0;border-radius:5px;background:#EFF3F9;color:#1E40AF;cursor:pointer;font-size:12px;min-width:26px;min-height:26px;padding:2px 5px}
 #verseHoverCard .verse-pin[aria-pressed="true"]{background:#D1E9D9;color:#205332}
@@ -1699,10 +1701,17 @@ var SITE_PATH = "/sites/Bible_App";
 
   function renderRibbon() {
     var c = MODES[mode], ribbon = $('ribbon');
-    ribbon.innerHTML = '<span class="lbl">' + esc(c.ribbonLbl) + '</span>';
+    ribbon.textContent = '';
+    // Stack "Passages detected" above the default versions to reclaim
+    // horizontal room for Scripture reference chips on narrow screens.
+    var labelStack = document.createElement('div');
+    labelStack.className = 'verse-label-stack';
+    var ribbonLabel = document.createElement('span');
+    ribbonLabel.className = 'lbl';
+    ribbonLabel.textContent = c.ribbonLbl;
+    labelStack.appendChild(ribbonLabel);
 
-    // Global default: small selector immediately after "Passages detected".
-    // This is independent of temporary version changes within the popup.
+    // Global default remains separate from temporary popup selections.
     var versionRow = document.createElement('div');
     versionRow.className = 'verse-version-picker';
     versionRow.setAttribute('role', 'group');
@@ -1718,7 +1727,8 @@ var SITE_PATH = "/sites/Bible_App";
       button.addEventListener('click', function() {setVerseDefaultVersion(version);});
       versionRow.appendChild(button);
     });
-    ribbon.appendChild(versionRow);
+    labelStack.appendChild(versionRow);
+    ribbon.appendChild(labelStack);
 
     var items = findRefs(page.value);
     if (!items.length) {
