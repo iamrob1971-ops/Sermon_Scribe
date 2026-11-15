@@ -2651,21 +2651,60 @@ function htmlToPlainText(html) {
         checkNotesState();
       }
 
-    // 3. PULL CHAT HISTORY (From Other_SummariesForStudy) INTO SIDEBAR SESSION
-      var otherSummaries = fields.Other_SummariesForStudy || '';
-      if (otherSummaries && otherSummaries.trim()) {
+    // 3. REOPEN PUBLISHED Q&A FIRST, falling back to historical summaries.
+      var publishedChat = String(fields.AI_Chat_Answer || fields.AIChatAnswer || '').trim();
+      var historicalChat = String(fields.Other_SummariesForStudy || '').trim();
+      var chatSource = publishedChat ? 'AI_Chat_Answer' :
+        (historicalChat ? 'Other_SummariesForStudy' : '');
+      var chatHtml = publishedChat || historicalChat;
+
+      if (chatSource) {
+        var restoredMessages = parseSharePointChatHtml(chatHtml);
         var sessTitle = 'Sermon #' + topicId + ' Chat';
-        var existingSess = chatSessions.find(function(s){ return s.targetRowId === topicId && s.mode === 'sermon'; });
-        if (!existingSess) {
-          existingSess = createNewSession(sessTitle);
-          existingSess.mode = 'sermon';
-          existingSess.targetRowId = topicId;
+        if (publishedChat) {
+          var chatMarkup = document.createElement('div');
+          chatMarkup.innerHTML = publishedChat;
+          var publishedCard = chatMarkup.querySelector('.chat-sharepoint-card');
+          var heading = publishedCard && publishedCard.previousElementSibling;
+          if (heading && /^Chat Research:\s*/i.test((heading.textContent || '').trim())) {
+            sessTitle = (heading.textContent || '')
+              .replace(/^Chat Research:\s*/i, '').trim() || sessTitle;
+          }
         }
-        existingSess.messages = parseSharePointChatHtml(otherSummaries);
+
+        // This is a designated published thread; do not replace some
+        // unrelated local research branch for the same sermon topic.
+        var restoredSess = chatSessions.find(function(sess) {
+          return String(sess.targetRowId) === topicId &&
+            sess.mode === 'sermon' && sess.hydratedSource === chatSource;
+        });
+        if (!restoredSess) {
+          restoredSess = createNewSession(sessTitle);
+          restoredSess.mode = 'sermon';
+          restoredSess.targetRowId = topicId;
+          restoredSess.hydratedSource = chatSource;
+        }
+        // A later Pull must not erase edited answers or unsaved follow-ups
+        // from a previously rehydrated browser session.
+        var localChanged = restoredSess.hydratedMessageFingerprint &&
+          restoredSess.hydratedMessageFingerprint !== fingerprintChatMessages(restoredSess.messages);
+        if (!localChanged) {
+          restoredSess.messages = restoredMessages;
+          restoredSess.hydratedMessageFingerprint = fingerprintChatMessages(restoredMessages);
+          if (sessTitle && (restoredSess.title || '').indexOf('Sermon #') === 0) {
+            restoredSess.title = sessTitle;
+          }
+          logSync('  💬 Rehydrated ' + restoredMessages.length + ' Q&A turn(s) from ' +
+            chatSource + ' for Sermon Topic #' + topicId);
+        } else {
+          logSync('  💬 Kept locally edited Q&A for Topic #' + topicId +
+            ' instead of replacing unsaved follow-ups.');
+        }
+        currentSessionId = restoredSess.id;
         sessionsSave();
+        syncActiveSessionHeader();
         renderSidebarSessions();
         askRender();
-        logSync('  💬 Rehydrated ' + existingSess.messages.length + ' Chat Turn(s) from Other_SummariesForStudy for Topic #' + topicId);
       }
 
       // Automatically populate all SharePoint themes into dropdown
