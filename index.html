@@ -1390,7 +1390,15 @@ var SITE_PATH = "/sites/Bible_App";
     if (verseCache[cacheKey]) return verseCache[cacheKey];
     if (versePending[cacheKey]) return versePending[cacheKey];
     var task = (async function() {
-      var token = await getMsalToken();
+      // Hover must not open an unsolicited Microsoft login popup.
+      var signedInAccounts = msalApp.getAllAccounts();
+      if (!signedInAccounts.length) {
+        throw new Error('Sign in to Microsoft 365 to enable verse lookup.');
+      }
+      var silentAuth = await msalApp.acquireTokenSilent({
+        scopes: GRAPH_SCOPES, account: signedInAccounts[0]
+      });
+      var token = silentAuth.accessToken;
       var siteId = await resolveSiteId(token);
       if (!verseListPromise) {
         verseListPromise = getListId(token, siteId, 'Bible_VerseText_Wide').catch(function(error) {
@@ -1417,8 +1425,10 @@ var SITE_PATH = "/sites/Bible_App";
       var rows = (data.value || []).map(function(item) {
         var fields = item.fields || {};
         var keys = Object.keys(fields);
-        var names = ['VerseText','Verse_Text','Text','ScriptureText','VerseTextWide',
-          'TextWide','WEB','TextWEB','Body','Content'];
+        // Verified in the Power Apps Bible-reading screen: WEBU is the
+        // Bible_VerseText_Wide verse-text field (other versions are optional).
+        var names = ['WEBU','VerseText','Verse_Text','ScriptureText','VerseTextWide',
+          'TextWide','Text','WEB','TextWEB','Body','Content'];
         var textKey = names.map(function(name) {
           return keys.find(function(key) {
             return key.toLowerCase().replace(/[^a-z0-9]/g,'') ===
