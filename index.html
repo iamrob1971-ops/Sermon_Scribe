@@ -4146,13 +4146,13 @@ if (pipelineErrors.length) {
         wrapper.insertBefore(branchHeading, wrapper.firstChild);
       }
 
-      // Increase only the Power Apps snapshot's inline pixel font sizes by
-      // 1.5px (e.g. 12 -> 13.5), not by a 1.5x scaling factor.
-      // The regular AINotes and Other_SummariesForStudy saves are unchanged.
+      // Increase only the Power Apps AI_Chat_Answer snapshot by another
+      // 1.5px: total 3px above buildRichChatHtml's base inline font sizes.
+      // This is additive, not 3x; AINotes/Other_SummariesForStudy are unchanged.
       wrapper.querySelectorAll('[style]').forEach(function(element){
         var fontSize = element.style.fontSize;
         if (/^[0-9]+(?:\.[0-9]+)?px$/i.test(fontSize)) {
-          element.style.fontSize = (parseFloat(fontSize) + 1.5) + 'px';
+          element.style.fontSize = (parseFloat(fontSize) + 3) + 'px';
         }
       });
       var latestChatHtml = wrapper.innerHTML;
