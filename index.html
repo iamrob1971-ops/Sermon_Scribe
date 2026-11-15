@@ -2383,6 +2383,18 @@ function htmlToPlainText(html) {
     // The Q&A marker is present in Scribe's rich HTML, even when
     // SharePoint wraps the published content in extra containers.
     var questionNodes = Array.from(root.querySelectorAll('.chat-q-text'));
+    // Some older SharePoint rich-text fields remove CSS classes but keep
+    // the labeled Question / Prompt markup. Recognize those as well.
+    if (!questionNodes.length) {
+      questionNodes = Array.from(root.querySelectorAll('div')).filter(function(el) {
+        var first = el.firstElementChild;
+        return first && first.tagName === 'STRONG' &&
+          /^Question\s*(?:\/\s*Prompt)?\s*:/i.test((first.textContent || '').trim()) &&
+          el.parentElement && Array.from(el.parentElement.children).some(function(sibling) {
+            return sibling !== el && sibling.tagName === 'DIV';
+          });
+      });
+    }
     var parsedMessages = [];
 
     questionNodes.forEach(function(qEl) {
