@@ -2350,17 +2350,6 @@ var SITE_PATH = "/sites/Bible_App";
       throw httpError;
     }
 
-    if (!response.body || typeof response.body.getReader !== 'function') {
-      // Some older browser/network paths return a non-streaming response.
-      // Fall back to the existing complete-response executor.
-      var buffered = Array.isArray(promptText) ?
-        await executeGeminiChat(contents, model, key) :
-        await executeGeminiRequest(model, key, promptText, attachedImages);
-      if (onChunk) onChunk(buffered, buffered);
-      return buffered;
-    }
-
-    var reader = response.body.getReader();
     var decoder = new TextDecoder('utf-8');
     var buffer = '';
     var accumulatedText = '';
@@ -2390,6 +2379,15 @@ var SITE_PATH = "/sites/Bible_App";
         if (onChunk) onChunk(accumulatedText, chunkText);
       }
     }
+    // If a browser buffers the entire HTTP response instead of exposing a
+    // reader, parse that same SSE response; do not make a duplicate AI call.
+    if (!response.body || typeof response.body.getReader !== 'function') {
+      var allFrames = (await response.text()).split(/\r?\n\r?\n/);
+      allFrames.forEach(consumeEvent);
+      if (!accumulatedText.trim()) throw new Error('Gemini returned no answer text.');
+      return accumulatedText;
+    }
+    var reader = response.body.getReader();
     try {
       while (true) {
         var result = await reader.read();
