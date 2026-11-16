@@ -2508,6 +2508,9 @@ var SITE_PATH = "/sites/Bible_App";
           completedSegments++;
           page.value=committedTranscript;
           page.scrollTop=page.scrollHeight;updateUI();
+          // Store each completed slice in Scribe's existing local autosave.
+          // This does not write to SharePoint.
+          scheduleSave();
           progress.textContent='✓ Finished '+completedSegments+'/'+slices.length+
             ' segments. Completed text is retained in the transcript editor.';
           if(i<slices.length-1)await delayBetweenYouTubeSegments(1800,signal);
