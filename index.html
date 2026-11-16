@@ -2630,72 +2630,218 @@ var SITE_PATH = "/sites/Bible_App";
   function rcClear(){return rcTx(['meta','chunks'],'readwrite',function(tx){tx.objectStore('meta').clear();return tx.objectStore('chunks').clear()})}
 
   var mediaRec=null, recStream=null, liveMeta=null, recSaveChain=Promise.resolve();
+  var recFromLive=false, recOnlyRequested=false, recStartPending=false, recStartCancelled=false;
+  var recStorageWarning='', recHealthWarning='', recLastSavedAt=0, recHeartbeat=null;
   $('recAudioChk').checked=load('ss_rec_audio')!=='0';
-  $('recAudioChk').addEventListener('change',function(){store('ss_rec_audio',this.checked?'1':'0')});
+  $('recAudioChk').addEventListener('change',function(){
+    store('ss_rec_audio',this.checked?'1':'0');
+    if(!this.checked && (mediaRec||recStartPending)){
+      toast('Current audio recording continues. Use Stop Recording to end it.');
+    }
+  });
 
-  function fmtBytes(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB'}
+  function fmtBytes(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
   function recMinutes(m){return Math.max(1,Math.round(((m.endedAt||Date.now())-m.startedAt)/60000))}
   function recTime(ms){return new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
-
-  var recFromLive=false,recOnlyRequested=false,recStorageWarning='';
-  async function startRecorder(origin){
-    if(mediaRec)return;
-    if(origin==='only')recOnlyRequested=true;
-    if(origin==='live'&&!$('recAudioChk').checked)return;
-    if(!window.MediaRecorder||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){recOnlyRequested=false;toast('Audio recording requires a supported HTTPS browser and microphone permission.');return}
-    try{
-      var stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-      if((origin==='live'&&!wantListening)||(origin==='only'&&!recOnlyRequested)||mediaRec){stream.getTracks().forEach(function(t){t.stop()});return}
-      var mime=['audio/webm;codecs=opus','audio/mp4','audio/webm'].filter(function(t){return typeof MediaRecorder.isTypeSupported==='function'&&MediaRecorder.isTypeSupported(t)})[0]||'';
-      var rec=new MediaRecorder(stream,mime?{mimeType:mime,audioBitsPerSecond:48000}:{audioBitsPerSecond:48000});
-      var meta={id:'rec_'+Date.now().toString(36),startedAt:Date.now(),endedAt:Date.now(),bytes:0,status:'recording',transcribed:false,
-        mime:(rec.mimeType||'audio/webm').split(';')[0],title:$('title').value||''};
-      var seq=0;
-      rec.ondataavailable=function(ev){
-        if(!ev.data||!ev.data.size)return;
-        var n=seq++,blob=ev.data;
-        meta.bytes+=blob.size;meta.endedAt=Date.now();
-        recSaveChain=recSaveChain
-          .then(function(){return rcChunkPut({key:meta.id+'_'+String(n).padStart(6,'0'),rec:meta.id,seq:n,blob:blob})})
-          .then(function(){return rcMetaPut(meta)})
-          .catch(function(err){recStorageWarning='Audio storage problem: '+err.message;toast(recStorageWarning);console.warn('Recording save failed',err)});
-        renderRecBar();
-      };
-      rec.onstop=function(){
-        stream.getTracks().forEach(function(t){t.stop()});
-        recSaveChain=recSaveChain.then(function(){meta.status='done';meta.endedAt=Date.now();return rcMetaPut(meta)}).catch(function(){}).then(renderRecBar);
-      };
-      recStorageWarning='';mediaRec=rec;recStream=stream;liveMeta=meta;recFromLive=(origin==='live');updateRecOnlyBtn();
-      await rcMetaPut(meta);
-      rec.start(10000);
+  function stopRecHeartbeat(){if(recHeartbeat){clearInterval(recHeartbeat);recHeartbeat=null}}
+  function startRecHeartbeat(){
+    stopRecHeartbeat();
+    recHeartbeat=setInterval(function(){
+      if(!mediaRec||mediaRec.state!=='recording'){stopRecHeartbeat();return}
+      if(document.visibilityState==='visible' && Date.now()-recLastSavedAt>45000){
+        recHealthWarning='No recent audio chunk saved. Check microphone and recording status.';
+      }
       renderRecBar();
-    }catch(e){
-      mediaRec=null;recOnlyRequested=false;
-      toast('Audio recording could not start. Live dictation continues.');
+      refreshCaptureStatus();
+    },1000);
+  }
+  function requestRecorderStoragePersistence(){
+    // Browsers may refuse this; it never makes browser storage guaranteed.
+    if(navigator.storage && typeof navigator.storage.persist==='function'){
+      navigator.storage.persist().catch(function(){});
     }
   }
+
+  async function startRecorder(origin){
+    if(mediaRec||recStartPending)return;
+    if(origin==='live'&&!$('recAudioChk').checked)return;
+    if(!window.MediaRecorder||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+      recOnlyRequested=false;
+      toast('Audio recording requires a supported HTTPS browser and microphone permission.');
+      return;
+    }
+    recStartPending=true;recStartCancelled=false;
+    if(origin==='only')recOnlyRequested=true;
+    updateRecOnlyBtn();renderRecBar();refreshCaptureStatus();
+    var stream=null;
+    try{
+      requestRecorderStoragePersistence();
+      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      if(recStartCancelled || (origin==='only'&&!recOnlyRequested) || mediaRec){
+        stream.getTracks().forEach(function(t){t.stop()});
+        return;
+      }
+      var mime=['audio/webm;codecs=opus','audio/mp4','audio/webm'].filter(function(t){
+        return typeof MediaRecorder.isTypeSupported==='function' && MediaRecorder.isTypeSupported(t);
+      })[0]||'';
+      var rec=new MediaRecorder(stream,mime?{mimeType:mime,audioBitsPerSecond:48000}:{audioBitsPerSecond:48000});
+      var meta={id:'rec_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6),
+        startedAt:Date.now(),endedAt:Date.now(),bytes:0,status:'recording',transcribed:false,
+        mime:(rec.mimeType||mime||'audio/webm').split(';')[0],title:$('title').value||''};
+      // Store metadata before starting capture so interrupted sessions can be identified.
+      await rcMetaPut(meta);
+      if(recStartCancelled){
+        stream.getTracks().forEach(function(t){t.stop()});
+        return;
+      }
+      recSaveChain=Promise.resolve();
+      var seq=0;
+      recStorageWarning='';recHealthWarning='';recLastSavedAt=Date.now();
+      rec.ondataavailable=function(event){
+        if(!event.data||!event.data.size)return;
+        var n=seq++,blob=event.data;
+        recSaveChain=recSaveChain.then(function(){
+          return rcChunkPut({key:meta.id+'_'+String(n).padStart(6,'0'),
+            rec:meta.id,seq:n,blob:blob});
+        }).then(function(){
+          meta.bytes+=blob.size;
+          meta.endedAt=Date.now();
+          recLastSavedAt=Date.now();
+          recHealthWarning='';
+          return rcMetaPut(meta);
+        }).catch(function(error){
+          recStorageWarning='Audio storage failed: '+error.message+
+            '. Download the recording as soon as possible.';
+          toast(recStorageWarning);
+          console.warn('Recording storage error',error);
+        }).then(renderRecBar);
+      };
+      rec.onstop=function(){
+        var naturalStop=!rec._stopReason;
+        var cause=rec._stopReason||'microphone interrupted';
+        stream.getTracks().forEach(function(t){t.stop()});
+        stopRecHeartbeat();
+        if(mediaRec===rec){
+          mediaRec=null;recStream=null;liveMeta=null;recFromLive=false;recOnlyRequested=false;
+        }
+        recSaveChain=recSaveChain.then(function(){
+          meta.endedAt=Date.now();
+          meta.status=(naturalStop||cause!=='manual'||recStorageWarning)?'interrupted':'done';
+          return rcMetaPut(meta);
+        }).catch(function(error){
+          recStorageWarning='Could not finalize recording metadata: '+error.message;
+          toast(recStorageWarning);
+        }).then(function(){
+          updateRecOnlyBtn();renderRecBar();syncScreenWakeLock();
+          if(naturalStop || cause!=='manual'){
+            recHealthWarning='Recording ended unexpectedly ('+cause+'). Check saved audio.';
+            toast(recHealthWarning);
+          }else if(recStorageWarning){
+            toast('Recording stopped with a storage warning. Check downloaded audio.');
+          }else{
+            toast('Audio recording stopped and saved locally.');
+          }
+        });
+      };
+      rec.onerror=function(event){
+        var error=event.error;
+        recHealthWarning='Recording device error: '+(error&&error.message||'unknown');
+        rec._stopReason='recorder error';
+        toast(recHealthWarning);
+        if(rec.state==='recording'){
+          try{rec.requestData()}catch(ignored){}
+          try{rec.stop()}catch(ignored){}
+        }
+      };
+      stream.getAudioTracks().forEach(function(track){
+        track.addEventListener('ended',function(){
+          if(rec.state==='recording'){
+            recHealthWarning='Microphone disconnected or stopped unexpectedly.';
+            rec._stopReason='microphone disconnected';
+            toast(recHealthWarning);
+            try{rec.requestData()}catch(ignored){}
+            try{rec.stop()}catch(ignored){}
+          }
+        });
+      });
+      rec.start(10000);
+      mediaRec=rec;recStream=stream;liveMeta=meta;recFromLive=(origin==='live');
+      startRecHeartbeat();
+      syncScreenWakeLock();
+    }catch(error){
+      recOnlyRequested=false;
+      if(stream){stream.getTracks().forEach(function(t){t.stop()})}
+      recStorageWarning='Unable to start audio recording: '+error.message;
+      toast(recStorageWarning);
+    }finally{
+      recStartPending=false;
+      updateRecOnlyBtn();renderRecBar();syncScreenWakeLock();
+    }
+  }
+
   function stopRecorder(){
-    if(!mediaRec)return;
-    var rec=mediaRec;mediaRec=null;recStream=null;liveMeta=null;recFromLive=false;recOnlyRequested=false;updateRecOnlyBtn();
-    try{rec.stop()}catch(e){}
+    if(recStartPending&&!mediaRec){
+      recStartCancelled=true;recOnlyRequested=false;
+      updateRecOnlyBtn();renderRecBar();
+      toast('Pending recording start canceled.');
+      return;
+    }
+    if(!mediaRec||mediaRec.state!=='recording')return;
+    var rec=mediaRec;
+    rec._stopReason='manual';
+    try{rec.requestData()}catch(ignored){}
+    try{rec.stop()}
+    catch(error){recStorageWarning='Could not stop audio cleanly: '+error.message;toast(recStorageWarning)}
+    updateRecOnlyBtn();
+    renderRecBar();
+    refreshCaptureStatus();
   }
 
   async function renderRecBar(){
     var bar=$('recBar'),txt=$('recText');
-    if(mediaRec&&liveMeta){
-      txt.innerHTML='<span class="live-dot"></span><b>Recording audio for an AI transcript</b> · '+recMinutes(liveMeta)+' min · '+fmtBytes(liveMeta.bytes)+' captured in this browser'+(recStorageWarning?' · WARNING: '+esc(recStorageWarning):'');
+    var stop=$('recStopBtn');
+    if(recStartPending&&!mediaRec){
+      txt.textContent='🎧 Waiting for microphone permission / starting recorder...';
+      stop.disabled=false;
       ['recTranscribeBtn','recDownloadBtn','recDiscardBtn'].forEach(function(id){$(id).disabled=true});
       bar.style.display='flex';return;
     }
+    if(mediaRec&&liveMeta){
+      var stillRecording=mediaRec.state==='recording';
+      txt.innerHTML=stillRecording?
+        '<span class="live-dot"></span><b>Original audio recording</b> · '+fmt(Math.floor((Date.now()-liveMeta.startedAt)/1000))+
+        ' elapsed · '+fmtBytes(liveMeta.bytes)+' stored locally'+
+        (wantListening?' · live dictation also enabled':' · independent of live dictation'):
+        '⏳ Finalizing recorded audio...';
+      if(recHealthWarning)txt.innerHTML+=' · <span style="color:#9A3412">'+esc(recHealthWarning)+'</span>';
+      if(recStorageWarning)txt.innerHTML+=' · <span style="color:#991B1B">'+esc(recStorageWarning)+'</span>';
+      stop.disabled=!stillRecording;
+      ['recTranscribeBtn','recDownloadBtn','recDiscardBtn'].forEach(function(id){$(id).disabled=true});
+      bar.style.display='flex';return;
+    }
+    stop.disabled=true;
     var all=(await rcMetaAll()).filter(function(m){return m.bytes>0});
-    if(!all.length){bar.style.display='none';return}
+    if(mediaRec||recStartPending)return;
+    if(!all.length){
+      if(recStorageWarning){
+        txt.textContent=recStorageWarning;bar.style.display='flex';
+      }else bar.style.display='none';
+      return;
+    }
     var mins=0,bytes=0,todo=0,interrupted=0;
-    all.forEach(function(m){mins+=recMinutes(m);bytes+=m.bytes;if(!m.transcribed)todo++;if(m.status==='recording')interrupted++});
-    txt.innerHTML='🎧 <b>'+all.length+' recording'+(all.length>1?'s':'')+' saved</b> ('+mins+' min, '+fmtBytes(bytes)+')'+
-      (todo?' · '+todo+' without an AI transcript yet':' · AI transcript done')+
-      (interrupted?' · '+interrupted+' interrupted (still usable)':'')+
+    all.forEach(function(m){
+      mins+=recMinutes(m);bytes+=m.bytes;
+      if(!m.transcribed)todo++;
+      if(m.status==='recording'||m.status==='interrupted')interrupted++;
+    });
+    txt.innerHTML='🎧 <b>'+all.length+' recording'+(all.length>1?'s':'')+
+      ' stored locally</b> ('+mins+' min, '+fmtBytes(bytes)+')'+
+      (todo?' · '+todo+' awaiting AI transcription':' · AI transcript done')+
+      (interrupted?' · '+interrupted+' interrupted (check audio)':'')+
       (recStorageWarning?' · WARNING: '+esc(recStorageWarning):'');
-    $('recTranscribeBtn').disabled=audioBusy;$('recDownloadBtn').disabled=false;$('recDiscardBtn').disabled=false;
+    $('recTranscribeBtn').disabled=audioBusy;
+    $('recDownloadBtn').disabled=false;
+    $('recDiscardBtn').disabled=false;
     bar.style.display='flex';
   }
 
@@ -2707,7 +2853,7 @@ var SITE_PATH = "/sites/Bible_App";
   }
 
   $('recTranscribeBtn').addEventListener('click',async function(){
-    if(audioBusy||mediaRec)return;
+    if(audioBusy||mediaRec||recStartPending)return;
     var all=(await rcMetaAll()).filter(function(m){return m.bytes>0}).sort(function(x,y){return x.startedAt-y.startedAt});
     var todo=all.filter(function(m){return !m.transcribed});
     if(!todo.length){
@@ -2742,21 +2888,21 @@ var SITE_PATH = "/sites/Bible_App";
   });
 
   $('recDiscardBtn').addEventListener('click',async function(){
-    if(mediaRec||audioBusy)return;
+    if(mediaRec||recStartPending||audioBusy)return;
     if(!confirm('Delete the saved audio recordings from this browser?'))return;
     await rcClear().catch(function(){});renderRecBar();toast('Recordings deleted');
   });
   function updateRecOnlyBtn(){
-    $('recOnlyBtn').textContent=mediaRec&&!recFromLive?'⏹ Stop audio recording':'🎧 Record audio only';
-    $('recOnlyBtn').disabled=Boolean(mediaRec&&recFromLive);
+    var pending=recStartPending&&!mediaRec;
+    $('recOnlyBtn').textContent=pending?'⏳ Starting audio...':
+      mediaRec?'⏹ Stop audio recording':'🎧 Record audio only';
+    $('recOnlyBtn').disabled=pending||(mediaRec&&mediaRec.state!=='recording');
   }
   $('recOnlyBtn').addEventListener('click',function(){
-    if(mediaRec&&!recFromLive){stopRecorder();return}
-    if(!mediaRec){
-      if(recOnlyRequested){recOnlyRequested=false;return}
-      startRecorder('only');
-    }
+    if(mediaRec){stopRecorder();return}
+    if(!recStartPending)startRecorder('only');
   });
+  $('recStopBtn').addEventListener('click',stopRecorder);
   $('retryFailedBtn').addEventListener('click',async function(){
     if(audioBusy||mediaRec)return;
     var rows=(await faAll()).sort(function(a,b){return a.savedAt-b.savedAt});
@@ -2787,8 +2933,8 @@ var SITE_PATH = "/sites/Bible_App";
     await faClear();await renderFailedBar();toast('Failed audio slices discarded');
   });
   $('recAudioChk').addEventListener('change',function(){
-    if(!this.checked&&recFromLive)stopRecorder();
-    if(this.checked&&wantListening&&!mediaRec)startRecorder('live');
+    // Checkbox controls future capture; it never ends already-running audio.
+    if(this.checked&&wantListening&&!mediaRec&&!recStartPending)startRecorder('live');
   });
   updateRecOnlyBtn();
   renderRecBar();renderFailedBar();
