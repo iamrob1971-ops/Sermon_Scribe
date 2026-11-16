@@ -123,6 +123,9 @@ a.chip:hover{border-color:var(--gold)}
 .record-settings label{display:flex;gap:6px;align-items:center;cursor:pointer}
 .record-settings small{color:var(--muted);font-size:11px}
 .rec-audio{padding:9px 20px;background:#F0FDF4;border-bottom:1px solid #BBF7D0;color:#166534;display:none;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
+.capture-status{display:none;flex-wrap:wrap;gap:12px;align-items:center;padding:7px 20px;border-bottom:1px solid var(--line);background:#F1F5F9;color:var(--muted);font-size:12px}
+.capture-status strong{color:var(--ink)}
+.capture-status .warning{color:#9A3412}
 .rec-audio .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#DC2626;animation:recblink 1.2s infinite;margin-right:6px}
 @keyframes recblink{50%{opacity:.2}}
 .failed-audio{padding:9px 20px;background:#FEF2F2;border-bottom:1px solid #FECACA;color:#991B1B;display:none;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px}
@@ -397,7 +400,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <label title="Save audio alongside rough live dictation so Gemini can transcribe it afterward">
         <input type="checkbox" id="recAudioChk" checked> 🎧 <b>Also record audio</b> with live microphone
       </label>
-      <small>Original audio stays in this browser until you download, transcribe or discard it. Get permission before recording.</small>
+      <small>Audio continues independently if live dictation pauses or you switch tabs. Stop it explicitly. Get permission before recording.</small>
     </div>
     <div class="ribbon" id="ribbon"></div>
 
@@ -409,9 +412,14 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 
     <div class="rec-audio" id="recBar" role="status" aria-live="polite">
       <span id="recText"></span>
+      <button class="btn sm" id="recStopBtn" type="button" disabled>⏹ Stop recording</button>
       <button class="btn sm" id="recTranscribeBtn" style="margin-left:auto" type="button">✨ AI transcript of recording</button>
       <button class="btn sm" id="recDownloadBtn" type="button">Download audio</button>
       <button class="btn sm" id="recDiscardBtn" type="button">Discard audio</button>
+    </div>
+    <div class="capture-status" id="captureStatusBar" role="status" aria-live="polite">
+      <span id="captureStatusText"></span>
+      <span id="wakeStatusText"></span>
     </div>
     <div class="failed-audio" id="failedBar" role="status">
       <span id="failedText"></span>
@@ -1856,6 +1864,122 @@ var SITE_PATH = "/sites/Bible_App";
     this.textContent=isMax?'🗗 Minimize':'⛶ Expand';
   });
 
+  /* Screen wake locks are best effort and only available while the page is
+     visible. The independent MediaRecorder is never stopped by this manager. */
+  var wakeLockPending=null, wakeLockError='', speechRetryDelay=650;
+  function captureWanted(){
+    return wantListening || Boolean(mediaRec && mediaRec.state!=='inactive');
+  }
+  function refreshCaptureStatus(){
+    var active=captureWanted() || Boolean(recStartPending);
+    var bar=$('captureStatusBar');
+    bar.style.display=active?'flex':'none';
+    if(!active)return;
+    var recording=Boolean(mediaRec&&mediaRec.state==='recording');
+    $('captureStatusText').textContent=recording?
+      (wantListening?'🔴 Original audio recording + live dictation':'🔴 Original audio recording · live dictation optional/paused'):
+      (recStartPending?'🎧 Starting audio recording...':'🎤 Live dictation only · no saved audio');
+    var label='',warn=false;
+    if(document.visibilityState!=='visible'){
+      label='Screen wake lock unavailable in background tab · recording may continue';warn=true;
+    }else if(!navigator.wakeLock || typeof navigator.wakeLock.request!=='function'){
+      label='Screen wake lock unsupported; check your device sleep settings';warn=true;
+    }else if(wakeLock&&!wakeLock.released){
+      label='Screen wake lock active while this tab is visible';
+    }else if(wakeLockPending){
+      label='Requesting screen wake lock...';
+    }else if(wakeLockError){
+      label='Wake lock unavailable ('+wakeLockError+'); check device power settings';warn=true;
+    }else{
+      label='Screen wake lock released · will retry when tab becomes visible';warn=true;
+    }
+    $('wakeStatusText').textContent=label;
+    $('wakeStatusText').className=warn?'warning':'';
+  }
+  function releaseScreenWakeLock(){
+    var old=wakeLock;wakeLock=null;
+    if(old){try{old.release().catch(function(){})}catch(ignored){}}
+    refreshCaptureStatus();
+  }
+  function syncScreenWakeLock(){
+    if(!captureWanted()){
+      wakeLockError='';
+      releaseScreenWakeLock();
+      return;
+    }
+    if(document.visibilityState!=='visible'){
+      releaseScreenWakeLock();
+      return;
+    }
+    if(!navigator.wakeLock || typeof navigator.wakeLock.request!=='function'){
+      wakeLockError='not supported';
+      refreshCaptureStatus();
+      return;
+    }
+    if(wakeLock && !wakeLock.released){refreshCaptureStatus();return}
+    if(wakeLockPending){refreshCaptureStatus();return}
+    wakeLockError='';
+    var pending;
+    try{pending=navigator.wakeLock.request('screen')}
+    catch(error){wakeLockError=error.name||error.message||'denied';refreshCaptureStatus();return}
+    wakeLockPending=pending;
+    pending.then(function(lock){
+      wakeLockPending=null;
+      if(!captureWanted() || document.visibilityState!=='visible'){
+        try{lock.release().catch(function(){})}catch(ignored){}
+        refreshCaptureStatus();
+        return;
+      }
+      wakeLock=lock;
+      lock.addEventListener('release',function(){
+        if(wakeLock===lock)wakeLock=null;
+        refreshCaptureStatus();
+      });
+      refreshCaptureStatus();
+    }).catch(function(error){
+      wakeLockPending=null;
+      wakeLockError=error.name||error.message||'denied';
+      refreshCaptureStatus();
+    });
+    refreshCaptureStatus();
+  }
+  function resumeLiveDictationIfVisible(){
+    if(!recognition||!wantListening||running||document.visibilityState!=='visible')return;
+    clearTimeout(restartT);
+    restartT=setTimeout(function(){
+      if(!wantListening||running||document.visibilityState!=='visible')return;
+      try{recognition.start()}catch(error){
+        setStatus('Live dictation could not resume; original audio may still be recording',false);
+      }
+    },Math.min(speechRetryDelay,2500));
+    speechRetryDelay=Math.min(speechRetryDelay*2,2500);
+  }
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){
+      syncScreenWakeLock();
+      resumeLiveDictationIfVisible();
+      renderRecBar();
+    }else{
+      releaseScreenWakeLock();
+      if(mediaRec&&mediaRec.state==='recording'){
+        try{mediaRec.requestData()}catch(ignored){}
+      }
+    }
+    refreshCaptureStatus();
+  });
+  window.addEventListener('focus',function(){
+    if(document.visibilityState==='visible')syncScreenWakeLock();
+  });
+  window.addEventListener('pageshow',function(){
+    if(document.visibilityState==='visible')syncScreenWakeLock();
+  });
+  window.addEventListener('beforeunload',function(event){
+    if(mediaRec&&mediaRec.state==='recording'){
+      event.preventDefault();
+      event.returnValue='';
+    }
+  });
+
   /* Live Speech */
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(SR){
@@ -1894,17 +2018,32 @@ var SITE_PATH = "/sites/Bible_App";
       else{interimBox.style.display='none'}
     };
 
+    recognition.onstart=function(){
+      running=true;speechRetryDelay=650;
+      setStatus('Listening live',true);
+      refreshCaptureStatus();
+    };
+    recognition.onerror=function(event){
+      var reason=String(event.error||'unknown');
+      if(reason==='not-allowed'||reason==='service-not-allowed'||reason==='audio-capture'){
+        wantListening=false;
+        clearTimeout(restartT);
+        stopUI();
+        toast('Live dictation stopped: '+reason+'. Saved audio recording continues independently.');
+      }else{
+        setStatus('Live dictation interrupted ('+reason+'); original audio may still be recording',false);
+      }
+      refreshCaptureStatus();
+    };
     recognition.onend=function(){
       running=false;
       if(wantListening){
-        clearTimeout(restartT);
-        restartT=setTimeout(function(){
-          if(!wantListening) return;
-          try{recognition.start()}catch(e){}
-        },300);
+        if(document.visibilityState==='visible')resumeLiveDictationIfVisible();
+        else setStatus('Live dictation paused in background; audio recording continues if active',false);
       }else{
         stopUI();
       }
+      refreshCaptureStatus();
     };
   }
 
@@ -1917,15 +2056,15 @@ var SITE_PATH = "/sites/Bible_App";
     var header = "\n\n--- [Live Recording · " + nowStr + "] ---\n";
     page.value = cur ? (cur + header) : ("--- [Live Recording · " + nowStr + "] ---\n");
 
-    if('wakeLock' in navigator){navigator.wakeLock.request('screen').then(function(l){wakeLock=l}).catch(function(){})}
+    syncScreenWakeLock();
     clearInterval(tick);tick=setInterval(function(){seconds++;$('timer').textContent=fmt(seconds)},1000);
     updateUI();
   }
 
   function stopUI(){
-    if(recFromLive)stopRecorder();
+    // Stopping live dictation MUST NOT stop the separate audio recording.
     recBtn.classList.remove('on');scribe.classList.remove('on-air');$('meta').classList.remove('on-air');
-    if(wakeLock){wakeLock.release().catch(function(){});wakeLock=null}
+    syncScreenWakeLock();
     clearInterval(tick);interim='';interimBox.style.display='none';
     
     var cur = page.value.trim();
@@ -1933,7 +2072,8 @@ var SITE_PATH = "/sites/Bible_App";
       page.value = cur + "\n--- [End of Recording] ---\n\n";
     }
 
-    setStatus(page.value.trim()?'Paused':'Ready',false);
+    setStatus(mediaRec?'Live text paused · original audio still recording':(page.value.trim()?'Paused':'Ready'),false);
+    refreshCaptureStatus();
     updateUI();
   }
 
@@ -1946,7 +2086,7 @@ var SITE_PATH = "/sites/Bible_App";
       stopUI();
       return;
     }
-    wantListening=true;startUI();try{recognition.start()}catch(e){}
+    wantListening=true;startUI();try{recognition.start()}catch(e){setStatus('Live dictation unavailable; use original audio recording',false)}
     if($('recAudioChk').checked)startRecorder('live');
   });
 
