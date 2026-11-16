@@ -436,7 +436,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
         📁 Attach Audio
       </button>
 
-      <button class="btn" id="attachYoutubeBtn" type="button" title="Analyze or transcribe a sermon directly from a public YouTube link">▶️ YouTube Link</button>
+      <button class="btn" id="attachYoutubeBtn" type="button" title="Transcribe public sermons from YouTube, supported social platforms or direct media files">🔗 Public Media Link</button>
 
       <button class="btn" id="attachPageImgBtn" title="Attach screenshots or snips (e.g. sermon slides, book pages, charts). You can also press Ctrl+V directly into the text box!">
         🖼️ Attach Snip
@@ -609,22 +609,25 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 <!-- PUBLIC YOUTUBE SERMON INPUT (independent of local audio slicer) -->
 <dialog id="youtubeDlg" aria-labelledby="youtubeDlgTitle" style="width:min(550px,calc(100vw - 28px));max-width:100%;border:1px solid var(--line);border-radius:12px;padding:0;">
   <div class="dlg-h">
-    <h2 id="youtubeDlgTitle" style="font-size:18px;margin:0">▶️ YouTube Sermon Ingestion</h2>
+    <h2 id="youtubeDlgTitle" style="font-size:18px;margin:0">🔗 Public Sermon Media Intake</h2>
     <button class="btn sm" id="youtubeCloseX" type="button" aria-label="Close YouTube dialog">✕</button>
   </div>
   <div class="dlg-b" style="display:grid;gap:14px;">
-    <label for="youtubeUrlInput" style="font-weight:600;font-size:13px">Public YouTube video URL</label>
-    <input type="url" id="youtubeUrlInput" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);box-sizing:border-box;">
+    <label for="youtubeUrlInput" style="font-weight:600;font-size:13px">Public audio or video URL</label>
+    <input type="url" id="youtubeUrlInput" placeholder="YouTube, Instagram, X, TikTok, Facebook, or public .mp3/.m4a/.mp4..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);box-sizing:border-box;">
     <fieldset style="border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:9px;">
       <legend style="font-weight:600;font-size:13px">Processing mode</legend>
       <label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="radio" name="youtubeMode" value="transcribe" checked> Transcribe Verbatim to Editor</label>
       <label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="radio" name="youtubeMode" value="notes"> Generate Expository Study Notes</label>
     </fieldset>
     <div id="youtubeTranscriptSettings" style="display:grid;gap:10px;padding:11px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.55)">
-      <label for="youtubeCaptionApiKey" style="font-size:13px;font-weight:600;">Existing captions first · one-time provider setup</label>
+      <label for="youtubeCaptionApiKey" style="font-size:13px;font-weight:600;">Supadata transcript service · one-time provider setup</label>
       <input id="youtubeCaptionApiKey" type="password" autocomplete="off" placeholder="Supadata API key (stored in this browser)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
-      <small style="font-size:11px;color:var(--muted);">With a <a href="https://supadata.ai/" target="_blank" rel="noopener noreferrer">Supadata</a> key, Scribe first imports existing YouTube captions and automatically retrieves the video's duration. Without captions, it uses your existing Gemini segment transcription. This external provider may have usage limits. A private Azure proxy is preferable for centrally managed credentials.</small>
-      <label for="youtubeDurationInput" style="font-size:13px;font-weight:600;">Video length · automatically detected when available</label>
+      <small style="font-size:11px;color:var(--muted);">Supports public YouTube, TikTok, Instagram, X/Twitter and Facebook media, plus direct public .mp3, .m4a, .wav, .mp4, .webm and other supported media files. The URL must be accessible without login; ordinary web/podcast pages are not direct media. <a href="https://supadata.ai/" target="_blank" rel="noopener noreferrer">Supadata</a> may use credits. Your personal API key is stored in this browser. An Azure proxy is preferable for shared credentials.</small>
+      <label for="youtubeAllowGenerate" style="font-size:12px;display:flex;align-items:center;gap:7px;"><input type="checkbox" id="youtubeAllowGenerate"> Allow Supadata AI transcription when captions are unavailable (uses additional credits)</label>
+      <small style="font-size:11px;color:var(--muted);">Unchecked: existing captions only (native mode); public audio files generally require AI generation. Checked: native captions first, AI generation if necessary. No media is processed until you press Start.</small>
+      <div id="youtubeFallbackSettings" style="display:grid;gap:9px">
+      <label for="youtubeDurationInput" style="font-size:13px;font-weight:600;">YouTube video length · detected when available</label>
       <input id="youtubeDurationInput" type="text" inputmode="text" autocomplete="off" placeholder="Automatic · or enter 23:08 if needed" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
         <label for="youtubeChunkMinutes" style="font-size:12px">Segment size
@@ -637,9 +640,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           <input id="youtubeResumeMinute" type="number" min="0" step="5" value="0" style="width:64px;padding:5px;border:1px solid var(--line);border-radius:6px;">
         </label>
       </div>
-      <small style="font-size:11px;color:var(--muted);">Usually just paste the YouTube link and click Start. Captions import directly if available; otherwise Scribe detects duration and plans 10-minute Gemini segments. If metadata cannot be retrieved, video length is the manual fallback. From 0 replaces the transcript; nonzero start appends remaining slices. Gemini clipping may be imperfect.</small>
+      <small style="font-size:11px;color:var(--muted);">YouTube-only Gemini fallback when no captions/transcript can be imported. Enter video duration manually if metadata lookup fails. Resume minutes apply to YouTube Gemini slices only; offsets may be imperfect.</small>
+      </div>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin:0;">Requires a public YouTube video supported by your Gemini model. Repeated requests can use more quota or trigger 429 limits. Transcripts require review; only process content you may use. Nothing saves to SharePoint automatically.</p>
+    <p style="font-size:12px;color:var(--muted);margin:0;">Public content only. Supadata transcripts may use credits; Gemini handles study notes and YouTube fallback. Review transcription and obtain recording permission as needed. Nothing saves to SharePoint automatically.</p>
     <div id="youtubeProgress" role="status" aria-live="polite" style="font-size:13px;color:var(--violet);min-height:18px;"></div>
   </div>
   <div class="dlg-f">
@@ -1373,7 +1377,7 @@ var SITE_PATH = "/sites/Bible_App";
   /* URL Parameters Ingestion */
   var qParams=new URLSearchParams(window.location.search);
   var requestedPresetId = String(qParams.get('presetId') || qParams.get('instruction') || '').trim();
-  var incomingYoutubeUrl = String(qParams.get('youtubeUrl') || qParams.get('yt') || '').trim();
+  var incomingYoutubeUrl = String(qParams.get('mediaUrl') || qParams.get('youtubeUrl') || qParams.get('yt') || '').trim();
   var powerAppsReturnUrl = String(qParams.get('appUrl') || qParams.get('returnUrl') || '').trim();
   // Prevent arbitrary script/data URL navigation from untrusted query strings.
   function validatedPowerAppsReturnUrl(rawUrl) {
@@ -2131,6 +2135,33 @@ var SITE_PATH = "/sites/Bible_App";
       throw new Error('Use a public YouTube watch or youtu.be link with a valid video ID.');
     }
     return 'https://www.youtube.com/watch?v=' + videoId;
+  }
+
+  /* Supadata media validator: known public platforms or direct HTTPS files.
+     Unknown web pages and internal/local URLs are not media input. */
+  function validatePublicMediaUrl(rawUrl) {
+    var link;
+    try {link=new URL(String(rawUrl||'').trim());}
+    catch(error){throw new Error('Enter a valid public HTTPS media URL.');}
+    if(link.protocol!=='https:'||link.username||link.password||
+       (link.port&&link.port!=='443'))throw new Error('Only public HTTPS media links are supported.');
+    var host=link.hostname.toLowerCase();
+    if(/^(www\.|m\.)?(youtube\.com|youtu\.be)$/.test(host))
+      return validatePublicYouTubeUrl(link.href);
+    if(/^(www\.|m\.|vm\.|vt\.)?(tiktok\.com)$/.test(host)||
+       /^(www\.|m\.)?(instagram\.com|facebook\.com|fb\.watch|x\.com|twitter\.com)$/.test(host)){
+      if(link.pathname==='/'||!link.pathname)throw new Error('Link to a public video or post, not a profile/homepage.');
+      link.hash='';return link.href;
+    }
+    if(!host.includes('.')||host==='localhost'||host.endsWith('.local')||
+       host.endsWith('.internal')||/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)||
+       host.startsWith('['))throw new Error('Use a publicly hosted media file URL.');
+    if(!/\.(mp3|mp4|m4a|wav|ogg|webm|flac|mpeg|mpga)$/i.test(link.pathname))
+      throw new Error('Use a supported video post or a direct public audio/video file, not a webpage.');
+    link.hash='';return link.href;
+  }
+  function isYouTubeMediaUrl(url){
+    return /^(www\.|m\.)?(youtube\.com|youtu\.be)$/.test(new URL(url).hostname.toLowerCase());
   }
 
   /* YouTube URLs do not expose a reliable duration to this static app.
