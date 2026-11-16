@@ -2100,6 +2100,73 @@ var SITE_PATH = "/sites/Bible_App";
     return 'https://www.youtube.com/watch?v=' + videoId;
   }
 
+  /* YouTube URLs do not expose a reliable duration to this static app.
+     User provides the displayed video length so the final slice is bounded. */
+  function parseYouTubeDurationSeconds(raw) {
+    var input=String(raw||'').trim(), seconds, nums;
+    if (/^\d+(?:\.\d+)?$/.test(input)) seconds=Math.round(Number(input)*60);
+    else if (/^\d+:\d{1,2}(?::\d{1,2})?$/.test(input)) {
+      nums=input.split(':').map(Number);
+      if (nums[nums.length-1]>=60 || (nums.length===3&&nums[1]>=60))
+        throw new Error('Use a valid MM:SS or HH:MM:SS video length.');
+      seconds=nums.length===2?nums[0]*60+nums[1]:
+        nums[0]*3600+nums[1]*60+nums[2];
+    } else throw new Error('Enter YouTube duration such as 23:15 or 23.25 minutes.');
+    if (!Number.isFinite(seconds)||seconds<30||seconds>10800)
+      throw new Error('Video length must be between 30 seconds and 3 hours.');
+    return seconds;
+  }
+
+  function planYouTubeTranscriptSlices(durationSeconds, chunkMinutes, startMinute) {
+    var chunk=Number(chunkMinutes)*60, start=Number(startMinute)*60;
+    if (chunk!==300&&chunk!==600) throw new Error('Choose 5 or 10 minute slices.');
+    if (!Number.isInteger(start)||start<0||start>=durationSeconds||start%chunk)
+      throw new Error('Start minute must be 0 or a multiple of the selected slice size, within the video.');
+    var slices=[];
+    for(var pos=start;pos<durationSeconds;pos+=chunk)
+      slices.push({start:pos,end:Math.min(pos+chunk,durationSeconds)});
+    return slices;
+  }
+
+  function formatYouTubeClock(seconds) {
+    var h=Math.floor(seconds/3600),m=Math.floor((seconds%3600)/60),
+      ss=String(Math.floor(seconds%60)).padStart(2,'0');
+    return h?(h+':'+String(m).padStart(2,'0')+':'+ss):(m+':'+ss);
+  }
+
+  function makeYouTubeVideoPart(url, clip) {
+    var part={fileData:{fileUri:validatePublicYouTubeUrl(url),mimeType:'video/*'}};
+    if(clip){
+      if(!Number.isInteger(clip.start)||!Number.isInteger(clip.end)||
+         clip.start<0||clip.end<=clip.start)
+        throw new Error('Invalid YouTube video clipping interval.');
+      // Legacy generateContent API supports videoMetadata on a video part.
+      // Some YouTube backends may nevertheless include the full audio track.
+      part.videoMetadata={startOffset:clip.start+'s',endOffset:clip.end+'s'};
+    }
+    return part;
+  }
+
+  function checkYouTubeTokenFinish(reason,text) {
+    if(/MAX_TOKENS/i.test(String(reason||''))){
+      var error=new Error('Gemini stopped at its output token limit. Try 5-minute slices and resume from the last complete segment.');
+      error.isTokenLimit=true;
+      error.partialText=text||'';
+      throw error;
+    }
+  }
+
+  function delayBetweenYouTubeSegments(ms,signal) {
+    if(signal&&signal.aborted) return Promise.reject(new Error('Canceled'));
+    return new Promise(function(resolve,reject){
+      var timer,listener;
+      function cleanup(){if(signal&&listener)signal.removeEventListener('abort',listener);}
+      listener=function(){clearTimeout(timer);cleanup();reject(new Error('Canceled'));};
+      timer=setTimeout(function(){cleanup();resolve();},ms);
+      if(signal)signal.addEventListener('abort',listener,{once:true});
+    });
+  }
+
   /* Audio Slicer & Chunk Queue */
   var attachAudioBtn = $('attachAudioBtn');
   var audioFileInput = $('audioFileInput');
