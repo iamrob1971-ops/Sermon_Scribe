@@ -2362,6 +2362,113 @@ var SITE_PATH = "/sites/Bible_App";
   var youtubeBusy = false;
   var youtubeAbortController = null;
   var youtubeDlg = $('youtubeDlg');
+  var youtubeTranscriptKeyStorage = 'ss_youtube_captions_api_key';
+  var youtubeMetadataCache = Object.create(null);
+  $('youtubeCaptionApiKey').value = load(youtubeTranscriptKeyStorage) || '';
+
+  /* Public caption and video-duration lookup through a documented service.
+     This is a BYO API key, not an unauthenticated YouTube captions endpoint.
+     Request mode=native: never purchase/trigger the provider's AI generation.
+     Gemini remains the fallback for videos without existing caption tracks. */
+  async function youtubeProviderFetch(path, params, apiKey, signal) {
+    var endpoint = new URL('https://api.supadata.ai/v1/' + path);
+    Object.keys(params || {}).forEach(function(key){
+      endpoint.searchParams.set(key, params[key]);
+    });
+    var res;
+    try {
+      res = await fetch(endpoint.href, {
+        method:'GET',
+        headers:{'x-api-key':apiKey},
+        signal:signal
+      });
+    } catch(error) {
+      if(signal && signal.aborted) throw error;
+      throw new Error('The caption service could not be reached from this browser. ' +
+        'Check connectivity or configure an Azure proxy: ' + error.message);
+    }
+    var result;
+    try { result = await res.json(); }
+    catch(error) { throw new Error('The caption service returned a non-JSON response.'); }
+    if (!res.ok) {
+      var code = String(result.error && (result.error.code || result.error) || '');
+      if ((res.status === 404 || res.status === 206) &&
+          (/transcript.unavailable/i.test(code) ||
+            /transcript.+unavailable|no transcript|captions.+unavailable/i.test(
+              String(result.message || '')+' '+String(result.details || '')))) {
+        return {unavailable:true};
+      }
+      var err = new Error('Caption service ('+res.status+'): '+
+        (result.message || result.details || code || 'Request failed'));
+      err.status = res.status;
+      throw err;
+    }
+    return result;
+  }
+
+  function normalizeYoutubeCaptionText(result) {
+    if (!result || result.unavailable) return '';
+    var content = result.content;
+    if (typeof content === 'string') return content.trim();
+    if (!Array.isArray(content)) return '';
+    return content.map(function(chunk) {
+      return chunk && typeof chunk.text === 'string' ? chunk.text.trim() : '';
+    }).filter(Boolean).join('\n').trim();
+  }
+
+  async function fetchYouTubeMetadata(canonicalUrl, apiKey, signal) {
+    if (youtubeMetadataCache[canonicalUrl]) return youtubeMetadataCache[canonicalUrl];
+    var data = await youtubeProviderFetch('metadata',{url:canonicalUrl},apiKey,signal);
+    var duration = Number(data.duration);
+    if (!Number.isFinite(duration) || duration < 30 || duration > 10800) {
+      throw new Error('The caption provider did not return a usable video length.');
+    }
+    var metadata = {durationSeconds:Math.ceil(duration), title:String(data.title||'').trim()};
+    youtubeMetadataCache[canonicalUrl]=metadata;
+    return metadata;
+  }
+
+  async function fetchExistingYouTubeTranscript(canonicalUrl, apiKey, signal, onProgress) {
+    var result = await youtubeProviderFetch('transcript',{
+      url:canonicalUrl, mode:'native', text:'true', lang:'en'
+    },apiKey,signal);
+    if(result.unavailable) return null;
+    // Large transcripts may arrive as an async result. Poll only that job,
+    // never switch to the provider's paid AI-generation mode.
+    if (result.jobId) {
+      if(!/^[a-zA-Z0-9_-]{5,128}$/.test(String(result.jobId))) {
+        throw new Error('The transcript provider returned an invalid job identifier.');
+      }
+      var jobId=result.jobId;
+      for(var attempt=0;attempt<30;attempt++){
+        if(onProgress)onProgress('Loading existing captions ('+(attempt+1)+'/30)...');
+        await delayBetweenYouTubeSegments(1500,signal);
+        result=await youtubeProviderFetch('transcript/'+encodeURIComponent(jobId),
+          {},apiKey,signal);
+        if(result.unavailable)return null;
+        if(result.status==='completed')break;
+        if(result.status==='failed') {
+          var issue=result.error;
+          if(issue && /transcript.unavailable/i.test(
+            String(issue.code||issue.error||issue.message||''))) return null;
+          throw new Error('Caption retrieval failed: '+
+            (typeof issue==='string'?issue:(issue&&issue.message)||'Unknown failure'));
+        }
+      }
+      if (result.status!=='completed')throw new Error(
+        'Caption retrieval did not finish. Retry later or use Gemini segmentation.');
+    }
+    var transcript=normalizeYoutubeCaptionText(result);
+    if (!transcript) return null;
+    return {text:transcript,lang:result.lang||'en'};
+  }
+
+  function rememberYouTubeCaptionKey() {
+    var apiKey=$('youtubeCaptionApiKey').value.trim();
+    if(apiKey)store(youtubeTranscriptKeyStorage,apiKey);
+    else store(youtubeTranscriptKeyStorage,'');
+    return apiKey;
+  }
 
   function openYouTubeDialog() {
     if (!youtubeDlg.open) {
