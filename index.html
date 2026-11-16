@@ -118,6 +118,16 @@ a.chip:hover{border-color:var(--gold)}
 .img-chip-del{border:0;background:none;color:#94A3B8;cursor:pointer;font-size:12px;padding:1px 4px;border-radius:3px}
 .img-chip-del:hover{color:#DC2626;background:#FEE2E2}
 
+
+.record-settings{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#F7FAFC;padding:8px 20px;border-bottom:1px solid var(--line);font-size:13px}
+.record-settings label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.record-settings small{color:var(--muted);font-size:11px}
+.rec-audio{padding:9px 20px;background:#F0FDF4;border-bottom:1px solid #BBF7D0;color:#166534;display:none;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
+.rec-audio .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#DC2626;animation:recblink 1.2s infinite;margin-right:6px}
+@keyframes recblink{50%{opacity:.2}}
+.failed-audio{padding:9px 20px;background:#FEF2F2;border-bottom:1px solid #FECACA;color:#991B1B;display:none;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px}
+.failed-audio small{display:block}
+
 .transcript-area{flex:1;display:flex;flex-direction:column;position:relative}
 textarea.page{
   flex:1;width:100%;padding:22px 28px;border:0;outline:none;background:transparent;resize:none;
@@ -383,6 +393,12 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       </div>
     </div>
 
+    <div class="record-settings" role="group" aria-label="Audio recording options">
+      <label title="Save audio alongside rough live dictation so Gemini can transcribe it afterward">
+        <input type="checkbox" id="recAudioChk" checked> 🎧 <b>Also record audio</b> with live microphone
+      </label>
+      <small>Original audio stays in this browser until you download, transcribe or discard it. Get permission before recording.</small>
+    </div>
     <div class="ribbon" id="ribbon"></div>
 
     <!-- Audio Progress Banner -->
@@ -391,6 +407,17 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <span id="audioQueueText">Processing audio file...</span>
     </div>
 
+    <div class="rec-audio" id="recBar" role="status" aria-live="polite">
+      <span id="recText"></span>
+      <button class="btn sm" id="recTranscribeBtn" style="margin-left:auto" type="button">✨ AI transcript of recording</button>
+      <button class="btn sm" id="recDownloadBtn" type="button">Download audio</button>
+      <button class="btn sm" id="recDiscardBtn" type="button">Discard audio</button>
+    </div>
+    <div class="failed-audio" id="failedBar" role="status">
+      <span id="failedText"></span>
+      <button class="btn sm" id="retryFailedBtn" style="margin-left:auto" type="button">Retry failed slice</button>
+      <button class="btn sm" id="discardFailedBtn" type="button">Discard failed slices</button>
+    </div>
     <!-- Attached Snips Bar for Main Raw Input (With On-Demand OCR Button) -->
     <div class="page-img-bar" id="pageImgBar" style="display:none;"></div>
     
@@ -403,12 +430,13 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <input type="file" id="audioFileInput" multiple accept="audio/*,.wav,.mp3,.m4a,.aac,.webm,.ogg,.mp4" style="display:none">
       <input type="file" id="pageImgFileInput" multiple accept="image/*" style="display:none">
       
+      <button class="btn" id="recOnlyBtn" type="button" title="Capture audio for later AI transcription without live dictation">🎧 Record audio only</button>
       <button class="btn" id="attachAudioBtn" title="Upload audio recordings (MP3, M4A, WAV). Slices in 5-minute chunks automatically!">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
         📁 Attach Audio
       </button>
 
-      <button class="btn" id="attachYoutubeBtn" type="button" title="Analyze or transcribe a sermon directly from a public YouTube link">▶️ YouTube Link</button>
+      <button class="btn" id="attachYoutubeBtn" type="button" title="Transcribe public sermons from YouTube, supported social platforms or direct media files">🔗 Public Media Link</button>
 
       <button class="btn" id="attachPageImgBtn" title="Attach screenshots or snips (e.g. sermon slides, book pages, charts). You can also press Ctrl+V directly into the text box!">
         🖼️ Attach Snip
@@ -581,22 +609,25 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
 <!-- PUBLIC YOUTUBE SERMON INPUT (independent of local audio slicer) -->
 <dialog id="youtubeDlg" aria-labelledby="youtubeDlgTitle" style="width:min(550px,calc(100vw - 28px));max-width:100%;border:1px solid var(--line);border-radius:12px;padding:0;">
   <div class="dlg-h">
-    <h2 id="youtubeDlgTitle" style="font-size:18px;margin:0">▶️ YouTube Sermon Ingestion</h2>
+    <h2 id="youtubeDlgTitle" style="font-size:18px;margin:0">🔗 Public Sermon Media Intake</h2>
     <button class="btn sm" id="youtubeCloseX" type="button" aria-label="Close YouTube dialog">✕</button>
   </div>
   <div class="dlg-b" style="display:grid;gap:14px;">
-    <label for="youtubeUrlInput" style="font-weight:600;font-size:13px">Public YouTube video URL</label>
-    <input type="url" id="youtubeUrlInput" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);box-sizing:border-box;">
+    <label for="youtubeUrlInput" style="font-weight:600;font-size:13px">Public audio or video URL</label>
+    <input type="url" id="youtubeUrlInput" placeholder="YouTube, Instagram, X, TikTok, Facebook, or public .mp3/.m4a/.mp4..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);box-sizing:border-box;">
     <fieldset style="border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:9px;">
       <legend style="font-weight:600;font-size:13px">Processing mode</legend>
       <label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="radio" name="youtubeMode" value="transcribe" checked> Transcribe Verbatim to Editor</label>
       <label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="radio" name="youtubeMode" value="notes"> Generate Expository Study Notes</label>
     </fieldset>
     <div id="youtubeTranscriptSettings" style="display:grid;gap:10px;padding:11px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.55)">
-      <label for="youtubeCaptionApiKey" style="font-size:13px;font-weight:600;">Existing captions first · one-time provider setup</label>
+      <label for="youtubeCaptionApiKey" style="font-size:13px;font-weight:600;">Supadata transcript service · one-time provider setup</label>
       <input id="youtubeCaptionApiKey" type="password" autocomplete="off" placeholder="Supadata API key (stored in this browser)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
-      <small style="font-size:11px;color:var(--muted);">With a <a href="https://supadata.ai/" target="_blank" rel="noopener noreferrer">Supadata</a> key, Scribe first imports existing YouTube captions and automatically retrieves the video's duration. Without captions, it uses your existing Gemini segment transcription. This external provider may have usage limits. A private Azure proxy is preferable for centrally managed credentials.</small>
-      <label for="youtubeDurationInput" style="font-size:13px;font-weight:600;">Video length · automatically detected when available</label>
+      <small style="font-size:11px;color:var(--muted);">Supports public YouTube, TikTok, Instagram, X/Twitter and Facebook media, plus direct public .mp3, .m4a, .wav, .mp4, .webm and other supported media files. The URL must be accessible without login; ordinary web/podcast pages are not direct media. <a href="https://supadata.ai/" target="_blank" rel="noopener noreferrer">Supadata</a> may use credits. Your personal API key is stored in this browser. An Azure proxy is preferable for shared credentials.</small>
+      <label for="youtubeAllowGenerate" style="font-size:12px;display:flex;align-items:center;gap:7px;"><input type="checkbox" id="youtubeAllowGenerate"> Allow Supadata AI transcription when captions are unavailable (uses additional credits)</label>
+      <small style="font-size:11px;color:var(--muted);">Unchecked: existing captions only (native mode); public audio files generally require AI generation. Checked: native captions first, AI generation if necessary. No media is processed until you press Start.</small>
+      <div id="youtubeFallbackSettings" style="display:grid;gap:9px">
+      <label for="youtubeDurationInput" style="font-size:13px;font-weight:600;">YouTube video length · detected when available</label>
       <input id="youtubeDurationInput" type="text" inputmode="text" autocomplete="off" placeholder="Automatic · or enter 23:08 if needed" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
         <label for="youtubeChunkMinutes" style="font-size:12px">Segment size
@@ -609,9 +640,10 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           <input id="youtubeResumeMinute" type="number" min="0" step="5" value="0" style="width:64px;padding:5px;border:1px solid var(--line);border-radius:6px;">
         </label>
       </div>
-      <small style="font-size:11px;color:var(--muted);">Usually just paste the YouTube link and click Start. Captions import directly if available; otherwise Scribe detects duration and plans 10-minute Gemini segments. If metadata cannot be retrieved, video length is the manual fallback. From 0 replaces the transcript; nonzero start appends remaining slices. Gemini clipping may be imperfect.</small>
+      <small style="font-size:11px;color:var(--muted);">YouTube-only Gemini fallback when no captions/transcript can be imported. Enter video duration manually if metadata lookup fails. Resume minutes apply to YouTube Gemini slices only; offsets may be imperfect.</small>
+      </div>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin:0;">Requires a public YouTube video supported by your Gemini model. Repeated requests can use more quota or trigger 429 limits. Transcripts require review; only process content you may use. Nothing saves to SharePoint automatically.</p>
+    <p style="font-size:12px;color:var(--muted);margin:0;">Public content only. Supadata transcripts may use credits; Gemini handles study notes and YouTube fallback. Review transcription and obtain recording permission as needed. Nothing saves to SharePoint automatically.</p>
     <div id="youtubeProgress" role="status" aria-live="polite" style="font-size:13px;color:var(--violet);min-height:18px;"></div>
   </div>
   <div class="dlg-f">
@@ -1345,7 +1377,7 @@ var SITE_PATH = "/sites/Bible_App";
   /* URL Parameters Ingestion */
   var qParams=new URLSearchParams(window.location.search);
   var requestedPresetId = String(qParams.get('presetId') || qParams.get('instruction') || '').trim();
-  var incomingYoutubeUrl = String(qParams.get('youtubeUrl') || qParams.get('yt') || '').trim();
+  var incomingYoutubeUrl = String(qParams.get('mediaUrl') || qParams.get('youtubeUrl') || qParams.get('yt') || '').trim();
   var powerAppsReturnUrl = String(qParams.get('appUrl') || qParams.get('returnUrl') || '').trim();
   // Prevent arbitrary script/data URL navigation from untrusted query strings.
   function validatedPowerAppsReturnUrl(rawUrl) {
@@ -1891,6 +1923,7 @@ var SITE_PATH = "/sites/Bible_App";
   }
 
   function stopUI(){
+    if(recFromLive)stopRecorder();
     recBtn.classList.remove('on');scribe.classList.remove('on-air');$('meta').classList.remove('on-air');
     if(wakeLock){wakeLock.release().catch(function(){});wakeLock=null}
     clearInterval(tick);interim='';interimBox.style.display='none';
@@ -1914,6 +1947,7 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
     wantListening=true;startUI();try{recognition.start()}catch(e){}
+    if($('recAudioChk').checked)startRecorder('live');
   });
 
   /* =====================================================================
@@ -2103,6 +2137,33 @@ var SITE_PATH = "/sites/Bible_App";
     return 'https://www.youtube.com/watch?v=' + videoId;
   }
 
+  /* Supadata media validator: known public platforms or direct HTTPS files.
+     Unknown web pages and internal/local URLs are not media input. */
+  function validatePublicMediaUrl(rawUrl) {
+    var link;
+    try {link=new URL(String(rawUrl||'').trim());}
+    catch(error){throw new Error('Enter a valid public HTTPS media URL.');}
+    if(link.protocol!=='https:'||link.username||link.password||
+       (link.port&&link.port!=='443'))throw new Error('Only public HTTPS media links are supported.');
+    var host=link.hostname.toLowerCase();
+    if(/^(www\.|m\.)?(youtube\.com|youtu\.be)$/.test(host))
+      return validatePublicYouTubeUrl(link.href);
+    if(/^(www\.|m\.|vm\.|vt\.)?(tiktok\.com)$/.test(host)||
+       /^(www\.|m\.)?(instagram\.com|facebook\.com|fb\.watch|x\.com|twitter\.com)$/.test(host)){
+      if(link.pathname==='/'||!link.pathname)throw new Error('Link to a public video or post, not a profile/homepage.');
+      link.hash='';return link.href;
+    }
+    if(!host.includes('.')||host==='localhost'||host.endsWith('.local')||
+       host.endsWith('.internal')||/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)||
+       host.startsWith('['))throw new Error('Use a publicly hosted media file URL.');
+    if(!/\.(mp3|mp4|m4a|wav|ogg|webm|flac|mpeg|mpga)$/i.test(link.pathname))
+      throw new Error('Use a supported video post or a direct public audio/video file, not a webpage.');
+    link.hash='';return link.href;
+  }
+  function isYouTubeMediaUrl(url){
+    return /^(www\.|m\.)?(youtube\.com|youtu\.be)$/.test(new URL(url).hostname.toLowerCase());
+  }
+
   /* YouTube URLs do not expose a reliable duration to this static app.
      User provides the displayed video length so the final slice is bounded. */
   function parseYouTubeDurationSeconds(raw) {
@@ -2250,6 +2311,7 @@ var SITE_PATH = "/sites/Bible_App";
 
         chunkPayloads.push({
           base64: b64,
+          blob: wavBlob,
           mimeType: 'audio/wav',
           label: fmt(Math.round(startSec)) + ' - ' + fmt(Math.round(endSec)),
           chunkIndex: c + 1,
@@ -2264,6 +2326,7 @@ var SITE_PATH = "/sites/Bible_App";
       var rawB64 = await fileToBase64(file);
       return [{
         base64: rawB64,
+        blob: file,
         mimeType: file.type || 'audio/mp3',
         label: 'Full',
         chunkIndex: 1,
@@ -2297,53 +2360,299 @@ var SITE_PATH = "/sites/Bible_App";
     return data.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('').trim();
   }
 
+  var audioBusy=false;
+  /* Failed Audio Storage (IndexedDB) */
+  var FA_DB='sermonScribe_failedAudio_v1', FA_STORE='slices';
+  function faOpen(){
+    return new Promise(function(res,rej){
+      if(!window.indexedDB){rej(new Error('Storage not available'));return}
+      var r=indexedDB.open(FA_DB,1);
+      r.onupgradeneeded=function(){r.result.createObjectStore(FA_STORE,{keyPath:'id'})};
+      r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)};
+    });
+  }
+  function faTx(mode,fn){
+    return faOpen().then(function(db){
+      return new Promise(function(res,rej){
+        var tx=db.transaction(FA_STORE,mode),req=fn(tx.objectStore(FA_STORE));
+        tx.oncomplete=function(){db.close();res(req?req.result:undefined)};
+        tx.onerror=function(){db.close();rej(tx.error)};tx.onabort=function(){db.close();rej(tx.error)};
+      });
+    });
+  }
+  function faAll(){return faTx('readonly',function(st){return st.getAll()}).then(function(r){return r||[]}).catch(function(){return []})}
+  function faPut(rec){return faTx('readwrite',function(st){return st.put(rec)})}
+  function faDel(id){return faTx('readwrite',function(st){return st.delete(id)})}
+  function faClear(){return faTx('readwrite',function(st){return st.clear()})}
+
+  function failMarker(rec){return '--- [Failed Audio: '+rec.fileName+' ('+rec.label+') · ref '+rec.id+' · use "Retry failed audio"] ---'}
+  async function renderFailedBar(){
+    var all=await faAll(), bar=$('failedBar');
+    if(!all.length){bar.style.display='none';return}
+    all.sort(function(x,y){return y.savedAt-x.savedAt});
+    var names={};all.forEach(function(r){names[r.fileName]=1});
+    $('failedText').innerHTML='<b>'+all.length+' audio slice'+(all.length>1?'s':'')+' failed</b> ('+esc(Object.keys(names).join(', '))+
+      '). Saved in this browser. Click "Retry failed audio".'+
+      '<small>Last error: '+esc(String(all[0].error||'unknown').slice(0,160))+'</small>';
+    bar.style.display='flex';
+  }
+  function insertTranscript(fileName,chunk,transcript,marker){
+    var timeStr=new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    var header="--- [Audio: "+fileName+" ("+chunk.label+") · Transcribed "+timeStr+"] ---\n";
+    var footer="\n--- [End Slice: "+chunk.label+"] ---";
+    if(marker&&page.value.indexOf(marker)>-1){
+      page.value=page.value.replace(marker,header+transcript+footer);
+    }else{
+      var current=page.value.trim();
+      page.value=(current?current+"\n\n":"")+header+transcript+footer+"\n";
+    }
+    page.scrollTop=page.scrollHeight;updateUI();
+  }
+  async function keepFailed(fileName,chunk,err){
+    var rec={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),fileName:fileName,label:chunk.label,
+      chunkIndex:chunk.chunkIndex,totalChunks:chunk.totalChunks,mimeType:chunk.mimeType,blob:chunk.blob,
+      error:String((err&&err.message)||err),savedAt:Date.now()};
+    var current=page.value.trim();
+    page.value=(current?current+"\n\n":"")+failMarker(rec)+"\n";updateUI();
+    try{await faPut(rec)}catch(e2){page.value+="(Failed slice could not be saved for retry: "+e2.message+")\n"}
+  }
+
+  async function runAudioJob(items){
+    if(audioBusy)throw new Error('Audio transcription is already running.');
+    if(!getActiveKey()){ $('cfg').open=true;throw new Error('A Gemini API key is required to transcribe recordings.'); }
+    audioQueueBar.style.display='flex';
+    attachAudioBtn.disabled=true;$('retryFailedBtn').disabled=true;$('recTranscribeBtn').disabled=true;
+    audioBusy=true;updateUI();
+    var failed=0;
+    try{
+      for(var f=0;f<items.length;f++){
+        var it=items[f], file=it.file;
+        var fileLabel=(it.label||'File')+' '+(f+1)+'/'+items.length+' ('+file.name+')';
+        if(it.sectionHeader){var cur=page.value.trim();page.value=(cur?cur+"\n\n":"")+it.sectionHeader+"\n";updateUI();}
+        var chunks;
+        try{
+          chunks=await sliceAndDownsampleAudio(file,function(statusText){audioQueueText.textContent='['+fileLabel+'] '+statusText});
+        }catch(sliceErr){
+          chunks=[{blob:file,mimeType:file.type||'audio/mpeg',label:'Full',chunkIndex:1,totalChunks:1,base64:await fileToBase64(file)}];
+        }
+        var fileFailed=0;
+        for(var c=0;c<chunks.length;c++){
+          var chunk=chunks[c];
+          audioQueueText.textContent='['+fileLabel+'] Transcribing slice '+chunk.chunkIndex+'/'+chunk.totalChunks+' ('+chunk.label+')...';
+          try{
+            insertTranscript(file.name,chunk,await transcribeChunkWithGemini(chunk,getActiveKey(),getActiveModel()),null);
+          }catch(err){
+            failed++;fileFailed++;await keepFailed(file.name,chunk,err);
+          }
+        }
+        if(it.onDone)await it.onDone(fileFailed);
+      }
+    } finally {
+      audioQueueBar.style.display='none';
+      attachAudioBtn.disabled=false;$('retryFailedBtn').disabled=false;$('recTranscribeBtn').disabled=false;
+      audioBusy=false;updateUI();
+      await renderFailedBar();
+    }
+    return failed;
+  }
+
   audioFileInput.addEventListener('change', async function(e){
     var files = Array.from(e.target.files);
     if (!files.length) return;
-
-    var key = getActiveKey();
-    var model = getActiveModel();
-
-    audioQueueBar.style.display = 'flex';
-    attachAudioBtn.disabled = true;
-
-    for (var f = 0; f < files.length; f++) {
-      var file = files[f];
-      var fileLabel = 'File ' + (f + 1) + '/' + files.length + ' (' + file.name + ')';
-
-      try {
-        var chunks = await sliceAndDownsampleAudio(file, function(statusText){
-          audioQueueText.textContent = '[' + fileLabel + '] ' + statusText;
-        });
-
-        for (var c = 0; c < chunks.length; c++) {
-          var chunk = chunks[c];
-          audioQueueText.textContent = '[' + fileLabel + '] Transcribing slice ' + chunk.chunkIndex + '/' + chunk.totalChunks + ' (' + chunk.label + ')...';
-          
-          var transcript = await transcribeChunkWithGemini(chunk, key, model);
-
-          var timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-          var chunkHeader = "\n\n--- [Audio: " + file.name + " (" + chunk.label + ") · " + timeStr + "] ---\n";
-          var chunkFooter = "\n--- [End Slice: " + chunk.label + "] ---\n";
-
-          var current = page.value.trim();
-          page.value = (current ? (current + chunkHeader) : (chunkHeader.trimStart())) + transcript + chunkFooter;
-
-          page.scrollTop = page.scrollHeight;
-          updateUI();
-        }
-        toast('Completed ' + file.name);
-      } catch(err) {
-        alert('Error processing ' + file.name + ': ' + err.message);
-        page.value += "\n\n--- [Failed Audio: " + file.name + " (" + err.message + ")] ---\n\n";
-      }
-    }
-
-    audioQueueBar.style.display = 'none';
-    attachAudioBtn.disabled = false;
     audioFileInput.value = '';
-    toast('Audio files transcribed successfully!');
+    var failed = await runAudioJob(files.map(function(f){return {file:f,label:'File'}}));
+    toast(failed ? (failed + ' slice(s) failed and saved. Use "Retry failed audio".') : 'All audio files processed!');
   });
+
+  /* Background Audio Recording Engine */
+  var RC_DB='sermonScribe_recordings_v1';
+  function rcOpen(){
+    return new Promise(function(res,rej){
+      if(!window.indexedDB){rej(new Error('Browser storage not available'));return}
+      var r=indexedDB.open(RC_DB,1);
+      r.onupgradeneeded=function(){var db=r.result;db.createObjectStore('meta',{keyPath:'id'});db.createObjectStore('chunks',{keyPath:'key'}).createIndex('rec','rec')};
+      r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)};
+    });
+  }
+  function rcTx(stores,mode,fn){
+    return rcOpen().then(function(db){
+      return new Promise(function(res,rej){
+        var tx=db.transaction(stores,mode),req=fn(tx);
+        tx.oncomplete=function(){db.close();res(req?req.result:undefined)};
+        tx.onerror=function(){db.close();rej(tx.error)};tx.onabort=function(){db.close();rej(tx.error)};
+      });
+    });
+  }
+  function rcMetaAll(){return rcTx(['meta'],'readonly',function(tx){return tx.objectStore('meta').getAll()}).then(function(r){return r||[]}).catch(function(){return []})}
+  function rcMetaPut(m){return rcTx(['meta'],'readwrite',function(tx){return tx.objectStore('meta').put(m)})}
+  function rcChunkPut(c){return rcTx(['chunks'],'readwrite',function(tx){return tx.objectStore('chunks').put(c)})}
+  function rcChunks(id){return rcTx(['chunks'],'readonly',function(tx){return tx.objectStore('chunks').index('rec').getAll(id)}).then(function(r){return (r||[]).sort(function(x,y){return x.seq-y.seq})})}
+  function rcClear(){return rcTx(['meta','chunks'],'readwrite',function(tx){tx.objectStore('meta').clear();return tx.objectStore('chunks').clear()})}
+
+  var mediaRec=null, recStream=null, liveMeta=null, recSaveChain=Promise.resolve();
+  $('recAudioChk').checked=load('ss_rec_audio')!=='0';
+  $('recAudioChk').addEventListener('change',function(){store('ss_rec_audio',this.checked?'1':'0')});
+
+  function fmtBytes(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB'}
+  function recMinutes(m){return Math.max(1,Math.round(((m.endedAt||Date.now())-m.startedAt)/60000))}
+  function recTime(ms){return new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+
+  var recFromLive=false,recOnlyRequested=false,recStorageWarning='';
+  async function startRecorder(origin){
+    if(mediaRec)return;
+    if(origin==='only')recOnlyRequested=true;
+    if(origin==='live'&&!$('recAudioChk').checked)return;
+    if(!window.MediaRecorder||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){recOnlyRequested=false;toast('Audio recording requires a supported HTTPS browser and microphone permission.');return}
+    try{
+      var stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      if((origin==='live'&&!wantListening)||(origin==='only'&&!recOnlyRequested)||mediaRec){stream.getTracks().forEach(function(t){t.stop()});return}
+      var mime=['audio/webm;codecs=opus','audio/mp4','audio/webm'].filter(function(t){return typeof MediaRecorder.isTypeSupported==='function'&&MediaRecorder.isTypeSupported(t)})[0]||'';
+      var rec=new MediaRecorder(stream,mime?{mimeType:mime,audioBitsPerSecond:48000}:{audioBitsPerSecond:48000});
+      var meta={id:'rec_'+Date.now().toString(36),startedAt:Date.now(),endedAt:Date.now(),bytes:0,status:'recording',transcribed:false,
+        mime:(rec.mimeType||'audio/webm').split(';')[0],title:$('title').value||''};
+      var seq=0;
+      rec.ondataavailable=function(ev){
+        if(!ev.data||!ev.data.size)return;
+        var n=seq++,blob=ev.data;
+        meta.bytes+=blob.size;meta.endedAt=Date.now();
+        recSaveChain=recSaveChain
+          .then(function(){return rcChunkPut({key:meta.id+'_'+String(n).padStart(6,'0'),rec:meta.id,seq:n,blob:blob})})
+          .then(function(){return rcMetaPut(meta)})
+          .catch(function(err){recStorageWarning='Audio storage problem: '+err.message;toast(recStorageWarning);console.warn('Recording save failed',err)});
+        renderRecBar();
+      };
+      rec.onstop=function(){
+        stream.getTracks().forEach(function(t){t.stop()});
+        recSaveChain=recSaveChain.then(function(){meta.status='done';meta.endedAt=Date.now();return rcMetaPut(meta)}).catch(function(){}).then(renderRecBar);
+      };
+      recStorageWarning='';mediaRec=rec;recStream=stream;liveMeta=meta;recFromLive=(origin==='live');updateRecOnlyBtn();
+      await rcMetaPut(meta);
+      rec.start(10000);
+      renderRecBar();
+    }catch(e){
+      mediaRec=null;recOnlyRequested=false;
+      toast('Audio recording could not start. Live dictation continues.');
+    }
+  }
+  function stopRecorder(){
+    if(!mediaRec)return;
+    var rec=mediaRec;mediaRec=null;recStream=null;liveMeta=null;recFromLive=false;recOnlyRequested=false;updateRecOnlyBtn();
+    try{rec.stop()}catch(e){}
+  }
+
+  async function renderRecBar(){
+    var bar=$('recBar'),txt=$('recText');
+    if(mediaRec&&liveMeta){
+      txt.innerHTML='<span class="live-dot"></span><b>Recording audio for an AI transcript</b> · '+recMinutes(liveMeta)+' min · '+fmtBytes(liveMeta.bytes)+' captured in this browser'+(recStorageWarning?' · WARNING: '+esc(recStorageWarning):'');
+      ['recTranscribeBtn','recDownloadBtn','recDiscardBtn'].forEach(function(id){$(id).disabled=true});
+      bar.style.display='flex';return;
+    }
+    var all=(await rcMetaAll()).filter(function(m){return m.bytes>0});
+    if(!all.length){bar.style.display='none';return}
+    var mins=0,bytes=0,todo=0,interrupted=0;
+    all.forEach(function(m){mins+=recMinutes(m);bytes+=m.bytes;if(!m.transcribed)todo++;if(m.status==='recording')interrupted++});
+    txt.innerHTML='🎧 <b>'+all.length+' recording'+(all.length>1?'s':'')+' saved</b> ('+mins+' min, '+fmtBytes(bytes)+')'+
+      (todo?' · '+todo+' without an AI transcript yet':' · AI transcript done')+
+      (interrupted?' · '+interrupted+' interrupted (still usable)':'')+
+      (recStorageWarning?' · WARNING: '+esc(recStorageWarning):'');
+    $('recTranscribeBtn').disabled=audioBusy;$('recDownloadBtn').disabled=false;$('recDiscardBtn').disabled=false;
+    bar.style.display='flex';
+  }
+
+  async function recordingFile(m){
+    var parts=await rcChunks(m.id);
+    var blob=new Blob(parts.map(function(p){return p.blob}),{type:m.mime||'audio/webm'});
+    var name='Sermon Recording '+recTime(m.startedAt).replace(/[^\w ]+/g,'-')+'.'+(m.mime==='audio/mp4'?'m4a':'webm');
+    return new File([blob],name,{type:blob.type});
+  }
+
+  $('recTranscribeBtn').addEventListener('click',async function(){
+    if(audioBusy||mediaRec)return;
+    var all=(await rcMetaAll()).filter(function(m){return m.bytes>0}).sort(function(x,y){return x.startedAt-y.startedAt});
+    var todo=all.filter(function(m){return !m.transcribed});
+    if(!todo.length){
+      if(!all.length)return;
+      if(!confirm('These recordings already have an AI transcript. Run them again?'))return;
+      todo=all;
+    }
+    var items=[];
+    for(var i=0;i<todo.length;i++){
+      (function(m){
+        items.push({m:m});
+      })(todo[i]);
+    }
+    for(var j=0;j<items.length;j++){
+      var m=items[j].m;
+      items[j]={file:await recordingFile(m),label:'Recording',
+        sectionHeader:'--- [AI Transcript of Audio Recording · started '+recTime(m.startedAt)+' · '+recMinutes(m)+' min] ---',
+        onDone:(function(mm){return async function(failedSlices){if(!failedSlices){mm.transcribed=true;mm.status='done';await rcMetaPut(mm)}}})(m)};
+    }
+    var failed=await runAudioJob(items);
+    await renderRecBar();
+    toast(failed?(failed+' slice(s) failed and saved. Use "Retry failed audio".'):'AI transcript added below the live dictation.');
+  });
+
+  $('recDownloadBtn').addEventListener('click',async function(){
+    var all=(await rcMetaAll()).filter(function(m){return m.bytes>0}).sort(function(x,y){return x.startedAt-y.startedAt});
+    for(var i=0;i<all.length;i++){
+      var f=await recordingFile(all[i]),a=document.createElement('a');
+      a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout((function(u){return function(){URL.revokeObjectURL(u)}})(a.href),60000);
+    }
+  });
+
+  $('recDiscardBtn').addEventListener('click',async function(){
+    if(mediaRec||audioBusy)return;
+    if(!confirm('Delete the saved audio recordings from this browser?'))return;
+    await rcClear().catch(function(){});renderRecBar();toast('Recordings deleted');
+  });
+  function updateRecOnlyBtn(){
+    $('recOnlyBtn').textContent=mediaRec&&!recFromLive?'⏹ Stop audio recording':'🎧 Record audio only';
+    $('recOnlyBtn').disabled=Boolean(mediaRec&&recFromLive);
+  }
+  $('recOnlyBtn').addEventListener('click',function(){
+    if(mediaRec&&!recFromLive){stopRecorder();return}
+    if(!mediaRec){
+      if(recOnlyRequested){recOnlyRequested=false;return}
+      startRecorder('only');
+    }
+  });
+  $('retryFailedBtn').addEventListener('click',async function(){
+    if(audioBusy||mediaRec)return;
+    var rows=(await faAll()).sort(function(a,b){return a.savedAt-b.savedAt});
+    if(!rows.length)return;
+    if(!getActiveKey()){$('cfg').open=true;toast('Enter a Gemini API key before retrying');return}
+    audioBusy=true;audioQueueBar.style.display='flex';$('retryFailedBtn').disabled=true;
+    try{
+      for(var i=0;i<rows.length;i++){
+        var r=rows[i];
+        audioQueueText.textContent='Retrying failed audio '+(i+1)+'/'+rows.length+' ('+r.label+')';
+        try{
+          var blob=r.blob,chunk={mimeType:r.mimeType,base64:await fileToBase64(blob),
+            label:r.label,chunkIndex:r.chunkIndex,totalChunks:r.totalChunks};
+          var transcript=await transcribeChunkWithGemini(chunk,getActiveKey(),getActiveModel());
+          if(!transcript)throw Error('Empty transcript');
+          insertTranscript(r.fileName,chunk,transcript,failMarker(r));
+          await faDel(r.id);
+        }catch(err){r.error=String(err.message||err);await faPut(r)}
+      }
+    }finally{
+      audioBusy=false;audioQueueBar.style.display='none';$('retryFailedBtn').disabled=false;
+      await renderFailedBar();updateUI();
+    }
+  });
+  $('discardFailedBtn').addEventListener('click',async function(){
+    if(audioBusy)return;
+    if(!confirm('Discard saved failed audio slices?'))return;
+    await faClear();await renderFailedBar();toast('Failed audio slices discarded');
+  });
+  $('recAudioChk').addEventListener('change',function(){
+    if(!this.checked&&recFromLive)stopRecorder();
+    if(this.checked&&wantListening&&!mediaRec)startRecorder('live');
+  });
+  updateRecOnlyBtn();
+  renderRecBar();renderFailedBar();
+
 
   $('copyBtn').addEventListener('click',function(){copy(page.value).then(function(){toast('Transcript copied')})});
   
@@ -2353,6 +2662,9 @@ var SITE_PATH = "/sites/Bible_App";
     var text = getInstr() + '\n\n';
     if(title) text += 'Title: ' + title + '\n';
     if(refs) text += 'Passage References: ' + refs + '\n';
+    if(/AI Transcript of Audio Recording/.test(page.value)&&/Live Recording/.test(page.value)){
+      text+='The source contains both rough live browser dictation and a separate AI transcript of recorded audio. Prefer the audio-based transcript; consult live dictation for ambiguous words. Do not duplicate content.\n';
+    }
     text += '\nSource Content:\n' + (page.value.trim() || '(No transcript entered yet)');
     return text;
   }
@@ -2369,7 +2681,7 @@ var SITE_PATH = "/sites/Bible_App";
   // A previously detected duration/resume minute must not accidentally
   // carry into a DIFFERENT video. Keep manually typed values on the first URL.
   function trackYouTubeInputUrl(url) {
-    var canonical = validatePublicYouTubeUrl(url);
+    var canonical = validatePublicMediaUrl(url);
     if (youtubeLastVideoUrl && canonical !== youtubeLastVideoUrl) {
       $('youtubeDurationInput').value = '';
       $('youtubeResumeMinute').value = '0';
@@ -2379,7 +2691,9 @@ var SITE_PATH = "/sites/Bible_App";
   }
   $('youtubeUrlInput').addEventListener('change', function() {
     try {trackYouTubeInputUrl(this.value);} catch(ignored) {}
+    updateYouTubeTranscriptSettings();
   });
+  $('youtubeUrlInput').addEventListener('input',updateYouTubeTranscriptSettings);
 
   /* Public caption and video-duration lookup through a documented service.
      This is a BYO API key, not an unauthenticated YouTube captions endpoint.
@@ -2405,6 +2719,7 @@ var SITE_PATH = "/sites/Bible_App";
     var result;
     try { result = await res.json(); }
     catch(error) { throw new Error('The caption service returned a non-JSON response.'); }
+    if (res.status===206 && !result.content) return {unavailable:true};
     if (!res.ok) {
       var code = String(result.error && (result.error.code || result.error) || '');
       if ((res.status === 404 || res.status === 206) &&
@@ -2443,20 +2758,19 @@ var SITE_PATH = "/sites/Bible_App";
     return metadata;
   }
 
-  async function fetchExistingYouTubeTranscript(canonicalUrl, apiKey, signal, onProgress) {
+  async function fetchExistingYouTubeTranscript(canonicalUrl, apiKey, signal, onProgress, transcriptMode) {
     var result = await youtubeProviderFetch('transcript',{
-      url:canonicalUrl, mode:'native', text:'true', lang:'en'
+      url:canonicalUrl, mode:transcriptMode||'native', text:'true', lang:'en'
     },apiKey,signal);
     if(result.unavailable) return null;
-    // Large transcripts may arrive as an async result. Poll only that job,
-    // never switch to the provider's paid AI-generation mode.
+    // Native or AI transcripts can return an asynchronous job.
     if (result.jobId) {
       if(!/^[a-zA-Z0-9_-]{5,128}$/.test(String(result.jobId))) {
         throw new Error('The transcript provider returned an invalid job identifier.');
       }
       var jobId=result.jobId;
-      for(var attempt=0;attempt<30;attempt++){
-        if(onProgress)onProgress('Loading existing captions ('+(attempt+1)+'/30)...');
+      for(var attempt=0;attempt<160;attempt++){
+        if(onProgress)onProgress('Processing Supadata transcript ('+(attempt+1)+'/160)...');
         await delayBetweenYouTubeSegments(1500,signal);
         result=await youtubeProviderFetch('transcript/'+encodeURIComponent(jobId),
           {},apiKey,signal);
@@ -2471,11 +2785,12 @@ var SITE_PATH = "/sites/Bible_App";
         }
       }
       if (result.status!=='completed')throw new Error(
-        'Caption retrieval did not finish. Retry later or use Gemini segmentation.');
+        'Supadata is taking longer than this browser session allows. Retry later.');
     }
-    var transcript=normalizeYoutubeCaptionText(result);
+    var payload=result.result||result;
+    var transcript=normalizeYoutubeCaptionText(payload);
     if (!transcript) return null;
-    return {text:transcript,lang:result.lang||'en'};
+    return {text:transcript,lang:payload.lang||'en'};
   }
 
   function rememberYouTubeCaptionKey() {
@@ -2491,7 +2806,7 @@ var SITE_PATH = "/sites/Bible_App";
       else youtubeDlg.setAttribute('open', '');
     }
     $('youtubeProgress').textContent = youtubeBusy ?
-      'Gemini is processing this video...' : '';
+      'Processing the public media link...' : '';
     $('youtubeUrlInput').focus();
   }
 
@@ -2512,11 +2827,15 @@ var SITE_PATH = "/sites/Bible_App";
     if (youtubeBusy && youtubeAbortController) youtubeAbortController.abort();
   });
 
-  // Only transcript mode needs a duration and sequential clip plan.
+  // Supadata applies to any supported URL, Gemini duration only to YouTube.
   function updateYouTubeTranscriptSettings() {
-    var selected = document.querySelector('input[name="youtubeMode"]:checked');
-    $('youtubeTranscriptSettings').style.display =
-      (!selected || selected.value === 'transcribe') ? 'grid' : 'none';
+    var selected=document.querySelector('input[name="youtubeMode"]:checked');
+    var yt=false;
+    try{yt=isYouTubeMediaUrl(validatePublicMediaUrl($('youtubeUrlInput').value));}
+    catch(ignored){}
+    $('youtubeTranscriptSettings').style.display='grid';
+    $('youtubeFallbackSettings').style.display=
+      (yt&&(!selected||selected.value==='transcribe'))?'grid':'none';
   }
   document.querySelectorAll('input[name="youtubeMode"]').forEach(function(radio){
     radio.addEventListener('change',updateYouTubeTranscriptSettings);
@@ -2532,6 +2851,8 @@ var SITE_PATH = "/sites/Bible_App";
       $('youtubeUrlInput').focus();
       return;
     }
+    var isYouTube=isYouTubeMediaUrl(canonicalUrl);
+    var allowGeneration=$('youtubeAllowGenerate').checked;
     var model=getActiveModel(), key=getActiveKey();
     var providerKey=rememberYouTubeCaptionKey();
     var selected=document.querySelector('input[name="youtubeMode"]:checked');
@@ -2546,19 +2867,19 @@ var SITE_PATH = "/sites/Bible_App";
     var oldTranscript=page.value, oldNotes=out.innerHTML;
     var slices=[],resumeMinute=0;
     if(isTranscript){
-      resumeMinute=Number($('youtubeResumeMinute').value);
+      resumeMinute=isYouTube?Number($('youtubeResumeMinute').value):0;
       if(!Number.isFinite(resumeMinute)||resumeMinute<0){
         $('youtubeProgress').textContent='Start minute must be zero or greater.';
         return;
       }
       if(resumeMinute===0 && oldTranscript.trim() &&
-          !confirm('Replace the existing transcript with segmented YouTube transcription?'))return;
-      if(resumeMinute>0 && oldTranscript.trim() &&
+          !confirm('Replace the existing transcript with public media transcription?'))return;
+      if(isYouTube&&resumeMinute>0 && oldTranscript.trim() &&
           !confirm('Append from '+resumeMinute+':00 to the existing transcript? Verify no time ranges overlap.'))return;
-      if(resumeMinute>0 && !oldTranscript.trim() &&
+      if(isYouTube&&resumeMinute>0 && !oldTranscript.trim() &&
           !confirm('Start at '+resumeMinute+':00 without transcribing the beginning?'))return;
     }else if(out.innerText.trim() &&
-      !confirm('Replace current study notes with notes generated from this YouTube sermon?'))return;
+      !confirm('Replace current study notes with notes generated from this public sermon?'))return;
 
     var button=this;
     youtubeBusy=true;button.disabled=true;$('attachYoutubeBtn').disabled=true;
@@ -2567,20 +2888,58 @@ var SITE_PATH = "/sites/Bible_App";
     var progress=$('youtubeProgress');
     var lastRendered=0, completedSegments=0;
     var committedTranscript=resumeMinute>0?oldTranscript.trimEnd():'';
-    progress.textContent='Connecting to Gemini to process the public YouTube video...';
+    progress.textContent='Preparing to process the public sermon media...';
 
     try {
+      // Supadata processes other supported platform posts and direct media files.
+      // Only YouTube uses Gemini's direct video URI fallback.
+      if(!isYouTube){
+        if(!providerKey)throw new Error('Enter a Supadata API key to transcribe this public media link.');
+        if(!isTranscript&&!key){$('cfg').open=true;throw new Error('A Gemini key is required to generate sermon notes.');}
+        progress.textContent=allowGeneration?'Retrieving or generating a Supadata transcript...':'Checking native captions through Supadata...';
+        var imported=await fetchExistingYouTubeTranscript(
+          canonicalUrl,providerKey,signal,function(message){progress.textContent=message;},
+          allowGeneration?'auto':'native');
+        if(signal&&signal.aborted)throw new Error('Canceled');
+        if(!imported||!imported.text)throw new Error('No existing transcript found. Enable Supadata AI transcription (uses credits) to generate one.');
+        if(isTranscript){
+          page.value='--- [Public Media Transcript · '+canonicalUrl+'] ---\n'+imported.text+'\n';
+          page.scrollTop=0;updateUI();scheduleSave();
+          logSync('✓ Imported Supadata public media transcript from '+canonicalUrl+'. SharePoint save remains manual.');
+          toast('Public media transcript imported successfully.');
+        }else{
+          var notesPrompt=getInstr()+'\n\nPublic sermon media: '+canonicalUrl+
+            '\n\nUse the following transcript as the source. Produce Scripture-first expository study notes, with careful cross-references, theological observations and pastoral applications. Do not invent sermon quotations.\n\n'+imported.text;
+          var generatedNotes=await executeGeminiStreamRequest(model,key,notesPrompt,[],function(accumulated){
+            if(signal&&signal.aborted)return;
+            if(Date.now()-lastRendered>=120){
+              out.innerHTML=mdToHtml(accumulated);
+              progress.textContent='Generating sermon study notes with '+model+'...';
+              lastRendered=Date.now();
+            }
+          },undefined,signal);
+          if(signal&&signal.aborted)throw new Error('Canceled');
+          if(!generatedNotes.trim())throw new Error('Gemini returned empty study notes.');
+          out.innerHTML=mdToHtml(generatedNotes);
+          decorateScriptureReferences(out);checkNotesState();
+          logSync('✓ Generated study notes from Supadata transcript: '+canonicalUrl);
+          toast('Public sermon study notes are ready for review.');
+        }
+        progress.textContent='✓ Public media processed. Save to SharePoint remains manual.';
+        if(youtubeDlg.open){if(youtubeDlg.close)youtubeDlg.close();else youtubeDlg.removeAttribute('open');}
+        return;
+      }
       if(isTranscript){
         // Step 1: Prefer the existing YouTube captions, even if imperfect.
         // This requires no Gemini request or hand-entered video duration.
         var captionWarning='';
         if(providerKey && resumeMinute===0){
-          progress.textContent='Checking whether this YouTube sermon already has captions...';
+          progress.textContent=allowGeneration?'Retrieving or generating a Supadata transcript...':'Checking whether this YouTube sermon already has captions...';
           try {
             var existingCaptions=await fetchExistingYouTubeTranscript(
               canonicalUrl,providerKey,signal,function(status){
                 progress.textContent=status;
-              });
+              },allowGeneration?'auto':'native');
             if(signal&&signal.aborted)throw new Error('Canceled');
             if(existingCaptions && existingCaptions.text){
               page.value=existingCaptions.text;
@@ -2588,11 +2947,11 @@ var SITE_PATH = "/sites/Bible_App";
               updateUI();
               scheduleSave(); // local only; SharePoint Save remains manual.
               $('youtubeResumeMinute').value='0';
-              logSync('✓ Imported existing YouTube captions ('+
+              logSync('✓ Imported Supadata YouTube transcript ('+
                 existingCaptions.lang+') from '+canonicalUrl+
                 '; Gemini transcription not needed.');
-              progress.textContent='✓ Existing YouTube captions imported. Ready for AI study notes.';
-              toast('Existing YouTube transcript imported — ready for follow-up study!');
+              progress.textContent='✓ Supadata YouTube transcript imported. Ready for AI study notes.';
+              toast('Supadata YouTube transcript imported — ready for study!');
               if(youtubeDlg.open){
                 if(youtubeDlg.close)youtubeDlg.close();
                 else youtubeDlg.removeAttribute('open');
@@ -2758,8 +3117,8 @@ var SITE_PATH = "/sites/Bible_App";
       }else{
         out.innerHTML=oldNotes;checkNotesState();
       }
-      var detail=canceled?'YouTube processing canceled.':
-        'YouTube processing interrupted: '+error.message;
+      var detail=canceled?'Public media processing canceled.':
+        'Public media processing interrupted: '+error.message;
       if(completedSegments){
         var resumeAt=slices[completedSegments]&&slices[completedSegments].start/60;
         detail+=' '+completedSegments+' completed segment(s) remain in the editor.'+
@@ -2768,7 +3127,7 @@ var SITE_PATH = "/sites/Bible_App";
       }else detail+=' Previous editor content restored.';
       progress.textContent=detail;
       logSync((canceled?'ℹ️ ':'❌ ')+detail);
-      if(!canceled)alert(detail+'\nNote: Gemini YouTube audio offsets can be unreliable; compare segments with the original video.');
+      if(!canceled)alert(detail+(isYouTube?'\nNote: Gemini YouTube audio offsets can be unreliable; compare segments with the original video.':''));
     }finally{
       youtubeBusy=false;youtubeAbortController=null;
       button.disabled=false;$('attachYoutubeBtn').disabled=false;
@@ -2784,7 +3143,7 @@ var SITE_PATH = "/sites/Bible_App";
         setTimeout(openYouTubeDialog, 350);
       }
     } catch (error) {
-      logSync('⚠️ Ignored invalid YouTube URL parameter: ' + error.message);
+      logSync('⚠️ Ignored invalid public media URL parameter: ' + error.message);
     }
   }
 
