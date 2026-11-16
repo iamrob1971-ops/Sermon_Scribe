@@ -2751,7 +2751,7 @@ var SITE_PATH = "/sites/Bible_App";
   }
 
   /* Multimodal Request Executor (Supports Text + Attached Images) */
-  async function executeGeminiRequest(model, key, promptText, attachedImages, youtubeUrl, signal) {
+  async function executeGeminiRequest(model, key, promptText, attachedImages, youtubeUrl, signal, clip) {
     var parts = [];
     if (attachedImages && attachedImages.length) {
       attachedImages.forEach(function(imgItem){
@@ -2764,7 +2764,7 @@ var SITE_PATH = "/sites/Bible_App";
       });
     }
     if (youtubeUrl) {
-      parts.unshift({fileData: {fileUri: validatePublicYouTubeUrl(youtubeUrl), mimeType: 'video/*'}});
+      parts.unshift(makeYouTubeVideoPart(youtubeUrl, clip));
     }
     parts.push({ text: promptText });
 
@@ -2785,14 +2785,18 @@ var SITE_PATH = "/sites/Bible_App";
       err.isHighDemand = isHighDemand;
       throw err;
     }
-    return d.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('');
+    var candidate = (d.candidates || [])[0];
+    var text = candidate && candidate.content && candidate.content.parts ?
+      candidate.content.parts.map(function(p){return p.text || '';}).join('') : '';
+    if(youtubeUrl) checkYouTubeTokenFinish(candidate && candidate.finishReason, text);
+    return text;
   }
 
   /* Real-time Gemini SSE executor for both devotional notes and multi-turn chat.
      promptText is a string for summarization or Gemini contents[] for chat.
      attachedImages use the existing {mimeType,base64} format.
      Returns the COMPLETE text; partial chunks are never persisted as answers. */
-  async function executeGeminiStreamRequest(model, key, promptText, attachedImages, onChunk, youtubeUrl, signal) {
+  async function executeGeminiStreamRequest(model, key, promptText, attachedImages, onChunk, youtubeUrl, signal, clip) {
     var contents;
     if (Array.isArray(promptText)) {
       contents = promptText;
@@ -2802,7 +2806,7 @@ var SITE_PATH = "/sites/Bible_App";
         parts.push({inlineData: {mimeType: image.mimeType, data: image.base64}});
       });
       if (youtubeUrl) {
-        parts.unshift({fileData: {fileUri: validatePublicYouTubeUrl(youtubeUrl), mimeType: 'video/*'}});
+        parts.unshift(makeYouTubeVideoPart(youtubeUrl, clip));
       }
       parts.push({text: String(promptText || '')});
       contents = [{role: 'user', parts: parts}];
@@ -2812,7 +2816,7 @@ var SITE_PATH = "/sites/Bible_App";
     if (typeof ReadableStream === 'undefined' || typeof TextDecoder === 'undefined') {
       var oldAnswer = Array.isArray(promptText) ?
         await executeGeminiChat(contents, model, key) :
-        await executeGeminiRequest(model, key, promptText, attachedImages, youtubeUrl, signal);
+        await executeGeminiRequest(model, key, promptText, attachedImages, youtubeUrl, signal, clip);
       if (onChunk) onChunk(oldAnswer, oldAnswer);
       return oldAnswer;
     }
@@ -2844,6 +2848,7 @@ var SITE_PATH = "/sites/Bible_App";
     var decoder = new TextDecoder('utf-8');
     var buffer = '';
     var accumulatedText = '';
+    var finishReason = '';
     function consumeEvent(eventText) {
       var data = eventText.split(/\r?\n/).filter(function(line) {
         return /^data:/i.test(line);
@@ -2862,6 +2867,7 @@ var SITE_PATH = "/sites/Bible_App";
         throw apiError;
       }
       var candidate = (packet.candidates || [])[0];
+      if(candidate && candidate.finishReason) finishReason = candidate.finishReason;
       var chunkText = ((candidate && candidate.content && candidate.content.parts) || [])
         .filter(function(part) { return !part.thought; })
         .map(function(part) { return part.text || ''; }).join('');
@@ -2875,6 +2881,7 @@ var SITE_PATH = "/sites/Bible_App";
     if (!response.body || typeof response.body.getReader !== 'function') {
       var allFrames = (await response.text()).split(/\r?\n\r?\n/);
       allFrames.forEach(consumeEvent);
+      if(youtubeUrl) checkYouTubeTokenFinish(finishReason, accumulatedText);
       if (!accumulatedText.trim()) throw new Error('Gemini returned no answer text.');
       return accumulatedText;
     }
@@ -2893,6 +2900,7 @@ var SITE_PATH = "/sites/Bible_App";
       }
       buffer += decoder.decode();
       if (buffer.trim()) consumeEvent(buffer);
+      if(youtubeUrl) checkYouTubeTokenFinish(finishReason, accumulatedText);
       if (!accumulatedText.trim()) throw new Error('Gemini streamed no answer text.');
       return accumulatedText;
     } finally {
