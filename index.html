@@ -593,8 +593,11 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="radio" name="youtubeMode" value="notes"> Generate Expository Study Notes</label>
     </fieldset>
     <div id="youtubeTranscriptSettings" style="display:grid;gap:10px;padding:11px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.55)">
-      <label for="youtubeDurationInput" style="font-size:13px;font-weight:600;">Video length (required for segmented transcript)</label>
-      <input id="youtubeDurationInput" type="text" inputmode="text" autocomplete="off" placeholder="23:00 or 23 (minutes)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
+      <label for="youtubeCaptionApiKey" style="font-size:13px;font-weight:600;">Existing captions first · one-time provider setup</label>
+      <input id="youtubeCaptionApiKey" type="password" autocomplete="off" placeholder="Supadata API key (stored in this browser)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
+      <small style="font-size:11px;color:var(--muted);">With a <a href="https://supadata.ai/" target="_blank" rel="noopener noreferrer">Supadata</a> key, Scribe first imports existing YouTube captions and automatically retrieves the video's duration. Without captions, it uses your existing Gemini segment transcription. This external provider may have usage limits. A private Azure proxy is preferable for centrally managed credentials.</small>
+      <label for="youtubeDurationInput" style="font-size:13px;font-weight:600;">Video length · automatically detected when available</label>
+      <input id="youtubeDurationInput" type="text" inputmode="text" autocomplete="off" placeholder="Automatic · or enter 23:08 if needed" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
         <label for="youtubeChunkMinutes" style="font-size:12px">Segment size
           <select id="youtubeChunkMinutes" style="padding:5px;border:1px solid var(--line);border-radius:6px;">
@@ -606,7 +609,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           <input id="youtubeResumeMinute" type="number" min="0" step="5" value="0" style="width:64px;padding:5px;border:1px solid var(--line);border-radius:6px;">
         </label>
       </div>
-      <small style="font-size:11px;color:var(--muted);">Enter the video duration shown by YouTube (MM:SS, HH:MM:SS, or total minutes). From 0 replaces the current transcript; resume at 10, 20, etc. appends to the existing transcript. Gemini's YouTube audio clipping may not always respect offsets; check each segment for accuracy.</small>
+      <small style="font-size:11px;color:var(--muted);">Usually just paste the YouTube link and click Start. Captions import directly if available; otherwise Scribe detects duration and plans 10-minute Gemini segments. If metadata cannot be retrieved, video length is the manual fallback. From 0 replaces the transcript; nonzero start appends remaining slices. Gemini clipping may be imperfect.</small>
     </div>
     <p style="font-size:12px;color:var(--muted);margin:0;">Requires a public YouTube video supported by your Gemini model. Repeated requests can use more quota or trigger 429 limits. Transcripts require review; only process content you may use. Nothing saves to SharePoint automatically.</p>
     <div id="youtubeProgress" role="status" aria-live="polite" style="font-size:13px;color:var(--violet);min-height:18px;"></div>
