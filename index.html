@@ -2518,24 +2518,15 @@ var SITE_PATH = "/sites/Bible_App";
       return;
     }
     var model=getActiveModel(), key=getActiveKey();
-    if(!key){
-      $('cfg').open=true;
-      $('youtubeProgress').textContent='Add a Gemini API key under AI Settings first.';
-      return;
-    }
+    var providerKey=rememberYouTubeCaptionKey();
     var selected=document.querySelector('input[name="youtubeMode"]:checked');
     var isTranscript=!selected || selected.value==='transcribe';
     var oldTranscript=page.value, oldNotes=out.innerHTML;
     var slices=[],resumeMinute=0;
     if(isTranscript){
-      try{
-        var duration=parseYouTubeDurationSeconds($('youtubeDurationInput').value);
-        var chunkMinutes=Number($('youtubeChunkMinutes').value);
-        resumeMinute=Number($('youtubeResumeMinute').value);
-        slices=planYouTubeTranscriptSlices(duration,chunkMinutes,resumeMinute);
-      }catch(error){
-        $('youtubeProgress').textContent=error.message;
-        $('youtubeDurationInput').focus();
+      resumeMinute=Number($('youtubeResumeMinute').value);
+      if(!Number.isFinite(resumeMinute)||resumeMinute<0){
+        $('youtubeProgress').textContent='Start minute must be zero or greater.';
         return;
       }
       if(resumeMinute===0 && oldTranscript.trim() &&
@@ -2558,6 +2549,83 @@ var SITE_PATH = "/sites/Bible_App";
 
     try {
       if(isTranscript){
+        // Step 1: Prefer the existing YouTube captions, even if imperfect.
+        // This requires no Gemini request or hand-entered video duration.
+        var captionWarning='';
+        if(providerKey && resumeMinute===0){
+          progress.textContent='Checking whether this YouTube sermon already has captions...';
+          try {
+            var existingCaptions=await fetchExistingYouTubeTranscript(
+              canonicalUrl,providerKey,signal,function(status){
+                progress.textContent=status;
+              });
+            if(signal&&signal.aborted)throw new Error('Canceled');
+            if(existingCaptions && existingCaptions.text){
+              page.value=existingCaptions.text;
+              page.scrollTop=0;
+              updateUI();
+              scheduleSave(); // local only; SharePoint Save remains manual.
+              logSync('✓ Imported existing YouTube captions ('+
+                existingCaptions.lang+') from '+canonicalUrl+
+                '; Gemini transcription not needed.');
+              progress.textContent='✓ Existing YouTube captions imported. Ready for AI study notes.';
+              toast('Existing YouTube transcript imported — ready for follow-up study!');
+              if(youtubeDlg.open){
+                if(youtubeDlg.close)youtubeDlg.close();
+                else youtubeDlg.removeAttribute('open');
+              }
+              return;
+            }
+            logSync('ℹ️ No native captions available; using segmented Gemini transcription.');
+          }catch(captionError){
+            if(signal&&signal.aborted)throw captionError;
+            captionWarning=captionError.message;
+            logSync('⚠️ Caption import unavailable: '+captionWarning);
+          }
+        }
+
+        // Step 2: Detect the video duration automatically for Gemini fallback.
+        // Manual duration is retained only when the metadata service cannot
+        // be reached or the user has not configured a caption-service key.
+        if(providerKey){
+          progress.textContent='Detecting YouTube video duration...';
+          try {
+            var videoInfo=await fetchYouTubeMetadata(canonicalUrl,providerKey,signal);
+            $('youtubeDurationInput').value=formatYouTubeClock(videoInfo.durationSeconds);
+            if(!$('title').value.trim() && videoInfo.title){
+              $('title').value=videoInfo.title;
+              scheduleSave();
+            }
+            logSync('✓ Detected YouTube duration: '+
+              formatYouTubeClock(videoInfo.durationSeconds));
+          }catch(metadataError){
+            if(signal&&signal.aborted)throw metadataError;
+            logSync('⚠️ Automatic YouTube duration unavailable: '+metadataError.message);
+            if(!captionWarning)captionWarning=metadataError.message;
+          }
+        }
+        var duration;
+        try {
+          duration=parseYouTubeDurationSeconds($('youtubeDurationInput').value);
+          slices=planYouTubeTranscriptSlices(duration,
+            Number($('youtubeChunkMinutes').value),resumeMinute);
+        }catch(durationError){
+          throw new Error('Automatic duration lookup was unavailable'+
+            (captionWarning?' ('+captionWarning+')':'')+
+            '. Enter the YouTube video length in the fallback field. '+
+            durationError.message);
+        }
+        if(!key){
+          $('cfg').open=true;
+          throw new Error('No existing captions were imported. A Gemini API key '+
+            'is required to transcribe the video audio.');
+        }
+        if(!providerKey){
+          logSync('ℹ️ Caption provider not configured; Gemini transcription used with manually entered duration.');
+        }
+        progress.textContent='Captions unavailable. Using Gemini for '+
+          slices.length+' transcript segment(s).';
+
         var previousRaw='';
         for(var i=0;i<slices.length;i++){
           if(signal&&signal.aborted)throw new Error('Canceled');
