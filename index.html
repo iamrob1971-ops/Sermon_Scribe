@@ -2365,6 +2365,21 @@ var SITE_PATH = "/sites/Bible_App";
   var youtubeTranscriptKeyStorage = 'ss_youtube_captions_api_key';
   var youtubeMetadataCache = Object.create(null);
   $('youtubeCaptionApiKey').value = load(youtubeTranscriptKeyStorage) || '';
+  var youtubeLastVideoUrl = '';
+  // A previously detected duration/resume minute must not accidentally
+  // carry into a DIFFERENT video. Keep manually typed values on the first URL.
+  function trackYouTubeInputUrl(url) {
+    var canonical = validatePublicYouTubeUrl(url);
+    if (youtubeLastVideoUrl && canonical !== youtubeLastVideoUrl) {
+      $('youtubeDurationInput').value = '';
+      $('youtubeResumeMinute').value = '0';
+    }
+    youtubeLastVideoUrl = canonical;
+    return canonical;
+  }
+  $('youtubeUrlInput').addEventListener('change', function() {
+    try {trackYouTubeInputUrl(this.value);} catch(ignored) {}
+  });
 
   /* Public caption and video-duration lookup through a documented service.
      This is a BYO API key, not an unauthenticated YouTube captions endpoint.
@@ -2511,7 +2526,7 @@ var SITE_PATH = "/sites/Bible_App";
   $('youtubeStartBtn').addEventListener('click', async function() {
     if (youtubeBusy) return;
     var canonicalUrl;
-    try { canonicalUrl=validatePublicYouTubeUrl($('youtubeUrlInput').value); }
+    try { canonicalUrl=trackYouTubeInputUrl($('youtubeUrlInput').value); }
     catch(error){
       $('youtubeProgress').textContent=error.message;
       $('youtubeUrlInput').focus();
@@ -2565,6 +2580,7 @@ var SITE_PATH = "/sites/Bible_App";
               page.scrollTop=0;
               updateUI();
               scheduleSave(); // local only; SharePoint Save remains manual.
+              $('youtubeResumeMinute').value='0';
               logSync('✓ Imported existing YouTube captions ('+
                 existingCaptions.lang+') from '+canonicalUrl+
                 '; Gemini transcription not needed.');
@@ -2695,6 +2711,7 @@ var SITE_PATH = "/sites/Bible_App";
         }
         logSync('✓ YouTube segmented transcription: '+completedSegments+
           ' intervals from '+canonicalUrl+'. Save to SharePoint remains manual.');
+        $('youtubeResumeMinute').value='0';
         toast('YouTube transcript completed: '+completedSegments+' segments.');
       }else{
         var notesPrompt=getFullPromptText().replace('(No transcript entered yet)',
@@ -2753,7 +2770,7 @@ var SITE_PATH = "/sites/Bible_App";
 
   if (incomingYoutubeUrl) {
     try {
-      $('youtubeUrlInput').value = validatePublicYouTubeUrl(incomingYoutubeUrl);
+      $('youtubeUrlInput').value = trackYouTubeInputUrl(incomingYoutubeUrl);
       // Prepopulate and show the choice dialog; never run paid/API work
       // just because someone opened a link containing a youtubeUrl.
       if (!openChatRequested && !autoRunRequested) {
