@@ -2536,6 +2536,13 @@ var SITE_PATH = "/sites/Bible_App";
     var providerKey=rememberYouTubeCaptionKey();
     var selected=document.querySelector('input[name="youtubeMode"]:checked');
     var isTranscript=!selected || selected.value==='transcribe';
+    // Existing captions may be imported without Gemini; study notes still
+    // require the user's configured Gemini key.
+    if(!isTranscript && !key){
+      $('cfg').open=true;
+      $('youtubeProgress').textContent='Add a Gemini API key under AI Settings first.';
+      return;
+    }
     var oldTranscript=page.value, oldNotes=out.innerHTML;
     var slices=[],resumeMinute=0;
     if(isTranscript){
