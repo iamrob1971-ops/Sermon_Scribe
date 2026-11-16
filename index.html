@@ -593,8 +593,11 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
       <label style="font-size:13px;display:flex;gap:8px;align-items:center"><input type="radio" name="youtubeMode" value="notes"> Generate Expository Study Notes</label>
     </fieldset>
     <div id="youtubeTranscriptSettings" style="display:grid;gap:10px;padding:11px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.55)">
-      <label for="youtubeDurationInput" style="font-size:13px;font-weight:600;">Video length (required for segmented transcript)</label>
-      <input id="youtubeDurationInput" type="text" inputmode="text" autocomplete="off" placeholder="23:00 or 23 (minutes)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
+      <label for="youtubeCaptionApiKey" style="font-size:13px;font-weight:600;">Existing captions first · one-time provider setup</label>
+      <input id="youtubeCaptionApiKey" type="password" autocomplete="off" placeholder="Supadata API key (stored in this browser)" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
+      <small style="font-size:11px;color:var(--muted);">With a <a href="https://supadata.ai/" target="_blank" rel="noopener noreferrer">Supadata</a> key, Scribe first imports existing YouTube captions and automatically retrieves the video's duration. Without captions, it uses your existing Gemini segment transcription. This external provider may have usage limits. A private Azure proxy is preferable for centrally managed credentials.</small>
+      <label for="youtubeDurationInput" style="font-size:13px;font-weight:600;">Video length · automatically detected when available</label>
+      <input id="youtubeDurationInput" type="text" inputmode="text" autocomplete="off" placeholder="Automatic · or enter 23:08 if needed" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--line);border-radius:6px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
         <label for="youtubeChunkMinutes" style="font-size:12px">Segment size
           <select id="youtubeChunkMinutes" style="padding:5px;border:1px solid var(--line);border-radius:6px;">
@@ -606,7 +609,7 @@ dialog.help::backdrop{background:rgba(29,25,48,.48)}
           <input id="youtubeResumeMinute" type="number" min="0" step="5" value="0" style="width:64px;padding:5px;border:1px solid var(--line);border-radius:6px;">
         </label>
       </div>
-      <small style="font-size:11px;color:var(--muted);">Enter the video duration shown by YouTube (MM:SS, HH:MM:SS, or total minutes). From 0 replaces the current transcript; resume at 10, 20, etc. appends to the existing transcript. Gemini's YouTube audio clipping may not always respect offsets; check each segment for accuracy.</small>
+      <small style="font-size:11px;color:var(--muted);">Usually just paste the YouTube link and click Start. Captions import directly if available; otherwise Scribe detects duration and plans 10-minute Gemini segments. If metadata cannot be retrieved, video length is the manual fallback. From 0 replaces the transcript; nonzero start appends remaining slices. Gemini clipping may be imperfect.</small>
     </div>
     <p style="font-size:12px;color:var(--muted);margin:0;">Requires a public YouTube video supported by your Gemini model. Repeated requests can use more quota or trigger 429 limits. Transcripts require review; only process content you may use. Nothing saves to SharePoint automatically.</p>
     <div id="youtubeProgress" role="status" aria-live="polite" style="font-size:13px;color:var(--violet);min-height:18px;"></div>
@@ -2359,6 +2362,128 @@ var SITE_PATH = "/sites/Bible_App";
   var youtubeBusy = false;
   var youtubeAbortController = null;
   var youtubeDlg = $('youtubeDlg');
+  var youtubeTranscriptKeyStorage = 'ss_youtube_captions_api_key';
+  var youtubeMetadataCache = Object.create(null);
+  $('youtubeCaptionApiKey').value = load(youtubeTranscriptKeyStorage) || '';
+  var youtubeLastVideoUrl = '';
+  // A previously detected duration/resume minute must not accidentally
+  // carry into a DIFFERENT video. Keep manually typed values on the first URL.
+  function trackYouTubeInputUrl(url) {
+    var canonical = validatePublicYouTubeUrl(url);
+    if (youtubeLastVideoUrl && canonical !== youtubeLastVideoUrl) {
+      $('youtubeDurationInput').value = '';
+      $('youtubeResumeMinute').value = '0';
+    }
+    youtubeLastVideoUrl = canonical;
+    return canonical;
+  }
+  $('youtubeUrlInput').addEventListener('change', function() {
+    try {trackYouTubeInputUrl(this.value);} catch(ignored) {}
+  });
+
+  /* Public caption and video-duration lookup through a documented service.
+     This is a BYO API key, not an unauthenticated YouTube captions endpoint.
+     Request mode=native: never purchase/trigger the provider's AI generation.
+     Gemini remains the fallback for videos without existing caption tracks. */
+  async function youtubeProviderFetch(path, params, apiKey, signal) {
+    var endpoint = new URL('https://api.supadata.ai/v1/' + path);
+    Object.keys(params || {}).forEach(function(key){
+      endpoint.searchParams.set(key, params[key]);
+    });
+    var res;
+    try {
+      res = await fetch(endpoint.href, {
+        method:'GET',
+        headers:{'x-api-key':apiKey},
+        signal:signal
+      });
+    } catch(error) {
+      if(signal && signal.aborted) throw error;
+      throw new Error('The caption service could not be reached from this browser. ' +
+        'Check connectivity or configure an Azure proxy: ' + error.message);
+    }
+    var result;
+    try { result = await res.json(); }
+    catch(error) { throw new Error('The caption service returned a non-JSON response.'); }
+    if (!res.ok) {
+      var code = String(result.error && (result.error.code || result.error) || '');
+      if ((res.status === 404 || res.status === 206) &&
+          (/transcript.unavailable/i.test(code) ||
+            /transcript.+unavailable|no transcript|captions.+unavailable/i.test(
+              String(result.message || '')+' '+String(result.details || '')))) {
+        return {unavailable:true};
+      }
+      var err = new Error('Caption service ('+res.status+'): '+
+        (result.message || result.details || code || 'Request failed'));
+      err.status = res.status;
+      throw err;
+    }
+    return result;
+  }
+
+  function normalizeYoutubeCaptionText(result) {
+    if (!result || result.unavailable) return '';
+    var content = result.content;
+    if (typeof content === 'string') return content.trim();
+    if (!Array.isArray(content)) return '';
+    return content.map(function(chunk) {
+      return chunk && typeof chunk.text === 'string' ? chunk.text.trim() : '';
+    }).filter(Boolean).join('\n').trim();
+  }
+
+  async function fetchYouTubeMetadata(canonicalUrl, apiKey, signal) {
+    if (youtubeMetadataCache[canonicalUrl]) return youtubeMetadataCache[canonicalUrl];
+    var data = await youtubeProviderFetch('metadata',{url:canonicalUrl},apiKey,signal);
+    var duration = Number(data.duration);
+    if (!Number.isFinite(duration) || duration < 30 || duration > 10800) {
+      throw new Error('The caption provider did not return a usable video length.');
+    }
+    var metadata = {durationSeconds:Math.ceil(duration), title:String(data.title||'').trim()};
+    youtubeMetadataCache[canonicalUrl]=metadata;
+    return metadata;
+  }
+
+  async function fetchExistingYouTubeTranscript(canonicalUrl, apiKey, signal, onProgress) {
+    var result = await youtubeProviderFetch('transcript',{
+      url:canonicalUrl, mode:'native', text:'true', lang:'en'
+    },apiKey,signal);
+    if(result.unavailable) return null;
+    // Large transcripts may arrive as an async result. Poll only that job,
+    // never switch to the provider's paid AI-generation mode.
+    if (result.jobId) {
+      if(!/^[a-zA-Z0-9_-]{5,128}$/.test(String(result.jobId))) {
+        throw new Error('The transcript provider returned an invalid job identifier.');
+      }
+      var jobId=result.jobId;
+      for(var attempt=0;attempt<30;attempt++){
+        if(onProgress)onProgress('Loading existing captions ('+(attempt+1)+'/30)...');
+        await delayBetweenYouTubeSegments(1500,signal);
+        result=await youtubeProviderFetch('transcript/'+encodeURIComponent(jobId),
+          {},apiKey,signal);
+        if(result.unavailable)return null;
+        if(result.status==='completed')break;
+        if(result.status==='failed') {
+          var issue=result.error;
+          if(issue && /transcript.unavailable/i.test(
+            String(issue.code||issue.error||issue.message||''))) return null;
+          throw new Error('Caption retrieval failed: '+
+            (typeof issue==='string'?issue:(issue&&issue.message)||'Unknown failure'));
+        }
+      }
+      if (result.status!=='completed')throw new Error(
+        'Caption retrieval did not finish. Retry later or use Gemini segmentation.');
+    }
+    var transcript=normalizeYoutubeCaptionText(result);
+    if (!transcript) return null;
+    return {text:transcript,lang:result.lang||'en'};
+  }
+
+  function rememberYouTubeCaptionKey() {
+    var apiKey=$('youtubeCaptionApiKey').value.trim();
+    if(apiKey)store(youtubeTranscriptKeyStorage,apiKey);
+    else store(youtubeTranscriptKeyStorage,'');
+    return apiKey;
+  }
 
   function openYouTubeDialog() {
     if (!youtubeDlg.open) {
@@ -2401,31 +2526,29 @@ var SITE_PATH = "/sites/Bible_App";
   $('youtubeStartBtn').addEventListener('click', async function() {
     if (youtubeBusy) return;
     var canonicalUrl;
-    try { canonicalUrl=validatePublicYouTubeUrl($('youtubeUrlInput').value); }
+    try { canonicalUrl=trackYouTubeInputUrl($('youtubeUrlInput').value); }
     catch(error){
       $('youtubeProgress').textContent=error.message;
       $('youtubeUrlInput').focus();
       return;
     }
     var model=getActiveModel(), key=getActiveKey();
-    if(!key){
+    var providerKey=rememberYouTubeCaptionKey();
+    var selected=document.querySelector('input[name="youtubeMode"]:checked');
+    var isTranscript=!selected || selected.value==='transcribe';
+    // Existing captions may be imported without Gemini; study notes still
+    // require the user's configured Gemini key.
+    if(!isTranscript && !key){
       $('cfg').open=true;
       $('youtubeProgress').textContent='Add a Gemini API key under AI Settings first.';
       return;
     }
-    var selected=document.querySelector('input[name="youtubeMode"]:checked');
-    var isTranscript=!selected || selected.value==='transcribe';
     var oldTranscript=page.value, oldNotes=out.innerHTML;
     var slices=[],resumeMinute=0;
     if(isTranscript){
-      try{
-        var duration=parseYouTubeDurationSeconds($('youtubeDurationInput').value);
-        var chunkMinutes=Number($('youtubeChunkMinutes').value);
-        resumeMinute=Number($('youtubeResumeMinute').value);
-        slices=planYouTubeTranscriptSlices(duration,chunkMinutes,resumeMinute);
-      }catch(error){
-        $('youtubeProgress').textContent=error.message;
-        $('youtubeDurationInput').focus();
+      resumeMinute=Number($('youtubeResumeMinute').value);
+      if(!Number.isFinite(resumeMinute)||resumeMinute<0){
+        $('youtubeProgress').textContent='Start minute must be zero or greater.';
         return;
       }
       if(resumeMinute===0 && oldTranscript.trim() &&
@@ -2448,6 +2571,84 @@ var SITE_PATH = "/sites/Bible_App";
 
     try {
       if(isTranscript){
+        // Step 1: Prefer the existing YouTube captions, even if imperfect.
+        // This requires no Gemini request or hand-entered video duration.
+        var captionWarning='';
+        if(providerKey && resumeMinute===0){
+          progress.textContent='Checking whether this YouTube sermon already has captions...';
+          try {
+            var existingCaptions=await fetchExistingYouTubeTranscript(
+              canonicalUrl,providerKey,signal,function(status){
+                progress.textContent=status;
+              });
+            if(signal&&signal.aborted)throw new Error('Canceled');
+            if(existingCaptions && existingCaptions.text){
+              page.value=existingCaptions.text;
+              page.scrollTop=0;
+              updateUI();
+              scheduleSave(); // local only; SharePoint Save remains manual.
+              $('youtubeResumeMinute').value='0';
+              logSync('✓ Imported existing YouTube captions ('+
+                existingCaptions.lang+') from '+canonicalUrl+
+                '; Gemini transcription not needed.');
+              progress.textContent='✓ Existing YouTube captions imported. Ready for AI study notes.';
+              toast('Existing YouTube transcript imported — ready for follow-up study!');
+              if(youtubeDlg.open){
+                if(youtubeDlg.close)youtubeDlg.close();
+                else youtubeDlg.removeAttribute('open');
+              }
+              return;
+            }
+            logSync('ℹ️ No native captions available; using segmented Gemini transcription.');
+          }catch(captionError){
+            if(signal&&signal.aborted)throw captionError;
+            captionWarning=captionError.message;
+            logSync('⚠️ Caption import unavailable: '+captionWarning);
+          }
+        }
+
+        // Step 2: Detect the video duration automatically for Gemini fallback.
+        // Manual duration is retained only when the metadata service cannot
+        // be reached or the user has not configured a caption-service key.
+        if(providerKey){
+          progress.textContent='Detecting YouTube video duration...';
+          try {
+            var videoInfo=await fetchYouTubeMetadata(canonicalUrl,providerKey,signal);
+            $('youtubeDurationInput').value=formatYouTubeClock(videoInfo.durationSeconds);
+            if(!$('title').value.trim() && videoInfo.title){
+              $('title').value=videoInfo.title;
+              scheduleSave();
+            }
+            logSync('✓ Detected YouTube duration: '+
+              formatYouTubeClock(videoInfo.durationSeconds));
+          }catch(metadataError){
+            if(signal&&signal.aborted)throw metadataError;
+            logSync('⚠️ Automatic YouTube duration unavailable: '+metadataError.message);
+            if(!captionWarning)captionWarning=metadataError.message;
+          }
+        }
+        var duration;
+        try {
+          duration=parseYouTubeDurationSeconds($('youtubeDurationInput').value);
+          slices=planYouTubeTranscriptSlices(duration,
+            Number($('youtubeChunkMinutes').value),resumeMinute);
+        }catch(durationError){
+          throw new Error('Automatic duration lookup was unavailable'+
+            (captionWarning?' ('+captionWarning+')':'')+
+            '. Enter the YouTube video length in the fallback field. '+
+            durationError.message);
+        }
+        if(!key){
+          $('cfg').open=true;
+          throw new Error('No existing captions were imported. A Gemini API key '+
+            'is required to transcribe the video audio.');
+        }
+        if(!providerKey){
+          logSync('ℹ️ Caption provider not configured; Gemini transcription used with manually entered duration.');
+        }
+        progress.textContent='Captions unavailable. Using Gemini for '+
+          slices.length+' transcript segment(s).';
+
         var previousRaw='';
         for(var i=0;i<slices.length;i++){
           if(signal&&signal.aborted)throw new Error('Canceled');
@@ -2517,6 +2718,7 @@ var SITE_PATH = "/sites/Bible_App";
         }
         logSync('✓ YouTube segmented transcription: '+completedSegments+
           ' intervals from '+canonicalUrl+'. Save to SharePoint remains manual.');
+        $('youtubeResumeMinute').value='0';
         toast('YouTube transcript completed: '+completedSegments+' segments.');
       }else{
         var notesPrompt=getFullPromptText().replace('(No transcript entered yet)',
@@ -2575,7 +2777,7 @@ var SITE_PATH = "/sites/Bible_App";
 
   if (incomingYoutubeUrl) {
     try {
-      $('youtubeUrlInput').value = validatePublicYouTubeUrl(incomingYoutubeUrl);
+      $('youtubeUrlInput').value = trackYouTubeInputUrl(incomingYoutubeUrl);
       // Prepopulate and show the choice dialog; never run paid/API work
       // just because someone opened a link containing a youtubeUrl.
       if (!openChatRequested && !autoRunRequested) {
