@@ -2271,6 +2271,165 @@ var SITE_PATH = "/sites/Bible_App";
     return text;
   }
 
+  /* YouTube ingestion uses the same Gemini SSE executor, never YouTube
+     page scraping or browser downloads. Save remains a manual action. */
+  var youtubeBusy = false;
+  var youtubeAbortController = null;
+  var youtubeDlg = $('youtubeDlg');
+
+  function openYouTubeDialog() {
+    if (!youtubeDlg.open) {
+      if (youtubeDlg.showModal) youtubeDlg.showModal();
+      else youtubeDlg.setAttribute('open', '');
+    }
+    $('youtubeProgress').textContent = youtubeBusy ?
+      'Gemini is processing this video...' : '';
+    $('youtubeUrlInput').focus();
+  }
+
+  function closeYouTubeDialog() {
+    if (youtubeBusy && youtubeAbortController) {
+      youtubeAbortController.abort();
+    }
+    if (youtubeDlg.open) {
+      if (youtubeDlg.close) youtubeDlg.close();
+      else youtubeDlg.removeAttribute('open');
+    }
+  }
+
+  $('attachYoutubeBtn').addEventListener('click', openYouTubeDialog);
+  $('youtubeCancelBtn').addEventListener('click', closeYouTubeDialog);
+  $('youtubeCloseX').addEventListener('click', closeYouTubeDialog);
+  youtubeDlg.addEventListener('cancel', function() {
+    if (youtubeBusy && youtubeAbortController) youtubeAbortController.abort();
+  });
+
+  $('youtubeStartBtn').addEventListener('click', async function() {
+    if (youtubeBusy) return;
+    var canonicalUrl;
+    try { canonicalUrl = validatePublicYouTubeUrl($('youtubeUrlInput').value); }
+    catch (error) {
+      $('youtubeProgress').textContent = error.message;
+      $('youtubeUrlInput').focus();
+      return;
+    }
+    var model = getActiveModel(), key = getActiveKey();
+    if (!key) {
+      $('cfg').open = true;
+      $('youtubeProgress').textContent = 'Add a Gemini API key under AI Settings first.';
+      return;
+    }
+    var selected = document.querySelector('input[name="youtubeMode"]:checked');
+    var action = selected ? selected.value : 'transcribe';
+    var isTranscript = action === 'transcribe';
+    var oldTranscript = page.value, oldNotes = out.innerHTML;
+    if (isTranscript && oldTranscript.trim() &&
+        !confirm('Replace the existing transcript with a transcription of this YouTube sermon?')) return;
+    if (!isTranscript && out.innerText.trim() &&
+        !confirm('Replace the current study notes with notes generated from this YouTube sermon?')) return;
+
+    var button = this;
+    youtubeBusy = true;
+    button.disabled = true;
+    $('attachYoutubeBtn').disabled = true;
+    youtubeAbortController = typeof AbortController !== 'undefined' ?
+      new AbortController() : null;
+    var signal = youtubeAbortController ? youtubeAbortController.signal : undefined;
+    var progress = $('youtubeProgress');
+    var lastRendered = 0;
+    progress.textContent = 'Connecting to Gemini to analyze the public YouTube video...';
+    try {
+      var prompt;
+      if (isTranscript) {
+        prompt = 'Produce an accurate, chronological transcription of the spoken sermon in ' +
+          'the attached YouTube video. Include the spoken words rather than a summary. ' +
+          'Preserve paragraph breaks, biblical references and speaker changes when clear. ' +
+          'Do not invent words, passages, or details; mark unintelligible speech as [unclear]. ' +
+          'Return only the transcript, not a video description or introduction.';
+      } else {
+        // Reuse the active Reformed / sermon or devotional instruction preset.
+        prompt = getFullPromptText().replace('(No transcript entered yet)',
+          '(The public YouTube sermon is attached as the primary source video.)') +
+          '\n\nAnalyze the attached YouTube sermon as the primary source. ' +
+          'Follow the selected AI instruction style faithfully, and produce structured ' +
+          'expository study notes with the actual passage, careful biblical interpretation, ' +
+          'theological observations, cross-references and pastoral application. ' +
+          'Do not invent quotes or sermon statements. Return the study notes in Markdown.';
+      }
+      var fullResponse = await executeGeminiStreamRequest(model, key, prompt, [],
+        function(accumulatedText) {
+          if (signal && signal.aborted) return;
+          // Live results are drafts until the stream finishes successfully.
+          var now = Date.now();
+          if (now - lastRendered < 120) return;
+          if (isTranscript) {
+            page.value = accumulatedText;
+            page.scrollTop = page.scrollHeight;
+            updateUI();
+          } else {
+            out.innerHTML = mdToHtml(accumulatedText);
+          }
+          progress.textContent = (isTranscript ? 'Transcribing' : 'Generating notes') +
+            ' from YouTube with ' + model + '...';
+          lastRendered = now;
+        }, canonicalUrl, signal);
+
+      if (signal && signal.aborted) throw new Error('YouTube processing canceled.');
+      if (!fullResponse || !fullResponse.trim()) throw new Error('Gemini returned no text from this video.');
+      if (isTranscript) {
+        page.value = fullResponse.trim();
+        page.scrollTop = page.scrollHeight;
+        updateUI();
+      } else {
+        out.innerHTML = mdToHtml(fullResponse);
+        decorateScriptureReferences(out);
+        checkNotesState();
+      }
+      logSync('✓ YouTube ' + (isTranscript ? 'transcript' : 'study notes') +
+        ' generated via Gemini for ' + canonicalUrl + '. Not saved to SharePoint.');
+      toast(isTranscript ? 'YouTube transcript ready in editor!' :
+        'YouTube study notes ready for review!');
+      progress.textContent = '✓ Finished! Review and edit the result before saving.';
+      if (youtubeDlg.open) {
+        if (youtubeDlg.close) youtubeDlg.close();
+        else youtubeDlg.removeAttribute('open');
+      }
+    } catch (error) {
+      // Never leave a canceled or failed partial AI output as a saved result.
+      if (isTranscript) {
+        page.value = oldTranscript;
+        updateUI();
+      } else {
+        out.innerHTML = oldNotes;
+        checkNotesState();
+      }
+      var canceled = (signal && signal.aborted) || error.name === 'AbortError';
+      var message = canceled ? 'YouTube processing canceled; previous content restored.' :
+        ('YouTube processing failed: ' + error.message);
+      progress.textContent = message;
+      logSync((canceled ? 'ℹ️ ' : '❌ ') + message);
+      if (!canceled) alert(message + '\nConfirm the YouTube video is public and your Gemini model supports YouTube video input.');
+    } finally {
+      youtubeBusy = false;
+      youtubeAbortController = null;
+      button.disabled = false;
+      $('attachYoutubeBtn').disabled = false;
+    }
+  });
+
+  if (incomingYoutubeUrl) {
+    try {
+      $('youtubeUrlInput').value = validatePublicYouTubeUrl(incomingYoutubeUrl);
+      // Prepopulate and show the choice dialog; never run paid/API work
+      // just because someone opened a link containing a youtubeUrl.
+      if (!openChatRequested && !autoRunRequested) {
+        setTimeout(openYouTubeDialog, 350);
+      }
+    } catch (error) {
+      logSync('⚠️ Ignored invalid YouTube URL parameter: ' + error.message);
+    }
+  }
+
   $('copyPromptBtn').addEventListener('click',function(){
     copy(getFullPromptText()).then(function(){
       toast('Copied prompt + transcript! Ready to paste into Claude/ChatGPT.');
