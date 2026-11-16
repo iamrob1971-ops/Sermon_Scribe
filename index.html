@@ -2887,9 +2887,47 @@ var SITE_PATH = "/sites/Bible_App";
     var progress=$('youtubeProgress');
     var lastRendered=0, completedSegments=0;
     var committedTranscript=resumeMinute>0?oldTranscript.trimEnd():'';
-    progress.textContent='Connecting to Gemini to process the public YouTube video...';
+    progress.textContent='Preparing to process the public sermon media...';
 
     try {
+      // Supadata processes other supported platform posts and direct media files.
+      // Only YouTube uses Gemini's direct video URI fallback.
+      if(!isYouTube){
+        if(!providerKey)throw new Error('Enter a Supadata API key to transcribe this public media link.');
+        if(!isTranscript&&!key){$('cfg').open=true;throw new Error('A Gemini key is required to generate sermon notes.');}
+        progress.textContent=allowGeneration?'Retrieving or generating a Supadata transcript...':'Checking native captions through Supadata...';
+        var imported=await fetchExistingYouTubeTranscript(
+          canonicalUrl,providerKey,signal,function(message){progress.textContent=message;},
+          allowGeneration?'auto':'native');
+        if(signal&&signal.aborted)throw new Error('Canceled');
+        if(!imported||!imported.text)throw new Error('No existing transcript found. Enable Supadata AI transcription (uses credits) to generate one.');
+        if(isTranscript){
+          page.value='--- [Public Media Transcript · '+canonicalUrl+'] ---\n'+imported.text+'\n';
+          page.scrollTop=0;updateUI();scheduleSave();
+          logSync('✓ Imported Supadata public media transcript from '+canonicalUrl+'. SharePoint save remains manual.');
+          toast('Public media transcript imported successfully.');
+        }else{
+          var notesPrompt=getInstr()+'\n\nPublic sermon media: '+canonicalUrl+
+            '\n\nUse the following transcript as the source. Produce Scripture-first expository study notes, with careful cross-references, theological observations and pastoral applications. Do not invent sermon quotations.\n\n'+imported.text;
+          var generatedNotes=await executeGeminiStreamRequest(model,key,notesPrompt,[],function(accumulated){
+            if(signal&&signal.aborted)return;
+            if(Date.now()-lastRendered>=120){
+              out.innerHTML=mdToHtml(accumulated);
+              progress.textContent='Generating sermon study notes with '+model+'...';
+              lastRendered=Date.now();
+            }
+          },undefined,signal);
+          if(signal&&signal.aborted)throw new Error('Canceled');
+          if(!generatedNotes.trim())throw new Error('Gemini returned empty study notes.');
+          out.innerHTML=mdToHtml(generatedNotes);
+          decorateScriptureReferences(out);checkNotesState();
+          logSync('✓ Generated study notes from Supadata transcript: '+canonicalUrl);
+          toast('Public sermon study notes are ready for review.');
+        }
+        progress.textContent='✓ Public media processed. Save to SharePoint remains manual.';
+        if(youtubeDlg.open){if(youtubeDlg.close)youtubeDlg.close();else youtubeDlg.removeAttribute('open');}
+        return;
+      }
       if(isTranscript){
         // Step 1: Prefer the existing YouTube captions, even if imperfect.
         // This requires no Gemini request or hand-entered video duration.
@@ -3078,8 +3116,8 @@ var SITE_PATH = "/sites/Bible_App";
       }else{
         out.innerHTML=oldNotes;checkNotesState();
       }
-      var detail=canceled?'YouTube processing canceled.':
-        'YouTube processing interrupted: '+error.message;
+      var detail=canceled?'Public media processing canceled.':
+        'Public media processing interrupted: '+error.message;
       if(completedSegments){
         var resumeAt=slices[completedSegments]&&slices[completedSegments].start/60;
         detail+=' '+completedSegments+' completed segment(s) remain in the editor.'+
@@ -3088,7 +3126,7 @@ var SITE_PATH = "/sites/Bible_App";
       }else detail+=' Previous editor content restored.';
       progress.textContent=detail;
       logSync((canceled?'ℹ️ ':'❌ ')+detail);
-      if(!canceled)alert(detail+'\nNote: Gemini YouTube audio offsets can be unreliable; compare segments with the original video.');
+      if(!canceled)alert(detail+(isYouTube?'\nNote: Gemini YouTube audio offsets can be unreliable; compare segments with the original video.':''));
     }finally{
       youtubeBusy=false;youtubeAbortController=null;
       button.disabled=false;$('attachYoutubeBtn').disabled=false;
@@ -3104,7 +3142,7 @@ var SITE_PATH = "/sites/Bible_App";
         setTimeout(openYouTubeDialog, 350);
       }
     } catch (error) {
-      logSync('⚠️ Ignored invalid YouTube URL parameter: ' + error.message);
+      logSync('⚠️ Ignored invalid public media URL parameter: ' + error.message);
     }
   }
 
